@@ -1,4 +1,5 @@
 // @tc: TC-INFRA-04
+// @test: calls API and displays pong result
 // @story: INFRA
 // @ac: 1
 // @type: Happy

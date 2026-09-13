@@ -1,4 +1,5 @@
 # @tc: TC-INFRA-01
+# @test: test_health_returns_200
 # @story: INFRA
 # @ac: 1
 # @type: Happy
