@@ -27,3 +27,5 @@ Thumbs.db
 htmlcov/
 coverage.xml
 .pytest_cache/
+functional/playwright-report/
+functional/test-results/
