@@ -106,7 +106,8 @@ console.log('Done.');
 function collectPytestResults(results) {
   const junitPath = path.join(ROOT, 'backend', 'junit.xml');
   if (!fs.existsSync(junitPath)) {
-    console.log('  pytest: no junit.xml found, skipping');
+    console.log('  pytest: no junit.xml found — marking all pytest TCs as Fail');
+    markFrameworkFailed(results, 'pytest');
     return;
   }
 
@@ -131,7 +132,8 @@ function collectPytestResults(results) {
 function collectVitestResults(results) {
   const reportPath = path.join(ROOT, 'frontend', 'vitest-report.json');
   if (!fs.existsSync(reportPath)) {
-    console.log('  vitest: no vitest-report.json found, skipping');
+    console.log('  vitest: no vitest-report.json found — marking all vitest TCs as Fail');
+    markFrameworkFailed(results, 'vitest');
     return;
   }
 
@@ -139,7 +141,8 @@ function collectVitestResults(results) {
   try {
     report = JSON.parse(fs.readFileSync(reportPath, 'utf-8'));
   } catch {
-    console.log('  vitest: failed to parse JSON, skipping');
+    console.log('  vitest: failed to parse JSON — marking all vitest TCs as Fail');
+    markFrameworkFailed(results, 'vitest');
     return;
   }
 
@@ -171,7 +174,8 @@ function collectVitestResults(results) {
 function collectPlaywrightResults(results) {
   const reportPath = path.join(ROOT, 'functional', 'test-results', 'functional-results.json');
   if (!fs.existsSync(reportPath)) {
-    console.log('  playwright: no results.json found, skipping');
+    console.log('  playwright: no results.json found — marking all playwright TCs as Fail');
+    markFrameworkFailed(results, 'playwright');
     return;
   }
 
@@ -179,7 +183,8 @@ function collectPlaywrightResults(results) {
   try {
     report = JSON.parse(fs.readFileSync(reportPath, 'utf-8'));
   } catch {
-    console.log('  playwright: failed to parse JSON, skipping');
+    console.log('  playwright: failed to parse JSON — marking all playwright TCs as Fail');
+    markFrameworkFailed(results, 'playwright');
     return;
   }
 
@@ -237,6 +242,26 @@ function extractFailureMessage(body) {
   if (!body) return '';
   const match = body.match(/<failure[^>]*message="([^"]*)"/);
   return match ? match[1].slice(0, 200) : 'Failed';
+}
+
+/**
+ * When a framework's report file is missing (test runner crashed),
+ * mark all TCs belonging to that framework as Fail so the sheet
+ * reflects the infrastructure failure.
+ */
+function markFrameworkFailed(results, framework) {
+  const collectedIds = new Set(results.map(r => r.tcId));
+
+  for (const tc of testCases) {
+    if (tc.framework !== framework) continue;
+    if (collectedIds.has(tc.tcId)) continue;
+
+    results.push({
+      tcId: tc.tcId,
+      status: 'Fail',
+      actualResult: `Test runner crashed — no ${framework} report generated`,
+    });
+  }
 }
 
 // ============================================================

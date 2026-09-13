@@ -16,10 +16,10 @@ const path = require('path');
 const ROOT = path.resolve(__dirname, '..', '..');
 
 const SCAN_DIRS = [
-  { dir: path.join(ROOT, 'backend', 'tests'), ext: '.py', comment: '#' },
-  { dir: path.join(ROOT, 'frontend', 'src', '__tests__'), ext: '.jsx', comment: '//' },
-  { dir: path.join(ROOT, 'frontend', 'src', '__tests__'), ext: '.js', comment: '//' },
-  { dir: path.join(ROOT, 'functional', 'tests'), ext: '.spec.js', comment: '//' },
+  { dir: path.join(ROOT, 'backend', 'tests'), ext: '.py', comment: '#', framework: 'pytest' },
+  { dir: path.join(ROOT, 'frontend', 'src', '__tests__'), ext: '.jsx', comment: '//', framework: 'vitest' },
+  { dir: path.join(ROOT, 'frontend', 'src', '__tests__'), ext: '.js', comment: '//', framework: 'vitest' },
+  { dir: path.join(ROOT, 'functional', 'tests'), ext: '.spec.js', comment: '//', framework: 'playwright' },
 ];
 
 const FIELDS = ['tc', 'test', 'story', 'ac', 'type', 'scenario', 'preconditions', 'steps', 'test_data', 'expected'];
@@ -71,8 +71,12 @@ function scanDirectory(dir, ext, comment) {
 function main() {
   const allCases = [];
 
-  for (const { dir, ext, comment } of SCAN_DIRS) {
-    allCases.push(...scanDirectory(dir, ext, comment));
+  for (const { dir, ext, comment, framework } of SCAN_DIRS) {
+    const blocks = scanDirectory(dir, ext, comment);
+    for (const b of blocks) {
+      b.framework = framework;
+    }
+    allCases.push(...blocks);
   }
 
   // Deduplicate by tcId (last wins)
@@ -83,6 +87,7 @@ function main() {
 
   const testCases = Object.values(byId).map(tc => ({
     tcId: tc.tc,
+    framework: tc.framework || '',
     test: tc.test || '',
     story: tc.story || '',
     ac: tc.ac || '',
