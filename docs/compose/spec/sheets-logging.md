@@ -10,7 +10,7 @@ commits: 99b6890..<pending>
 
 ## Report
 
-**What was built** — Apps Script (deployed to Google Sheets) with two endpoints: `?action=testcases` (upsert, no dupes) and `?action=executions` (append). CI-side: `parse-metadata.js` extracts `@tc` blocks from all test files; `log-results.js` collects results from pytest/vitest/playwright, maps to TC IDs via the `@test` field, and POSTs to the Apps Script. CI workflow gained a fourth job (`log-to-sheet`) that runs after all three test jobs, downloads their result artifacts, and calls the logging script. Each test file now includes a `@test` field mapping the TC ID to the test function name.
+**What was built** — Apps Script (deployed to Google Sheets) with two endpoints: `?action=testcases` (upsert, no dupes) and `?action=executions` (append). CI-side scripts in `.github/scripts/`: `parse-metadata.js` extracts `@tc` blocks from all test files; `log-results.js` collects results from pytest/vitest/playwright, maps to TC IDs via the `@test` field, and POSTs to the Apps Script. CI workflow gained a fourth job (`log-to-sheet`) that runs after all three test jobs, downloads their result artifacts, and calls the logging script. Each test file now includes a `@test` field mapping the TC ID to the test function name.
 
 **Verification** — `parse-metadata.js` correctly extracts 5 TCs. `log-results.js` collects 5 results (2 pytest + 2 vitest + 1 playwright) and maps all TC IDs. POST fails locally (no webhook) as expected.
 
@@ -54,8 +54,9 @@ Each test file now includes a `@test` field mapping TC ID to the test function n
 
 | Script | Purpose |
 |---|---|
-| `scripts/parse-metadata.js` | Scans test files, extracts `@tc` blocks, outputs JSON |
-| `scripts/log-results.js` | Collects results from all frameworks, maps to TC IDs, POSTs to sheet |
+| `.github/scripts/parse-metadata.js` | Scans test files, extracts `@tc` blocks, outputs JSON |
+| `.github/scripts/log-results.js` | Collects results from all frameworks, maps to TC IDs, POSTs to sheet |
+| `.github/scripts/apps-script.gs` | Reference copy of the Google Sheets Apps Script |
 
 `log-results.js` reads:
 - `backend/junit.xml` (pytest JUnit XML)

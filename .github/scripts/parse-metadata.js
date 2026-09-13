@@ -13,7 +13,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const ROOT = path.resolve(__dirname, '..');
+const ROOT = path.resolve(__dirname, '..', '..');
 
 const SCAN_DIRS = [
   { dir: path.join(ROOT, 'backend', 'tests'), ext: '.py', comment: '#' },

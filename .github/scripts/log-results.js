@@ -3,7 +3,7 @@
  * CI logging script: collects test results and POSTs to Google Sheets.
  *
  * Usage:
- *   node scripts/log-results.js --commit <sha> --pr <number> --webhook <url>
+ *   node .github/scripts/log-results.js --commit <sha> --pr <number> --webhook <url>
  *
  * Reads test results from:
  *   backend/junit.xml          (pytest --junitxml)
@@ -18,7 +18,7 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
-const ROOT = path.resolve(__dirname, '..');
+const ROOT = path.resolve(__dirname, '..', '..');
 
 // --- CLI args ---
 const args = process.argv.slice(2);
@@ -42,7 +42,7 @@ if (!WEBHOOK) {
 console.log('Step 1: Parsing @tc metadata from test files...');
 let testCases = [];
 try {
-  const metaOut = execSync(`node "${path.join(ROOT, 'scripts', 'parse-metadata.js')}"`, {
+  const metaOut = execSync(`node "${path.join(ROOT, '.github', 'scripts', 'parse-metadata.js')}"`, {
     encoding: 'utf-8',
     maxBuffer: 10 * 1024 * 1024,
   });
