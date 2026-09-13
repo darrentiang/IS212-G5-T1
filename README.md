@@ -5,8 +5,9 @@ Monorepo for the IS212 group project.
 ## Project Structure
 
 ```
-backend/    Python Flask API
-frontend/   React + Vite + Tailwind CSS
+backend/     Python Flask API
+frontend/    React + Vite + Tailwind CSS
+functional/  Playwright functional tests
 ```
 
 ## Prerequisites
