@@ -11,4 +11,4 @@
 def test_ping_returns_pong(client):
     resp = client.get("/api/ping")
     assert resp.status_code == 200
-    assert resp.get_json() == {"message": "pong"}
+    assert resp.get_json() == {"message": "pong!"}  # intentionally broken for CI failure test
