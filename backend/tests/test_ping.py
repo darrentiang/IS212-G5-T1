@@ -1,4 +1,5 @@
 # @tc: TC-INFRA-02
+# @test: test_ping_returns_pong
 # @story: INFRA
 # @ac: 1
 # @type: Happy

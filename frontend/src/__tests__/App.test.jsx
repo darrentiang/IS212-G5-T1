@@ -1,4 +1,5 @@
 // @tc: TC-INFRA-03
+// @test: renders heading and ping button
 // @story: INFRA
 // @ac: 1
 // @type: Happy

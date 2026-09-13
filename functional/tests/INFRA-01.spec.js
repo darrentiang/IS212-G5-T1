@@ -1,4 +1,5 @@
 // @tc: TC-INFRA-05
+// @test: ping button calls backend and shows pong
 // @story: INFRA
 // @ac: 1
 // @type: Happy
