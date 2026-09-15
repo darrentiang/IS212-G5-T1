@@ -18,17 +18,31 @@ jobs:
           cache-dependency-path: backend/requirements.txt
 
       - name: Install dependencies
-        run: pip install -r backend/requirements.txt pytest pytest-cov
+        run: pip install -r backend/requirements.txt
 
       - name: Run tests
-        run: cd backend && pytest --cov=. --cov-report=xml -v
+        run: cd backend && pytest --cov=. --cov-report=xml --cov-report=html --cov-report=term-missing -v
 
-      - name: Upload coverage
+      - name: Coverage summary
+        if: always()
+        run: |
+          cd backend
+          echo "## Pytest coverage" >> "$GITHUB_STEP_SUMMARY"
+          coverage report --format=markdown >> "$GITHUB_STEP_SUMMARY" || echo "no coverage data" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload coverage (XML)
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: pytest-coverage
           path: backend/coverage.xml
+
+      - name: Upload coverage report (HTML)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-coverage-html
+          path: backend/htmlcov/
 
       - name: Upload JUnit results
         if: always()
@@ -53,9 +67,20 @@ jobs:
         run: cd frontend && npm ci
 
       - name: Run tests
-        run: cd frontend && npx vitest run --coverage --reporter=default --reporter=json --outputFile=vitest-report.json
+        run: cd frontend && npx vitest run --coverage --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary --reporter=default --reporter=json --outputFile=vitest-report.json
 
-      - name: Upload coverage
+      - name: Coverage summary
+        if: always()
+        run: |
+          cd frontend
+          echo "## Vitest coverage" >> "$GITHUB_STEP_SUMMARY"
+          node -e '
+            const s = require("./coverage/coverage-summary.json").total;
+            const row = k => `| ${k} | ${s[k].pct}% (${s[k].covered}/${s[k].total}) |`;
+            console.log("| Metric | Coverage |\n|---|---|\n" + ["lines","statements","branches","functions"].map(row).join("\n"));
+          ' >> "$GITHUB_STEP_SUMMARY" || echo "no coverage data" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload coverage report (HTML)
         if: always()
         uses: actions/upload-artifact@v4
         with:

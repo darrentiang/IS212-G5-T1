@@ -13,7 +13,7 @@ description: How the CI/CD pipeline works for this project — branch model, wha
 
 - One story per branch. Branch naming: `<type>/SCRUM-<n>-<short-slug>`, type ∈ `feature`, `fix`, `docs`, `chore`. Example: `feature/SCRUM-26-login`.
 - Commit messages and PR titles start with the Jira key: `SCRUM-26: add password hashing`.
-- `main` is always green. Only merge after CI passes.
+- `main` is always green. Only merge after CI passes. GitHub enforces this: `.github/rulesets/main.json` (imported under Settings → Rules) blocks direct pushes and requires Pytest, Vitest and Functional to pass; approval is requested on every PR but not enforced by GitHub, the Working Agreement enforces it.
 - Push freely to story branches. CI only runs on PRs to main.
 
 ## What runs on every PR to main
@@ -27,10 +27,14 @@ description: How the CI/CD pipeline works for this project — branch model, wha
 
 Jobs 1–3 run in parallel. All must pass for merge. Job 4 runs after and logs the Playwright results against their TC IDs. It never edits the Test cases tab; those rows are written by the team before the story is built (see `docs/test-cases/PROMPT.md`). Unit test results are visible in the CI log and artifacts only.
 
+## Reports on every PR
+
+Each run's Summary page shows a coverage table for Pytest and Vitest. Downloadable artifacts (90 days): `pytest-coverage-html` (open `index.html`), `vitest-coverage` (open `index.html`), `playwright-report` (open `index.html`), plus the raw `pytest-junit`, `vitest-json` and `functional-json` results the Log to Sheet job reads.
+
 ## How to run tests locally before pushing
 
 ```bash
-# Backend unit tests
+# Backend unit tests (add --cov=. --cov-report=html for a local htmlcov/ report)
 cd backend && python -m pytest tests/ -v
 
 # Frontend unit tests
