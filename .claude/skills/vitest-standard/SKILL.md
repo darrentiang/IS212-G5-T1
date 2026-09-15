@@ -1,153 +1,96 @@
 ---
 name: vitest-standard
-description: How to write frontend unit tests with Vitest for this project — @tc metadata format, test derivation from acceptance criteria, React Testing Library patterns, and mocking. Use when writing, reviewing, or fixing frontend unit tests, or when implementing a user story that needs frontend tests.
+description: How to write frontend unit tests with Vitest for this project — @story/@ac link header, what frontend unit tests cover, React Testing Library patterns, and mocking the API module. Use when writing, reviewing, or fixing frontend unit tests, or when implementing a user story that needs frontend tests.
 ---
 
 # Vitest Standard — Frontend Unit Tests
+
+Functional test cases live in the team test sheet and are proved by Playwright, not by unit tests. Read `docs/test-cases/AUTOMATION.md` first. Frontend unit tests stay minimal: rendering and behaviour the functional tests do not cover. They carry no TC ID.
 
 ## Location
 
 All frontend tests go in `frontend/src/__tests__/`. File naming: `<Component>.test.jsx`.
 
-## @tc metadata (REQUIRED)
+## Link header (REQUIRED)
 
-Every test file MUST begin with a metadata block using `//` comments. The CI pipeline parses these to populate the Test cases sheet.
+Every `it()` block is preceded by a two-line `//` header. CI reads it to log the execution against the story.
 
 ```javascript
-// @tc: TC-<STORY>-<NN>
-// @test: <exact_test_name_as_in_it_block>
-// @story: <story_id>
+// @story: SCRUM-<n>
 // @ac: <acceptance_criterion_numbers>
-// @type: Happy | Cross | Negative | Boundary
-// @scenario: <one-line description>
-// @preconditions: <state needed>
-// @steps: <numbered steps>
-// @test_data: <specific inputs>
-// @expected: <expected result>
-import { describe, it, expect } from 'vitest'
-import { render, screen } from '@testing-library/react'
-import MyComponent from '../MyComponent'
-
-describe('MyComponent', () => {
-  it('<exact name matching @test field>', () => {
-    // ...
-  })
+it('<test name>', () => {
+  // ...
 })
 ```
 
-### Critical: @test must match the it() block name exactly
+No `@tc` line. TC IDs belong to functional rows in the sheet.
 
-```
-// @test: renders heading and ping button
-...
-it('renders heading and ping button', () => { ... })
-```
+## What to test
 
-If they don't match, the CI cannot map results to TC IDs.
+- Component renders the right fields and controls
+- Role-based UI: elements shown or hidden by role (the API decides permissions; the UI only reflects them)
+- Error and empty states (API failure, empty list)
+- Behaviour not worth a browser test (formatting, disabled states)
 
-## Test derivation method
+## Mocking rules
 
-Same 5-step method as backend:
-
-1. **Visualise workflow** — what does the user see and do?
-2. **Happy path** — renders correctly, handles valid interaction
-3. **Cross-cutting** — role-based UI, permission-gated elements
-4. **Negative** — error states, API failures, invalid input
-5. **Boundary** — empty lists, long text, max values
+- Components never call `fetch` directly; they call functions in `frontend/src/api.js`. Mock that module with `vi.mock('../api')` — never mock `global.fetch` in a component test.
+- Call `vi.restoreAllMocks()` in `afterEach` to prevent cross-test contamination
+- If importing JSON fixture data, use `structuredClone(data)` to avoid mutation leaking between tests
 
 ## Patterns
 
 ### Component renders
 
 ```javascript
-// @tc: TC-02-01
-// @test: renders event form with all fields
-// @story: PB-02
-// @ac: 1
-// @type: Happy
-// @scenario: Event form displays all required inputs
-// @preconditions: None
-// @steps: 1. Render EventForm component
-// @test_data: none
-// @expected: Name, date, and attendance fields are visible
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import EventForm from '../components/EventForm'
+import LoginForm from '../components/LoginForm'
 
-describe('EventForm', () => {
-  it('renders event form with all fields', () => {
-    render(<EventForm />)
-    expect(screen.getByLabelText(/name/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/date/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/attendance/i)).toBeInTheDocument()
+describe('LoginForm', () => {
+  // @story: SCRUM-26
+  // @ac: 1
+  it('renders username, password and submit', () => {
+    render(<LoginForm />)
+    expect(screen.getByLabelText(/username/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/password/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /log in/i })).toBeInTheDocument()
   })
 })
 ```
 
-### API call with mock
+### API call with the module mocked
 
 ```javascript
-// @tc: TC-02-02
-// @test: submits form and shows success message
-// @story: PB-02
-// @ac: 2
-// @type: Happy
-// @scenario: Form submission calls API and displays confirmation
-// @preconditions: API mock returns 201
-// @steps: 1. Fill form 2. Click submit 3. Wait for response
-// @test_data: mock response {id: 1, name: "Test Event"}
-// @expected: Success message is displayed
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import EventForm from '../components/EventForm'
+import * as api from '../api'
+import LoginForm from '../components/LoginForm'
+
+vi.mock('../api')
 
 afterEach(() => {
   vi.restoreAllMocks()
 })
 
-describe('EventForm', () => {
-  it('submits form and shows success message', async () => {
-    vi.spyOn(global, 'fetch').mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ id: 1, name: 'Test Event' }),
-    })
+describe('LoginForm', () => {
+  // @story: SCRUM-26
+  // @ac: 3
+  it('shows the error returned by the API', async () => {
+    api.login.mockRejectedValue(new Error('Invalid username or password'))
 
-    render(<EventForm />)
-    await userEvent.type(screen.getByLabelText(/name/i), 'Test Event')
-    await userEvent.click(screen.getByText(/submit/i))
+    render(<LoginForm />)
+    await userEvent.type(screen.getByLabelText(/username/i), 'org1')
+    await userEvent.type(screen.getByLabelText(/password/i), 'wrong')
+    await userEvent.click(screen.getByRole('button', { name: /log in/i }))
 
     await waitFor(() => {
-      expect(screen.getByText(/success/i)).toBeInTheDocument()
+      expect(screen.getByText(/invalid username or password/i)).toBeInTheDocument()
     })
   })
 })
 ```
-
-### Error state
-
-```javascript
-it('shows error when API fails', async () => {
-  vi.spyOn(global, 'fetch').mockResolvedValue({
-    ok: false,
-    status: 500,
-    json: () => Promise.resolve({ error: 'Server error' }),
-  })
-
-  render(<EventForm />)
-  await userEvent.click(screen.getByText(/submit/i))
-
-  await waitFor(() => {
-    expect(screen.getByText(/error/i)).toBeInTheDocument()
-  })
-})
-```
-
-## Mocking rules
-
-- Mock `global.fetch` for API calls — never hit a real server in unit tests
-- Call `vi.restoreAllMocks()` in `afterEach` to prevent cross-test contamination
-- If importing JSON fixture data, use `structuredClone(data)` to avoid mutation leaking between tests
 
 ## Running tests
 
@@ -155,14 +98,13 @@ it('shows error when API fails', async () => {
 cd frontend
 npm run test              # run all
 npm run test:watch        # watch mode
-npx vitest run src/__tests__/EventForm.test.jsx  # one file
+npx vitest run src/__tests__/LoginForm.test.jsx  # one file
 ```
 
 ## Definition of Done for tests
 
-- [ ] Every test has a complete `@tc` metadata block
-- [ ] `@test` field matches the `it()` block name exactly
-- [ ] API calls are mocked — no real network requests
-- [ ] Happy path, error, and edge cases covered
+- [ ] Every test has the `@story` / `@ac` header; no `@tc`
+- [ ] The API module is mocked — no `fetch` mocks, no real network requests
+- [ ] Only behaviour the functional tests do not cover
 - [ ] Tests pass locally: `npm run test` is green
 - [ ] A human can explain what each test verifies
