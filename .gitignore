@@ -31,3 +31,4 @@ functional/playwright-report/
 functional/test-results/
 backend/junit.xml
 frontend/vitest-report.json
+frontend/coverage/
