@@ -6,7 +6,7 @@ Read this before writing Playwright or unit tests for a story. The test-case row
 1. The story's rows exist in the "Test cases" tab, curated and reviewed (see `PROMPT.md`). If they do not, stop: write and curate the rows first.
 2. Build the story.
 3. Write the tests below. Run all three suites locally.
-4. Open the pull request. CI runs the suites and appends every result to the "Executions" tab. CI never edits the "Test cases" tab.
+4. Open the pull request. CI runs the suites and appends every Playwright result to the "Executions" tab against its TC ID. CI never edits the "Test cases" tab. Unit test results stay in the CI log.
 
 ## Playwright (functional tests) — `functional/tests/<story key>.spec.js`
 - One spec file per story, e.g. `SCRUM-26.spec.js`.

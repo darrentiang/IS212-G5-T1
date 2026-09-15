@@ -23,9 +23,9 @@ description: How the CI/CD pipeline works for this project — branch model, wha
 | 1 | Pytest | pytest | Backend unit tests (`backend/tests/`) |
 | 2 | Vitest | vitest | Frontend unit tests (`frontend/src/__tests__/`) |
 | 3 | Functional | Playwright | Browser tests (`functional/tests/`) |
-| 4 | Log to Sheet | Node.js | Appends every result to the Executions tab of the team test sheet |
+| 4 | Log to Sheet | Node.js | Appends every Playwright result to the Executions tab of the team test sheet |
 
-Jobs 1–3 run in parallel. All must pass for merge. Job 4 runs after and logs results. It never edits the Test cases tab; those rows are written by the team before the story is built (see `docs/test-cases/PROMPT.md`).
+Jobs 1–3 run in parallel. All must pass for merge. Job 4 runs after and logs the Playwright results against their TC IDs. It never edits the Test cases tab; those rows are written by the team before the story is built (see `docs/test-cases/PROMPT.md`). Unit test results are visible in the CI log and artifacts only.
 
 ## How to run tests locally before pushing
 

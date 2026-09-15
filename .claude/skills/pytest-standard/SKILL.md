@@ -13,7 +13,7 @@ All backend tests go in `backend/tests/`. File naming: `test_<feature>.py`.
 
 ## Link header (REQUIRED)
 
-Every test function is preceded by a two-line header. CI reads it to log the execution against the story.
+Every test function is preceded by a two-line header so a reviewer can see which story and criterion the test protects. CI does not parse unit tests; their results stay in the CI log.
 
 ```python
 # @story: SCRUM-<n>

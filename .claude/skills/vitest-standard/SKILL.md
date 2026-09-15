@@ -13,7 +13,7 @@ All frontend tests go in `frontend/src/__tests__/`. File naming: `<Component>.te
 
 ## Link header (REQUIRED)
 
-Every `it()` block is preceded by a two-line `//` header. CI reads it to log the execution against the story.
+Every `it()` block is preceded by a two-line `//` header so a reviewer can see which story and criterion the test protects. CI does not parse unit tests; their results stay in the CI log.
 
 ```javascript
 // @story: SCRUM-<n>
