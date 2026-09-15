@@ -1,0 +1,98 @@
+# State model
+
+Every acceptance criterion that changes a status uses a value from these tables. Adding a status or transition means changing this file first, in the same pull request as the story that needs it.
+
+| Version | Date | Change | Reason |
+|---|---|---|---|
+| 1.0 | 10-09-2026 | Initial model | Pre-sprint preparation |
+| 1.1 | 15-09-2026 | Event request: removed Under Clarification (clarification is a flag on Submitted); added Rejected → Submitted; added Confirmed → Planning; Approved → Planning is by system assignment; Confirm requires every recorded arrangement approved; Cancelled is terminal | Customer clarifications Q-01, Q-11 (decision log); team decisions D-13, D-14, D-15, D-16 |
+
+## Event request
+
+| From | To | Action | Who |
+|---|---|---|---|
+| — | Draft | Save a new request without submitting | Event Organiser |
+| Draft | Submitted | Submit | Event Organiser |
+| — | Submitted | Submit a new request directly | Event Organiser |
+| Submitted | Approved | Approve | Event Coordinator |
+| Submitted | Rejected | Reject (reason required) | Event Coordinator |
+| Rejected | Submitted | Revise and resubmit | Event Organiser |
+| Approved | Planning | Coordinator auto-assigned by the system | System |
+| Planning | Confirmed | Confirm (every recorded arrangement approved) | Event Coordinator |
+| Confirmed | Planning | Significant change accepted via change request | Event Coordinator |
+| Confirmed | Completed | Mark completed after the event | Event Coordinator |
+| Planning / Confirmed | Cancelled | Cancel | Authorised user (SCRUM-65 defines who) |
+
+Flags on a Submitted request, not statuses: **clarification requested** (set by the Event Coordinator, cleared when the Event Organiser responds). Cancelled has no outgoing transition; a new request is submitted instead.
+
+```mermaid
+stateDiagram-v2
+    [*] --> Draft: Save without submitting
+    Draft --> Submitted: Submit
+    [*] --> Submitted: Submit directly
+    Submitted --> Approved: Approve
+    Submitted --> Rejected: Reject (reason required)
+    Rejected --> Submitted: Revise and resubmit
+    Approved --> Planning: Coordinator auto-assigned
+    Planning --> Confirmed: Confirm (all arrangements approved)
+    Confirmed --> Planning: Significant change accepted
+    Confirmed --> Completed: Mark completed
+    Planning --> Cancelled: Cancel
+    Confirmed --> Cancelled: Cancel
+```
+
+## Venue booking request
+
+| From | To | Action | Who |
+|---|---|---|---|
+| — | Requested | Raise a booking request | Event Coordinator |
+| Requested | Approved | Approve (conflict check passes) | Venue Staff |
+| Requested | Rejected | Reject (reason required) | Venue Staff |
+| Requested | Withdrawn | Withdraw before a decision | Event Coordinator |
+
+```mermaid
+stateDiagram-v2
+    [*] --> Requested: Raise a booking request
+    Requested --> Approved: Approve (conflict check passes)
+    Requested --> Rejected: Reject (reason required)
+    Requested --> Withdrawn: Withdraw before a decision
+```
+
+## Equipment reservation
+
+| From | To | Action | Who |
+|---|---|---|---|
+| — | Reserved | Reserve units for the event period | Technical Support Staff |
+| Reserved | Released | Release | Technical Support Staff |
+
+```mermaid
+stateDiagram-v2
+    [*] --> Reserved: Reserve units for the event period
+    Reserved --> Released: Release
+```
+
+## Equipment unit
+
+| From | To | Action | Who |
+|---|---|---|---|
+| In Service | Out of Service | Withdraw from service (reason required) | Technical Support Staff |
+| Out of Service | In Service | Return to service | Technical Support Staff |
+
+```mermaid
+stateDiagram-v2
+    In_Service --> Out_of_Service: Withdraw from service (reason required)
+    Out_of_Service --> In_Service: Return to service
+```
+
+## Registration
+
+| From | To | Action | Who |
+|---|---|---|---|
+| — | Registered | Register within the window and capacity | Attendee |
+| Registered | Withdrawn | Withdraw | Attendee |
+
+```mermaid
+stateDiagram-v2
+    [*] --> Registered: Register within the window and capacity
+    Registered --> Withdrawn: Withdraw
+```
