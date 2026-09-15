@@ -1,0 +1,13 @@
+# Store text files with LF in the repository; each machine checks out with its native line ending.
+* text=auto
+
+# Always LF, even on Windows: shell scripts and CI config must not carry CR.
+*.sh text eol=lf
+*.yml text eol=lf
+
+# Binary files: never touch line endings.
+*.png binary
+*.jpg binary
+*.ico binary
+*.pdf binary
+*.xlsx binary

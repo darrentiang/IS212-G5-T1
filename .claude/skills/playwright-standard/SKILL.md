@@ -1,9 +1,11 @@
 ---
 name: playwright-standard
-description: How to write functional tests with Playwright for this project — per-story spec conventions, @tc metadata format, browser test patterns, and the full-stack testing approach. Use when writing, reviewing, or fixing functional/Playwright tests, or when implementing a user story that needs browser-level testing.
+description: How to write functional tests with Playwright for this project — per-story spec conventions, the @tc link header, browser test patterns, and the full-stack testing approach. Use when writing, reviewing, or fixing functional/Playwright tests, or when implementing a user story that needs browser-level testing.
 ---
 
 # Playwright Standard — Functional Tests
+
+Test cases come from the team test sheet, not from this file. Read `docs/test-cases/AUTOMATION.md` first: it says how a Playwright test maps to a sheet row. This skill covers how to write the test itself.
 
 ## What these are
 
@@ -11,23 +13,17 @@ Functional tests verify one user story's flow through the real stack: browser �
 
 ## Location
 
-All functional tests go in `functional/tests/`. File naming: `<story-id>.spec.js` (e.g. `PB-01.spec.js`).
+All functional tests go in `functional/tests/`. File naming: `<jira-key>.spec.js` (e.g. `SCRUM-26.spec.js`).
 
-## @tc metadata (REQUIRED)
+## @tc link header (REQUIRED)
+
+One `test()` per curated row in the Test cases tab, in the row's order. The header above each test carries link fields only; the sheet holds the scenario, preconditions, steps, test data and expected result.
 
 ```javascript
-// @tc: TC-<STORY>-<NN>
+// @tc: TC-SCRUM-<n>-<nn>
 // @test: <exact_test_name_as_in_test_block>
-// @story: <story_id>
+// @story: SCRUM-<n>
 // @ac: <acceptance_criterion_numbers>
-// @type: Happy | Cross | Negative | Boundary
-// @scenario: <one-line description>
-// @preconditions: <state needed>
-// @steps: <numbered steps>
-// @test_data: <specific inputs>
-// @expected: <expected result>
-import { test, expect } from '@playwright/test'
-
 test('<exact name matching @test field>', async ({ page }) => {
   // ...
 })
@@ -35,61 +31,52 @@ test('<exact name matching @test field>', async ({ page }) => {
 
 ### Critical: @test must match the test() block name exactly
 
+CI matches results to TC IDs by this name. If they differ, the execution is logged without a TC ID.
+
 ```
-// @test: event organiser creates a valid event request
+// @test: wrong password is refused
 ...
-test('event organiser creates a valid event request', async ({ page }) => { ... })
+test('wrong password is refused', async ({ page }) => { ... })
 ```
 
 ## Spec file structure
 
-One spec file per user story. Multiple tests within the file cover different scenarios (Happy, Negative, Boundary).
+One spec file per user story. Multiple tests within the file cover the story's scenarios (Happy, Cross, Negative, Boundary), one per row in the Test cases tab.
 
 ```javascript
-// @tc: TC-01-01
-// @test: event organiser creates a valid event request
-// @story: PB-01
-// @ac: 1, 2
-// @type: Happy
-// @scenario: Event organiser fills form and submits successfully
-// @preconditions: Event organiser account exists, logged in
-// @steps: 1. Navigate to event creation 2. Fill form 3. Submit 4. Verify confirmation
-// @test_data: Event name "Annual Conference", date "2026-11-15", attendance 100
-// @expected: Success message shown, event appears in list
 import { test, expect } from '@playwright/test'
 
-test('event organiser creates a valid event request', async ({ page }) => {
-  await page.goto('/events/new')
+// @tc: TC-SCRUM-26-01
+// @test: organiser logs in with valid credentials
+// @story: SCRUM-26
+// @ac: 1
+test('organiser logs in with valid credentials', async ({ page }) => {
+  await page.goto('/login')
 
-  await page.fill('[data-testid="event-name"]', 'Annual Conference')
-  await page.fill('[data-testid="event-date"]', '2026-11-15')
-  await page.fill('[data-testid="event-attendance"]', '100')
-  await page.click('button[type="submit"]')
+  await page.fill('[data-testid="username"]', 'org1')
+  await page.fill('[data-testid="password"]', 'Passw0rd!')
+  await page.click('[data-testid="login-submit"]')
 
-  await expect(page.getByText(/success/i)).toBeVisible()
-  await expect(page.getByText('Annual Conference')).toBeVisible()
+  await expect(page.getByTestId('current-role')).toHaveText(/event organiser/i)
 })
 
-// @tc: TC-01-02
-// @test: event creation fails with empty name
-// @story: PB-01
+// @tc: TC-SCRUM-26-02
+// @test: wrong password is refused
+// @story: SCRUM-26
 // @ac: 3
-// @type: Negative
-// @scenario: Submitting with empty name shows validation error
-// @preconditions: Event creation form is open
-// @steps: 1. Leave name empty 2. Submit 3. Verify error
-// @test_data: empty name, valid date and attendance
-// @expected: Error message about required name field
-test('event creation fails with empty name', async ({ page }) => {
-  await page.goto('/events/new')
+test('wrong password is refused', async ({ page }) => {
+  await page.goto('/login')
 
-  await page.fill('[data-testid="event-date"]', '2026-11-15')
-  await page.fill('[data-testid="event-attendance"]', '100')
-  await page.click('button[type="submit"]')
+  await page.fill('[data-testid="username"]', 'org1')
+  await page.fill('[data-testid="password"]', 'wrong')
+  await page.click('[data-testid="login-submit"]')
 
-  await expect(page.getByText(/name.*required/i)).toBeVisible()
+  await expect(page.getByTestId('login-error')).toBeVisible()
+  await expect(page).toHaveURL(/\/login$/)
 })
 ```
+
+Map the row to the test: Preconditions → setup (seeded accounts, objects created through the UI or API before the steps); Steps → the actions in order; Test data → the values typed; Expected result → the assertions. Where the row says "nothing changed", reload and assert the state is unchanged.
 
 ## Selector strategy
 
@@ -120,7 +107,7 @@ Each test must be independent. No test should depend on another test's side effe
 ```javascript
 // BAD — second test depends on first
 test('creates event', async ({ page }) => { /* creates "Conference" */ })
-test('deletes event', async ({ page') => { /* assumes "Conference" exists */ })
+test('deletes event', async ({ page }) => { /* assumes "Conference" exists */ })
 
 // GOOD — each test sets up its own state
 test('creates event', async ({ page }) => { /* creates its own event */ })
@@ -137,7 +124,7 @@ cd functional
 npm run test              # headless
 npm run test:headed       # watch in browser
 npm run test:report       # open HTML report
-npx playwright test tests/PB-01.spec.js  # one spec file
+npx playwright test tests/SCRUM-26.spec.js  # one spec file
 ```
 
 The Playwright config auto-starts Flask (:5000) and Vite (:5173) before tests run.
@@ -159,10 +146,10 @@ The Playwright config auto-starts Flask (:5000) and Vite (:5173) before tests ru
 
 ## Definition of Done for tests
 
-- [ ] Every test has a complete `@tc` metadata block
+- [ ] Every curated row for the story in the Test cases tab has exactly one test
+- [ ] Every test has the 4-field `@tc` link header; no description fields in the file
 - [ ] `@test` field matches the `test()` block name exactly
 - [ ] Uses `data-testid` selectors, not CSS classes or text
 - [ ] Tests are independent — no cross-test dependencies
-- [ ] Happy path, negative, and boundary scenarios covered
 - [ ] Tests pass locally: `npm run test` is green
 - [ ] A human can explain what each test verifies

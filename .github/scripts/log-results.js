@@ -10,8 +10,13 @@
  *   frontend/vitest-report.json (vitest --reporter=json)
  *   functional/test-results/functional-results.json (playwright)
  *
- * Parses @tc metadata from test files to map results to TC IDs.
- * POSTs test case definitions and execution logs to the Apps Script webhook.
+ * Parses @tc link headers from Playwright specs to map results to TC IDs and
+ * appends one row per functional test result to the Executions tab.
+ *
+ * It never writes the Test cases tab: those rows are curated by the team
+ * before the story is built (docs/test-cases/PROMPT.md). Unit test results
+ * (pytest, vitest) are collected and printed for the CI log only; they have
+ * no TC ID and are not sent to the sheet.
  */
 
 const fs = require('fs');
@@ -38,8 +43,8 @@ if (!WEBHOOK) {
   process.exit(1);
 }
 
-// --- Step 1: Parse @tc metadata ---
-console.log('Step 1: Parsing @tc metadata from test files...');
+// --- Step 1: Parse @tc link headers from Playwright specs ---
+console.log('Step 1: Parsing @tc link headers from functional/tests...');
 let testCases = [];
 try {
   const metaOut = execSync(`node "${path.join(ROOT, '.github', 'scripts', 'parse-metadata.js')}"`, {
@@ -47,7 +52,7 @@ try {
     maxBuffer: 10 * 1024 * 1024,
   });
   testCases = JSON.parse(metaOut);
-  console.log(`  Found ${testCases.length} test cases with @tc metadata`);
+  console.log(`  Found ${testCases.length} @tc headers`);
 } catch (err) {
   console.error('  WARNING: Failed to parse metadata:', err.message);
 }
@@ -75,16 +80,18 @@ collectPlaywrightResults(results);
 
 console.log(`  Collected ${results.length} test results`);
 
-// --- Step 3: POST test cases (upsert) ---
-if (testCases.length > 0) {
-  console.log('Step 3: Syncing test cases to sheet...');
-  postToSheet({ action: 'testcases', testCases });
+// --- Step 3: POST functional executions (append) ---
+// Only results that map to a TC ID go to the sheet. Unit tests never carry one.
+const mapped = results.filter(r => /^TC-/.test(r.tcId));
+const unmappedFunctional = results.filter(r => r.framework === 'playwright' && !/^TC-/.test(r.tcId));
+for (const r of unmappedFunctional) {
+  console.error(`  WARNING: functional test "${r.tcId}" has no matching @tc header; not logged to the sheet`);
 }
+console.log(`  ${mapped.length} functional results mapped to TC IDs; ${results.length - mapped.length} unit/unmapped results kept in CI log only`);
 
-// --- Step 4: POST executions (append) ---
-if (results.length > 0) {
-  console.log('Step 4: Logging executions to sheet...');
-  const executions = results.map(r => ({
+if (mapped.length > 0) {
+  console.log('Step 3: Logging functional executions to sheet...');
+  const executions = mapped.map(r => ({
     runId: RUN_ID,
     tcId: r.tcId,
     date: NOW,
@@ -120,6 +127,7 @@ function collectPytestResults(results) {
     const failed = body && (body.includes('<failure') || body.includes('<error'));
     const tcId = findTcId('pytest', classname, name);
     results.push({
+      framework: 'pytest',
       tcId: tcId || `${classname}::${name}`,
       status: failed ? 'Fail' : 'Pass',
       actualResult: failed ? extractFailureMessage(body) : 'Passed',
@@ -153,6 +161,7 @@ function collectVitestResults(results) {
           const fullName = test.fullName || test.title || '';
           const tcId = findTcId('vitest', suite.name || '', test.title || '');
           results.push({
+            framework: 'vitest',
             tcId: tcId || fullName,
             status: test.status === 'passed' ? 'Pass' : 'Fail',
             actualResult: test.status === 'passed' ? 'Passed' : (test.failureMessages || ['Failed']).join('; ').slice(0, 200),
@@ -194,6 +203,7 @@ function collectPlaywrightResults(results) {
           const passed = spec.ok !== false && spec.tests &&
             spec.tests.every(t => t.status === 'expected' || t.results?.every(r => r.status === 'passed'));
           results.push({
+            framework: 'playwright',
             tcId: tcId || spec.title,
             status: passed ? 'Pass' : 'Fail',
             actualResult: passed ? 'Passed' : 'Failed',
@@ -216,20 +226,12 @@ function collectPlaywrightResults(results) {
  * Try to find a TC ID for a given test result.
  */
 function findTcId(framework, className, testName) {
-  // Exact match on @test field
+  if (framework !== 'playwright') return null;
+  // Exact match on the @test field (case-insensitive, trimmed)
   const nameKey = testName.toLowerCase().trim();
   if (tcLookupByName[nameKey]) return tcLookupByName[nameKey];
-
-  // Fuzzy: check if any known test name is contained in the result name
-  for (const [key, tcId] of Object.entries(tcLookupByName)) {
-    if (nameKey.includes(key) || key.includes(nameKey)) {
-      return tcId;
-    }
-  }
-
   // Direct TC ID match
   if (tcLookupById[testName]) return tcLookupById[testName];
-
   return null;
 }
 

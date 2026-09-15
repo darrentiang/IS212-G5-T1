@@ -1,29 +1,23 @@
 ---
 name: pytest-standard
-description: How to write backend unit tests with pytest for this project — @tc metadata format, test derivation from acceptance criteria, naming conventions, and the Definition of Done checklist. Use when writing, reviewing, or fixing backend unit tests, or when implementing a user story that needs tests.
+description: How to write backend unit tests with pytest for this project — @story/@ac link header, what unit tests cover, naming conventions, and the Definition of Done checklist. Use when writing, reviewing, or fixing backend unit tests, or when implementing a user story that needs tests.
 ---
 
 # Pytest Standard — Backend Unit Tests
+
+Functional test cases live in the team test sheet and are proved by Playwright, not by unit tests. Read `docs/test-cases/AUTOMATION.md` first. Unit tests carry no TC ID; they prove rules.
 
 ## Location
 
 All backend tests go in `backend/tests/`. File naming: `test_<feature>.py`.
 
-## @tc metadata (REQUIRED)
+## Link header (REQUIRED)
 
-Every test file MUST begin with a metadata block. The CI pipeline parses these to populate the Test cases sheet. Without them, tests are invisible to the tracking system.
+Every test function is preceded by a two-line header so a reviewer can see which story and criterion the test protects. CI does not parse unit tests; their results stay in the CI log.
 
 ```python
-# @tc: TC-<STORY>-<NN>
-# @test: <exact_test_function_name>
-# @story: <story_id>
+# @story: SCRUM-<n>
 # @ac: <acceptance_criterion_numbers>
-# @type: Happy | Cross | Negative | Boundary
-# @scenario: <one-line description of what this tests>
-# @preconditions: <state needed before test runs>
-# @steps: <numbered steps>
-# @test_data: <specific inputs used>
-# @expected: <expected result>
 def test_example(client):
     resp = client.get("/api/example")
     assert resp.status_code == 200
@@ -33,64 +27,49 @@ def test_example(client):
 
 | Field | Required | Format |
 |---|---|---|
-| `@tc` | Yes | `TC-<STORY>-<NN>` e.g. `TC-01-03` for story PB-01, third test |
-| `@test` | Yes | Must exactly match the Python test function name |
-| `@story` | Yes | Story ID from the product backlog |
+| `@story` | Yes | Jira key, e.g. `SCRUM-26` |
 | `@ac` | Yes | Which AC(s) this test covers, e.g. `1` or `1, 3` |
-| `@type` | Yes | One of: Happy, Cross, Negative, Boundary |
-| `@scenario` | Yes | One sentence describing the test objective |
-| `@preconditions` | Yes | State that must exist before the test |
-| `@steps` | Yes | Numbered steps |
-| `@test_data` | Yes | Specific inputs, or `none` |
-| `@expected` | Yes | Observable expected outcome |
 
-## Test derivation method (Week 4, 5-step)
+No `@tc` line. TC IDs belong to functional rows in the sheet; a unit test does not prove a sheet row.
 
-For each user story, derive tests from acceptance criteria:
+## What unit tests derive from
 
-1. **Visualise workflow** — put yourself in the user's shoes
-2. **Happy path** — the path with no errors (positive test)
-3. **Cross-cutting** — role permissions, auth, security
-4. **Negative** — wrong input, missing fields, unauthorized access
-5. **Boundary** — values at limits (min/max capacity, empty vs. one item)
+- The rules the story adds: state transitions (`docs/design/state-model.md`), permissions (`docs/design/permissions.md`), validation, conflict detection.
+- The story's acceptance criteria as written in Jira.
+- A unit test that contradicts a design document is wrong, not the document.
 
 ## Test structure
 
 ```python
-# @tc: TC-01-01
-# @test: test_create_event_success
-# @story: PB-01
-# @ac: 1, 2
-# @type: Happy
-# @scenario: Event organiser creates a valid event request
-# @preconditions: Event organiser account exists and is logged in
-# @steps: 1. POST /api/events with valid data 2. Check response
-# @test_data: {"name": "Conference", "date": "2026-11-15", "attendance": 100}
-# @expected: HTTP 201, event returned with assigned id
-def test_create_event_success(client):
-    resp = client.post("/api/events", json={
-        "name": "Conference",
-        "date": "2026-11-15",
-        "expected_attendance": 100,
-    })
-    assert resp.status_code == 201
-    data = resp.get_json()
-    assert data["name"] == "Conference"
-    assert "id" in data
+# @story: SCRUM-26
+# @ac: 3
+def test_login_wrong_password_is_refused(client):
+    resp = client.post("/api/login", json={"username": "org1", "password": "wrong"})
+    assert resp.status_code == 401
+    assert "user_id" not in resp.get_json()
+
+
+# @story: SCRUM-26
+# @ac: 1
+def test_login_returns_all_roles_of_the_account(client):
+    resp = client.post("/api/login", json={"username": "multi1", "password": "Passw0rd!"})
+    assert resp.status_code == 200
+    assert set(resp.get_json()["roles"]) == {"Event Coordinator", "Venue Staff"}
 ```
 
 ## What to test
 
 - API endpoint responses (status codes, response body)
 - Validation logic (missing fields, invalid data)
-- Business rules (conflict detection, capacity limits)
-- Role-based access (wrong role gets 403)
+- Business rules (state transitions, conflict detection, capacity limits)
+- Role-based access (wrong role gets 403; an account with several roles may do what any of them allows)
 
 ## What NOT to test
 
 - Framework internals (Flask routing, ORM plumbing)
 - Private helper methods directly — test through public endpoints
 - External services (mock them)
+- User journeys through the browser (that's Playwright)
 
 ## Running tests
 
@@ -103,9 +82,8 @@ python -m pytest tests/test_events.py::test_create_event_success -v  # one test
 
 ## Definition of Done for tests
 
-- [ ] Every test has a complete `@tc` metadata block
-- [ ] `@test` field matches the function name exactly
-- [ ] Tests derive from ACs, not from implementation code
-- [ ] Happy path, negative, and boundary cases covered
+- [ ] Every rule the story adds has a unit test
+- [ ] Every test has the `@story` / `@ac` header; no `@tc`
+- [ ] Tests derive from ACs and design documents, not from implementation code
 - [ ] Tests pass locally: `pytest tests/ -v` is green
 - [ ] A human can explain what each test verifies

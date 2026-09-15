@@ -1,100 +1,90 @@
 #!/usr/bin/env node
 /**
- * Parses @tc metadata blocks from test source files.
+ * Parses @tc link headers from Playwright spec files.
  *
- * Scans:
- *   backend/tests/ (Python)
- *   frontend/src/__tests__/ (JS/JSX)
- *   functional/tests/ (Playwright specs)
+ * Scans functional/tests/*.spec.js only. Unit tests carry @story/@ac for
+ * human traceability but no TC ID, so CI does not parse them.
  *
- * Outputs JSON array of test case definitions to stdout.
+ * A header is the comment block above a test():
+ *   // @tc: TC-SCRUM-26-03
+ *   // @test: wrong password is refused
+ *   // @story: SCRUM-26
+ *   // @ac: 3
+ *
+ * Outputs a JSON array of { tcId, test, story, ac, file } to stdout.
+ * Warns on stderr when @test does not match the test('…') name that follows.
  */
 
 const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..', '..');
+const SCAN_DIR = path.join(ROOT, 'functional', 'tests');
+const COMMENT = '//';
+const FIELDS = ['tc', 'test', 'story', 'ac'];
 
-const SCAN_DIRS = [
-  { dir: path.join(ROOT, 'backend', 'tests'), ext: '.py', comment: '#' },
-  { dir: path.join(ROOT, 'frontend', 'src', '__tests__'), ext: '.jsx', comment: '//' },
-  { dir: path.join(ROOT, 'frontend', 'src', '__tests__'), ext: '.js', comment: '//' },
-  { dir: path.join(ROOT, 'functional', 'tests'), ext: '.spec.js', comment: '//' },
-];
-
-const FIELDS = ['tc', 'test', 'story', 'ac', 'type', 'scenario', 'preconditions', 'steps', 'test_data', 'expected'];
-
-function extractBlocks(filePath, commentPrefix) {
+function extractBlocks(filePath) {
   const content = fs.readFileSync(filePath, 'utf-8');
   const lines = content.split('\n');
   const blocks = [];
+  const rel = path.relative(ROOT, filePath).replace(/\\/g, '/');
   let current = null;
 
   for (const line of lines) {
     const trimmed = line.trim();
-    const match = trimmed.match(new RegExp('^' + commentPrefix + '\\s*@([a-z_]+):\\s*(.+)$'));
+    const match = trimmed.match(new RegExp('^' + COMMENT + '\\s*@([a-z_]+):\\s*(.+)$'));
 
     if (match) {
       const [, key, value] = match;
       if (key === 'tc') {
-        // New block starts
-        if (current && current.tc) blocks.push(current);
-        current = { tc: value.trim() };
+        if (current) blocks.push(current);
+        current = { tc: value.trim(), file: rel };
       } else if (current && FIELDS.includes(key)) {
-        current[key === 'test_data' ? 'testData' : key] = value.trim();
+        current[key] = value.trim();
       }
-    } else if (current && !trimmed.startsWith(commentPrefix) && trimmed !== '') {
-      // Non-comment, non-empty line ends the metadata block
-      if (current.tc) blocks.push(current);
+    } else if (current && !trimmed.startsWith(COMMENT) && trimmed !== '') {
+      // First code line after the header: should be the test() call.
+      const nameMatch = trimmed.match(/^test(?:\.\w+)?\(\s*(['"`])(.+?)\1/);
+      if (nameMatch) {
+        const actual = nameMatch[2];
+        if (!current.test) {
+          current.test = actual;
+        } else if (current.test !== actual) {
+          console.error(`WARNING ${rel}: @test "${current.test}" does not match test('${actual}')`);
+        }
+      }
+      blocks.push(current);
       current = null;
     }
   }
-  if (current && current.tc) blocks.push(current);
-
+  if (current) blocks.push(current);
   return blocks;
 }
 
-function scanDirectory(dir, ext, comment) {
-  if (!fs.existsSync(dir)) return [];
-  const files = fs.readdirSync(dir).filter(f => f.endsWith(ext));
-  const results = [];
-
-  for (const file of files) {
-    const filePath = path.join(dir, file);
-    const blocks = extractBlocks(filePath, comment);
-    results.push(...blocks);
-  }
-
-  return results;
-}
-
 function main() {
-  const allCases = [];
-
-  for (const { dir, ext, comment } of SCAN_DIRS) {
-    allCases.push(...scanDirectory(dir, ext, comment));
+  const all = [];
+  if (fs.existsSync(SCAN_DIR)) {
+    for (const file of fs.readdirSync(SCAN_DIR).filter(f => f.endsWith('.spec.js'))) {
+      all.push(...extractBlocks(path.join(SCAN_DIR, file)));
+    }
   }
 
-  // Deduplicate by tcId (last wins)
+  // One entry per TC ID (last wins); warn on duplicates.
   const byId = {};
-  for (const tc of allCases) {
-    byId[tc.tc] = tc;
+  for (const b of all) {
+    if (byId[b.tc]) console.error(`WARNING duplicate @tc ${b.tc} in ${byId[b.tc].file} and ${b.file}`);
+    byId[b.tc] = b;
   }
 
-  const testCases = Object.values(byId).map(tc => ({
-    tcId: tc.tc,
-    test: tc.test || '',
-    story: tc.story || '',
-    ac: tc.ac || '',
-    type: tc.type || '',
-    scenario: tc.scenario || '',
-    preconditions: tc.preconditions || '',
-    steps: tc.steps || '',
-    testData: tc.testData || '',
-    expected: tc.expected || '',
+  const out = Object.values(byId).map(b => ({
+    tcId: b.tc,
+    test: b.test || '',
+    story: b.story || '',
+    ac: b.ac || '',
+    file: b.file,
   }));
 
-  console.log(JSON.stringify(testCases, null, 2));
+  console.log(JSON.stringify(out, null, 2));
 }
 
 main();
