@@ -24,7 +24,7 @@ Read this file first in every session, then the documents it names, before touch
 1. Read §1 documents and the story.
 2. Draft functional test cases with `PROMPT.md`; a developer curates, a second reviews; rows go into the team test sheet. No code before this.
 3. Build. Backend rules first (unit tests as you go), then the API route, then the front end through `frontend/src/api.js` (components never call `fetch` directly).
-4. Write the Playwright spec and unit tests per `AUTOMATION.md`. Run all three suites locally.
+4. Write the Playwright spec and unit tests per `AUTOMATION.md`. Unit tests for a story live in that story's feature test file (`backend/tests/test_<feature>.py`, `frontend/src/__tests__/<Component>.test.jsx`) and test only what the story adds or changes, never other features. Run all three suites locally; they print coverage.
 5. Open the pull request: title `SCRUM-nn: …`; description states what was built, which TC IDs are covered, and where AI was used. CI must be green. A Developer other than the author approves; the author merges; the branch is deleted.
 
 ## 5. Definition of Done (per story)

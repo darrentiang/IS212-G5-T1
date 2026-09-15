@@ -34,10 +34,10 @@ Each run's Summary page shows a coverage table for Pytest and Vitest. Downloadab
 ## How to run tests locally before pushing
 
 ```bash
-# Backend unit tests (add --cov=. --cov-report=html for a local htmlcov/ report)
-cd backend && python -m pytest tests/ -v
+# Backend unit tests (coverage table in the terminal, report in backend/htmlcov/)
+cd backend && python -m pytest -v
 
-# Frontend unit tests
+# Frontend unit tests (coverage table in the terminal, report in frontend/coverage/)
 cd frontend && npm run test
 
 # Functional tests (auto-starts Flask + Vite)

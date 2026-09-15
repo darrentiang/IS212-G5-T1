@@ -21,7 +21,7 @@ jobs:
         run: pip install -r backend/requirements.txt
 
       - name: Run tests
-        run: cd backend && pytest --cov=. --cov-report=xml --cov-report=html --cov-report=term-missing -v
+        run: cd backend && pytest -v
 
       - name: Coverage summary
         if: always()
@@ -67,7 +67,7 @@ jobs:
         run: cd frontend && npm ci
 
       - name: Run tests
-        run: cd frontend && npx vitest run --coverage --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary --reporter=default --reporter=json --outputFile=vitest-report.json
+        run: cd frontend && npx vitest run --reporter=default --reporter=json --outputFile=vitest-report.json
 
       - name: Coverage summary
         if: always()
