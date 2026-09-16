@@ -5,7 +5,7 @@ Read this file first in every session, then the documents it names, before touch
 ## 1. Read in this order
 1. `docs/design/state-model.md` — the only status names and transitions that exist. Never invent a status.
 2. `docs/design/permissions.md` — which role may do what. An account may hold several roles; it may do anything any of its roles allows.
-3. `docs/adr/` — architecture decisions. ADR-001 fixes the stack: React front end; Flask API owns every business rule; SQLAlchemy with SQLite for development and CI; Flask session auth with seeded accounts. Rules live in the API, never only in the browser.
+3. `docs/adr/` — architecture decisions. ADR-001 fixes the stack (React front end; Flask API owns every business rule; SQLAlchemy with SQLite for development and CI; Flask session auth with seeded accounts). ADR-002 fixes authorisation (feature matrix in `backend/permissions.py`, `require()` on routes, object rules in services, front-end route guards). ADR-003: in-app notifications written by the API, no worker. Rules live in the API, never only in the browser.
 4. `docs/test-cases/PROMPT.md` and `docs/test-cases/AUTOMATION.md` — how test cases are drafted and how tests prove them.
 5. `.claude/skills/*` — pytest, Vitest, Playwright and CI conventions.
 6. The story itself, from Jira, verbatim (see §3).
