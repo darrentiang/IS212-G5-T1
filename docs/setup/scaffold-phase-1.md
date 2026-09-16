@@ -1,9 +1,9 @@
 ---
 feature: scaffold-phase-1
-status: delivered
+status: superseded
 updated: 2026-09-13
 branch: feature/scaffold-phase1
-commits: 7094e8b..<pending>
+superseded_by: frontend-scaffold.md (front end), backend-areas.md (CORS removed, JSON errors)
 ---
 
 # Scaffold Phase 1 — Skeleton

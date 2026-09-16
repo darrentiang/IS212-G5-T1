@@ -1,9 +1,9 @@
 ---
 feature: ci-pipeline
-status: designed
+status: superseded
 updated: 2026-09-13
 branch: feature/ci-pipeline
-commits:
+superseded_by: .claude/skills/cicd-pipeline/SKILL.md (current pipeline: coverage on every run, main ruleset, PR #4)
 ---
 
 # CI Pipeline — Minimal Tests + GitHub Actions
