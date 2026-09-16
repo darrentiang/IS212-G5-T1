@@ -1,9 +1,9 @@
 ---
 feature: functional-tests
-status: delivered
+status: superseded
 updated: 2026-09-13
 branch: feature/functional-tests
-commits: b8b72a0..<pending>
+superseded_by: docs/test-cases/AUTOMATION.md (four-field link header, one test per curated row, PR #3)
 ---
 
 # Functional Tests — Playwright Setup

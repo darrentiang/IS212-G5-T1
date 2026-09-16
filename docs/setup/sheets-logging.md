@@ -1,9 +1,9 @@
 ---
 feature: sheets-logging
-status: delivered
+status: superseded
 updated: 2026-09-13
 branch: feature/sheets-logging
-commits: 99b6890..<pending>
+superseded_by: docs/test-cases/AUTOMATION.md and .github/scripts/log-results.js (CI appends Executions only; the testcases action is retired, PR #3)
 ---
 
 # Google Sheets Logging
