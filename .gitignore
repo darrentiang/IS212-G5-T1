@@ -10,6 +10,9 @@ env/
 node_modules/
 frontend/dist/
 
+# Database (SQLite file, recreated with: python seed.py --reset)
+backend/instance/
+
 # Environment
 .env
 .env.local
