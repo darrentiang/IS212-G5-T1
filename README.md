@@ -68,7 +68,16 @@ One story, one branch, one pull request. The full rule set is `AGENTS.md`; this 
 
    Curate the rows against the acceptance criteria (resolve every Assumption, decide every Not covered item), fill "Curated by", paste them into the Test cases tab of the team test sheet. A second Developer reads them and fills "Reviewed by". `docs/test-cases/PROMPT.md` says how; the rows are the specification the tests prove.
 3. **Build.** Backend rules first (`backend/areas/<area>/`, unit tests as you go), then the route, then the page (`frontend/src/areas/<area>/`). Whether you type it or an AI does, the same documents apply, and `AGENTS.md` names them in reading order. If you use Claude Code, the prompt is the same story block as in step 2 plus the curated rows copied from the sheet (they paste as tab-separated text), and nothing else; the documents do the rest.
-4. **Tests.** One Playwright `test()` per curated row in `functional/tests/SCRUM-nn.spec.js`; unit tests for the rules the story adds (`docs/test-cases/AUTOMATION.md`). Coverage target is 100 % of the files the story touches (`docs/test-cases/COVERAGE.md`). Run all three suites.
+4. **Tests.** One Playwright `test()` per curated row in `functional/tests/SCRUM-nn.spec.js`; unit tests for the rules the story adds (`docs/test-cases/AUTOMATION.md`). Coverage target is 100 % of the files the story touches (`docs/test-cases/COVERAGE.md`). Run all three suites. If you built by hand and want AI to write the tests, the prompt is:
+
+   ```
+   Write the Playwright spec and the unit tests for SCRUM-nn per docs/test-cases/AUTOMATION.md. The code is on this branch.
+
+   Curated test-case rows (from the Test cases tab):
+   <paste the story's rows from the sheet>
+   ```
+
+   How the pieces fit: the rows say *what* each Playwright test proves; `docs/test-cases/AUTOMATION.md` says *where* tests live and how they link back (headers, one test per row); `docs/design/ui-guidelines.md` supplies the `data-testid` of everything a test clicks or reads; the skills in `.claude/skills/` say *how* to write them well. Unit tests take their cases from the acceptance criteria and the design documents instead of the sheet, prove one rule each, and carry `@story`/`@ac` only. The skills load on their own in Claude Code; other tools read them through `AGENTS.md` §1.
 5. **Pull request** to `main`, title `SCRUM-nn: …`. Description: what was built, which TC IDs are covered, where AI was used. CI runs the three suites and logs every Playwright result to the Executions tab. A Developer other than the author approves; the author merges; the branch is deleted. Definition of Done: `AGENTS.md` §5.
 
 ## 3. Where each rule lives
