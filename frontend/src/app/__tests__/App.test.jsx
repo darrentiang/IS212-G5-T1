@@ -1,17 +1,53 @@
-import { describe, it, expect, vi, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
 import { MemoryRouter, useLocation } from 'react-router'
+
+// The real areas.js carries no route with a permission yet (SCRUM-27 owns the
+// feature keys), so routing is tested against a stand-in list the tests set per
+// case. vi.hoisted lets the mock factory read it.
+const mocks = vi.hoisted(() => ({ routes: [] }))
+
+vi.mock('../areas', () => ({
+  get routes() {
+    return mocks.routes
+  },
+}))
+vi.mock('../../areas/auth/api')
+
 import { ApiError } from '../http'
 import * as authApi from '../../areas/auth/api'
 import App, { RequireFeature } from '../App'
 import { AuthProvider } from '../auth'
+import LoginPage from '../../areas/auth/LoginPage'
+import RequestsPage from '../../areas/requests/RequestsPage'
 
-vi.mock('../../areas/auth/api')
+const LOGIN = { path: '/login', element: <LoginPage />, public: true }
+const REQUESTS = {
+  path: '/requests',
+  element: <RequestsPage />,
+  nav: 'Requests',
+  permission: 'requests.view',
+}
+const VENUES = {
+  path: '/venues',
+  element: <p data-testid="venues-page">venues</p>,
+  nav: 'Venues',
+  permission: 'venues.view',
+}
+const REGISTRATION = {
+  path: '/registration',
+  element: <p data-testid="registration-page">registration</p>,
+  nav: 'Registration',
+}
 
 // Reads the address the router settled on, so a redirect can be asserted.
 function Address() {
   return <span data-testid="address">{useLocation().pathname}</span>
 }
+
+beforeEach(() => {
+  mocks.routes = [LOGIN, REQUESTS, VENUES, REGISTRATION]
+})
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -40,8 +76,12 @@ describe('App', () => {
 
   // @story: setup
   // @ac: frontend-scaffold
-  it('lands a logged-in account on /requests from / and from an unknown address', async () => {
-    authApi.me.mockResolvedValue({ username: 'coord1', roles: ['Event Coordinator'], features: [] })
+  it('lands a logged-in account on its home page from / and from an unknown address', async () => {
+    authApi.me.mockResolvedValue({
+      username: 'coord1',
+      roles: ['Event Coordinator'],
+      features: ['requests.view'],
+    })
 
     renderApp('/')
     expect(await screen.findByTestId('requests-empty')).toBeInTheDocument()
@@ -73,5 +113,45 @@ describe('App', () => {
     expect(await screen.findByTestId('not-permitted-message')).toBeInTheDocument()
     expect(screen.queryByText('venues page')).not.toBeInTheDocument()
     expect(screen.getByTestId('address')).toHaveTextContent('/venues')
+  })
+
+  // @story: setup
+  // @ac: ui-shell
+  it('sends an account to the first nav entry its features allow, not to /requests', async () => {
+    authApi.me.mockResolvedValue({
+      username: 'venue1',
+      roles: ['Venue Staff'],
+      features: ['venues.view'],
+    })
+
+    renderApp('/')
+
+    expect(await screen.findByTestId('venues-page')).toBeInTheDocument()
+    expect(screen.getByTestId('address')).toHaveTextContent('/venues')
+  })
+
+  // @story: setup
+  // @ac: ui-shell
+  it('sends an account with no features to the first nav entry that needs none', async () => {
+    authApi.me.mockResolvedValue({ username: 'att1', roles: ['Attendee'], features: [] })
+
+    renderApp('/')
+
+    expect(await screen.findByTestId('registration-page')).toBeInTheDocument()
+    expect(screen.getByTestId('address')).toHaveTextContent('/registration')
+  })
+
+  // @story: setup
+  // @ac: ui-shell
+  it('shows the not-permitted page when no page is permitted', async () => {
+    mocks.routes = [LOGIN, REQUESTS, VENUES]
+    authApi.me.mockResolvedValue({ username: 'att1', roles: ['Attendee'], features: [] })
+
+    renderApp('/')
+
+    expect(await screen.findByTestId('not-permitted-message')).toBeInTheDocument()
+    // The link always renders and always points at '/'; for this account '/'
+    // is the not-permitted page itself.
+    expect(screen.getByTestId('not-permitted-home-link')).toHaveAttribute('href', '/')
   })
 })

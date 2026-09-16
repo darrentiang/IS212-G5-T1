@@ -17,14 +17,22 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-function renderLoginPage() {
-  api.me.mockRejectedValue(new ApiError(401, 'Not logged in'))
+// '/' exactly: toHaveTextContent matches substrings, and every path contains a
+// slash, so the assertion has to be anchored.
+const ROOT = /^\/$/
+
+function renderLoginPage(account) {
+  if (account) {
+    api.me.mockResolvedValue(account)
+  } else {
+    api.me.mockRejectedValue(new ApiError(401, 'Not logged in'))
+  }
   render(
     <AuthProvider>
       <MemoryRouter initialEntries={['/login']}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/requests" element={<p>requests page</p>} />
+          <Route path="/" element={<p>home page</p>} />
         </Routes>
         <Address />
       </MemoryRouter>
@@ -63,22 +71,35 @@ describe('LoginPage', () => {
   })
 
   // @story: setup
-  // @ac: frontend-scaffold
-  it('goes to /requests when the API accepts the credentials', async () => {
+  // @ac: ui-shell
+  it('lands on / when the API accepts the credentials', async () => {
     renderLoginPage()
     api.login.mockResolvedValue({
-      username: 'org1',
-      roles: ['Event Organiser'],
-      features: [],
+      username: 'venue1',
+      roles: ['Venue Staff'],
+      features: ['venues.view'],
     })
 
-    await userEvent.type(screen.getByTestId('login-username-input'), 'org1')
+    await userEvent.type(screen.getByTestId('login-username-input'), 'venue1')
     await userEvent.type(screen.getByTestId('login-password-input'), 'Passw0rd!')
     await userEvent.click(screen.getByTestId('login-submit-button'))
 
+    // '/' and not a page: the page does not know which pages this account may
+    // open, and App turns '/' into its home page. App.test.jsx proves that.
     await waitFor(() => {
-      expect(screen.getByTestId('address')).toHaveTextContent('/requests')
+      expect(screen.getByTestId('address')).toHaveTextContent(ROOT)
     })
-    expect(api.login).toHaveBeenCalledWith('org1', 'Passw0rd!')
+    expect(api.login).toHaveBeenCalledWith('venue1', 'Passw0rd!')
+  })
+
+  // @story: setup
+  // @ac: ui-shell
+  it('does not show the form again to an account that is already logged in', async () => {
+    renderLoginPage({ username: 'venue1', roles: ['Venue Staff'], features: ['venues.view'] })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('address')).toHaveTextContent(ROOT)
+    })
+    expect(screen.queryByTestId('login-username-input')).not.toBeInTheDocument()
   })
 })

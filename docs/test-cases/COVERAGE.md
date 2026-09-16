@@ -4,6 +4,7 @@ What coverage the team aims for, what is excluded and why, and what a reviewer c
 
 | Version | Date | Change | Reason |
 |---|---|---|---|
+| 1.1 | 16-09-2026 | `routes.jsx` excluded | The UI shell tests mock the combined route list, which left the per-area lists unexecuted |
 | 1.0 | 16-09-2026 | Initial policy | The rubric asks for 100 % coverage or a stated reason; the measured numbers include entry points nothing can unit-test, so the exclusions and the target needed writing down |
 
 ## Target
@@ -26,6 +27,7 @@ These files are excluded from the measurement everywhere, because no unit test c
 | `frontend/src/main.jsx` | `vitest.config.js` | The browser entry point: it renders `<App />` and nothing else. |
 | `frontend/src/areas/*/api.js` | `vitest.config.js` | One-line calls to `request()` under their contract comment (`docs/design/frontend.md` §6). Unit tests mock these modules, so a unit test can never execute them; Playwright drives the real ones through the browser. |
 | `frontend/src/app/areas.js` | `vitest.config.js` | An import list. A missing area shows up as a missing page in the functional tests. |
+| `frontend/src/areas/*/routes.jsx` | `vitest.config.js` | A list literal of pages and paths. `App` and `Layout` tests mock the combined list, so nothing executes the real ones; a wrong entry shows up as a missing page in the functional tests. |
 
 Adding an exclusion means adding a row here, with its reason, in the same pull request as the config change.
 

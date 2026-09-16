@@ -21,6 +21,7 @@ export default defineConfig({
         // See docs/test-cases/COVERAGE.md.
         'src/areas/*/api.js',
         'src/app/areas.js',
+        'src/areas/*/routes.jsx',
       ],
     },
   },

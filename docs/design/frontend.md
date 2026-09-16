@@ -5,6 +5,7 @@ How the React front end is built: folders, routing and the permission guard, the
 | Version | Date | Change | Reason |
 |---|---|---|---|
 | 1.0 | 16-09-2026 | Initial conventions | The scaffold and SCRUM-26/27 need one agreed way to build pages, routes and API calls; code is split by area so Developers on different stories rarely edit the same file |
+| 1.1 | 16-09-2026 | Home is the first permitted nav entry; `app/format.js` for dates, times and status text | `ui-guidelines.md` v1.1 |
 
 ## 1. Folders
 
@@ -22,6 +23,8 @@ frontend/src/
     Layout.jsx           header and nav, built from areas.js
     auth.jsx             account context from /api/me
     http.js              the only fetch: request() and ApiError
+    home.js              homePathFor(account); imported by App.jsx only
+    format.js            formatDate, formatTime, formatPeriod, STATUS; the only shared functions
     NotPermittedPage.jsx
     __tests__/
   areas/
@@ -32,7 +35,7 @@ frontend/src/
       __tests__/         Vitest tests for this area
 ```
 
-No `components/` folder. `Layout` is the only shared component; each page owns its markup, so a change to one story's page cannot break another story's tests. Markup repeated on two pages is repeated, not extracted.
+No `components/` folder. `Layout` is the only shared component and `app/format.js` the only shared functions; each page owns its markup, so a change to one story's page cannot break another story's tests. Markup repeated on two pages is repeated, not extracted.
 
 ## 2. Which area a story belongs to
 
@@ -85,7 +88,7 @@ export const routes = [
 
 - No account → `<Navigate to="/login" replace />`.
 - `permission` present and `can(permission)` false → render `NotPermittedPage` in place; no redirect.
-- `/` and unknown paths → `<Navigate to="/requests" replace />`.
+- **Home** = the first entry with `nav`, in the combined list's order, whose `permission` is absent or `can(permission)`; `app/home.js` exports `homePathFor(account)`; only `App.jsx` imports it. `/` and unknown paths → `<Navigate to={home} replace />`. Pages never compute home: after login, and from the not-permitted page, they go to `/` and `App` does the rest. An account that may open nothing lands on the not-permitted page.
 - Nav: entries with `nav`, in `areas.js` order then array order, shown only when the account may open them.
 - The front end never checks role names.
 
@@ -133,6 +136,8 @@ The story author commits this first and opens a draft pull request, so a Develop
 - Every `catch` puts the error on screen (banner or field). No empty `catch`, no `console.log` as error handling.
 - Success that moves to another page: `navigate(path, { state: { banner: 'Request submitted' } })`; the landing page shows `location.state?.banner` as its success banner.
 - Labels linked to inputs with `htmlFor` / `id`.
+- Dates, times and status words come from `app/format.js`: `formatDate(iso)` → `03 Oct 2026`, `formatTime('14:30')` → `14:30`, `formatPeriod(date, start, end)` → `03 Oct 2026, 14:30–16:00`; `STATUS.SUBMITTED === 'Submitted'` and so on for every status in `state-model.md`, grouped per record (`STATUS.REQUEST`, `STATUS.BOOKING`, `STATUS.RESERVATION`, `STATUS.UNIT`, `STATUS.REGISTRATION`). A page never formats a date or types a status string itself.
+- While loading, a page renders its title row only (`ui-guidelines.md` §3): keep a `loading` state, initially true, cleared in `finally`.
 
 ## 8. When two stories share a file
 
@@ -153,4 +158,4 @@ Some stories share a page (SCRUM-28 Submit and SCRUM-30 Save Draft both change `
 5. Controls and nav hidden with `can()`, never by role name.
 6. Every `ApiError` reaches a field message or the banner.
 7. No dependency added beyond `react-router`.
-8. Elements, text and test ids match `ui-guidelines.md`.
+8. Elements, text and test ids match `ui-guidelines.md`; dates and status words come from `app/format.js`.
