@@ -6,6 +6,9 @@ Every acceptance criterion that changes a status uses a value from these tables.
 |---|---|---|---|
 | 1.0 | 10-09-2026 | Initial model | Pre-sprint preparation |
 | 1.1 | 15-09-2026 | Event request: removed Under Clarification (clarification is a flag on Submitted); added Rejected → Submitted; added Confirmed → Planning; Approved → Planning is by system assignment; Confirm requires every recorded arrangement approved; Cancelled is terminal | Customer clarifications Q-01, Q-11 (decision log); team decisions D-13, D-14, D-15, D-16 |
+| 1.2 | 16-09-2026 | No change to any status or transition; recorded that the front end mirrors these words | `ui-guidelines.md` v1.1 §9 stops pages typing status strings by hand |
+
+The front end holds these words in `frontend/src/app/format.js` (`STATUS`); a change here changes that file in the same pull request.
 
 ## Event request
 

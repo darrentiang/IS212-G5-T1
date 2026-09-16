@@ -31,6 +31,7 @@ No `@tc` line. TC IDs belong to functional rows in the sheet.
 - Role-based UI: elements shown or hidden by role (the API decides permissions; the UI only reflects them)
 - Error and empty states (API failure, empty list)
 - Behaviour not worth a browser test (formatting, disabled states)
+- A page test asserts status text through `STATUS` from `src/app/format.js`, never a literal: if `state-model.md` renames a status, the test follows the constant instead of going green on stale wording.
 
 ## Mocking rules
 
