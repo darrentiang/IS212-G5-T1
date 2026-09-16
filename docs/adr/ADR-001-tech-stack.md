@@ -7,7 +7,7 @@ Release 1 must run from a clean checkout on any team member's machine and in CI,
 
 ## Decision
 - **Front end:** React 19 with Vite and Tailwind CSS. All server calls go through a single module, `frontend/src/api.js`; components never call `fetch` directly.
-- **API:** Python Flask. The API owns every business rule: state transitions (`docs/design/state-model.md`), permissions (`docs/design/permissions.md`, ADR-002), conflict detection, warnings. The browser only reflects what the API decides.
+- **API:** Python Flask. The API owns every business rule: state transitions (`docs/design/state-model.md`), permissions (`docs/design/permissions.md`, ADR-002), conflict detection, warnings. The browser only reflects what the API decides. Routes and services are split by area (`backend/areas/<area>/`, the same eight areas as the front end, `docs/design/frontend.md` §2); models stay in one file.
 - **Data:** SQLAlchemy with SQLite for development and CI. PostgreSQL only as a plain connection string if a hosted demo is ever needed; no code may depend on Postgres-specific features.
 - **Authentication:** Flask session cookies with accounts seeded per role (customer clarification: onboarding is outside this release). No third-party auth.
 - **Tests:** pytest (backend), Vitest with Testing Library (frontend), Playwright (functional). Coverage measured on every run.

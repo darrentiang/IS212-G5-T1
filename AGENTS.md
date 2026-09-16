@@ -7,7 +7,7 @@ Read this file first in every session, then the documents it names, before touch
 2. `docs/design/permissions.md` — which role may do what. An account may hold several roles; it may do anything any of its roles allows.
 3. `docs/adr/` — architecture decisions. ADR-001 fixes the stack (React front end; Flask API owns every business rule; SQLAlchemy with SQLite for development and CI; Flask session auth with seeded accounts). ADR-002 fixes authorisation (feature matrix in `backend/permissions.py`, `require()` on routes, object rules in services, front-end route guards). ADR-003: in-app notifications written by the API, no worker. Rules live in the API, never only in the browser.
 4. `docs/test-cases/PROMPT.md` and `docs/test-cases/AUTOMATION.md` — how test cases are drafted and how tests prove them.
-5. `.claude/skills/*` — pytest, Vitest, Playwright and CI conventions.
+5. `.claude/skills/*` — pytest, Vitest, Playwright and CI conventions; `docs/test-cases/COVERAGE.md` — how much of a story's code its tests must reach.
 6. The story itself, from Jira, verbatim (see §3).
 
 ## 2. Identifiers
@@ -23,12 +23,12 @@ Read this file first in every session, then the documents it names, before touch
 ## 4. Flow for a story
 1. Read §1 documents and the story.
 2. Draft functional test cases with `PROMPT.md`; a developer curates, a second reviews; rows go into the team test sheet. No code before this.
-3. Build. Backend rules first (unit tests as you go), then the API route, then the front end through `frontend/src/api.js` (components never call `fetch` directly).
+3. Build. Backend rules first (unit tests as you go) in `backend/areas/<area>/`, then the API route, then the front end through `frontend/src/api.js` (components never call `fetch` directly).
 4. Write the Playwright spec and unit tests per `AUTOMATION.md`. Unit tests for a story live in that story's feature test file (`backend/tests/test_<feature>.py`, `frontend/src/__tests__/<Component>.test.jsx`) and test only what the story adds or changes, never other features. Run all three suites locally; they print coverage.
 5. Open the pull request: title `SCRUM-nn: …`; description states what was built, which TC IDs are covered, and where AI was used. CI must be green. A Developer other than the author approves; the author merges; the branch is deleted.
 
 ## 5. Definition of Done (per story)
-Acceptance criteria shown to the Product Owner; merged through a reviewed pull request with CI green; the reviewer has read the change, including AI-generated code, and can explain it; no known defect open; design documents updated where the change touches them; every test-case row for the story has a passing functional test.
+Acceptance criteria shown to the Product Owner; merged through a reviewed pull request with CI green; the reviewer has read the change, including AI-generated code, and can explain it; no known defect open; design documents updated where the change touches them; every test-case row for the story has a passing functional test; the story's files are 100 % covered or the pull request states why (`docs/test-cases/COVERAGE.md`).
 
 ## 6. Never
 - Never change a status name, transition, role or permission without changing the design document in the same PR.

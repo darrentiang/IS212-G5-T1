@@ -3,10 +3,13 @@
 Setup work has no Jira key; the reference is docs/compose/spec/sqlite-seed.md.
 """
 
+import os
+
 import pytest
 from werkzeug.security import check_password_hash
 
-from app import create_app
+import app as app_module
+from app import create_app, default_database_uri
 from db import db
 from models import SCHEMA_VERSION, Account, Role, SchemaMeta
 from seed import AlreadySeededError, seed_database
@@ -102,3 +105,81 @@ def test_health_reports_the_database_is_ok(client):
     resp = client.get("/api/health")
     assert resp.status_code == 200
     assert resp.get_json() == {"status": "ok", "database": "ok"}
+# @story: setup
+# @ac: sqlite-seed
+def test_has_role_answers_for_every_role_the_account_holds(app):
+    multi1 = db.session.query(Account).filter_by(username="multi1").one()
+
+    assert multi1.has_role("Event Coordinator") is True
+    assert multi1.has_role("Venue Staff") is True
+    assert multi1.has_role("Attendee") is False
+
+
+# @story: setup
+# @ac: sqlite-seed
+def test_records_name_themselves_in_a_log_line(app):
+    account = db.session.query(Account).filter_by(username="org1").one()
+    role = db.session.query(Role).filter_by(name="Attendee").one()
+    meta = db.session.query(SchemaMeta).one()
+
+    assert repr(account) == "<Account org1>"
+    assert repr(role) == "<Role Attendee>"
+    assert repr(meta) == f"<SchemaMeta v{SCHEMA_VERSION}>"
+
+
+# @story: setup
+# @ac: sqlite-seed
+def test_the_connection_string_comes_from_the_environment_when_it_is_set(monkeypatch, tmp_path):
+    uri = f"sqlite:///{tmp_path / 'from-env.db'}"
+    monkeypatch.setenv("DATABASE_URL", uri)
+
+    assert default_database_uri() == uri
+
+    # create_app with no override picks the same string up.
+    configured = create_app({"TESTING": True})
+    assert configured.config["SQLALCHEMY_DATABASE_URI"] == uri
+    with configured.app_context():
+        db.session.remove()
+        db.engine.dispose()
+
+
+# @story: setup
+# @ac: sqlite-seed
+def test_the_connection_string_falls_back_to_the_instance_file(monkeypatch):
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+
+    expected = "sqlite:///" + os.path.join(app_module.INSTANCE_PATH, "app.db")
+    assert default_database_uri() == expected
+
+
+# @story: setup
+# @ac: sqlite-seed
+def test_create_app_starts_on_a_database_at_the_current_version(tmp_path):
+    uri = f"sqlite:///{tmp_path / 'app.db'}"
+
+    first = create_app({"TESTING": True, "SQLALCHEMY_DATABASE_URI": uri})
+    with first.app_context():
+        seed_database(db)
+        db.session.remove()
+        db.engine.dispose()
+
+    # The file now exists and holds the version this code expects, so the
+    # factory returns an app instead of refusing.
+    second = create_app({"TESTING": True, "SQLALCHEMY_DATABASE_URI": uri})
+    with second.app_context():
+        assert db.session.query(SchemaMeta).one().version == SCHEMA_VERSION
+        db.session.remove()
+        db.engine.dispose()
+
+
+# @story: setup
+# @ac: sqlite-seed
+def test_health_reports_an_error_when_the_database_cannot_be_reached():
+    unreachable = create_app(
+        {"TESTING": True, "SQLALCHEMY_DATABASE_URI": "sqlite:////nonexistent/dir/app.db"}
+    )
+
+    resp = unreachable.test_client().get("/api/health")
+
+    assert resp.status_code == 200
+    assert resp.get_json() == {"status": "ok", "database": "error"}

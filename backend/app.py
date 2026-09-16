@@ -1,8 +1,9 @@
 """The ConnectSphere Flask application factory.
 
 The API owns every business rule (ADR-001); this module only wires the app to
-the database and exposes the two infrastructure endpoints. Routes for stories
-are added by those stories.
+its configuration, the database, the JSON error handlers and the area
+blueprints, and exposes the two infrastructure endpoints. Routes for stories
+are added by those stories, in backend/areas/<area>/routes.py.
 """
 
 import os
@@ -12,9 +13,11 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import sqlalchemy as sa
 from flask import Flask, jsonify
-from flask_cors import CORS
 
+from areas import BLUEPRINTS
+from config import Config
 from db import db
+from errors import register_error_handlers
 from models import SCHEMA_VERSION, SchemaMeta
 
 INSTANCE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "instance")
@@ -59,9 +62,8 @@ def check_schema_version(app):
 
 def create_app(config=None):
     app = Flask(__name__, instance_path=INSTANCE_PATH)
-    CORS(app)
 
-    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    app.config.from_object(Config)
 
     if config:
         app.config.update(config)
@@ -72,6 +74,13 @@ def create_app(config=None):
 
     db.init_app(app)
     check_schema_version(app)
+
+    register_error_handlers(app)
+
+    # /api/health and /api/ping are infrastructure, not an area, so they stay
+    # here. Everything a story adds goes in backend/areas/<area>/routes.py.
+    for blueprint in BLUEPRINTS:
+        app.register_blueprint(blueprint)
 
     @app.route("/api/health")
     def health():
