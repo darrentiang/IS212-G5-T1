@@ -1,6 +1,6 @@
 ---
 feature: frontend-scaffold
-status: ready
+status: delivered
 updated: 2026-09-16
 branch: chore/setup-frontend-scaffold
 owner: Darren; reviewer: a Developer
@@ -12,7 +12,18 @@ Read `AGENTS.md` first, then `docs/design/frontend.md` and `docs/design/ui-guide
 
 ## Report
 
-_Filled in by Claude Code after the build: what was built, verification, journey log (anything the spec left open and how it was decided)._
+**What was built** — The shared core in `frontend/src/app/`: `http.js` (the only `fetch`, `request(method, path, body)` and `ApiError`), `auth.jsx` (`AuthProvider` / `useAuth`, calling `me()` on mount), `areas.js` (the eight named imports in the spec's order), `App.jsx` (login redirect, `RequireFeature`, `/` and unknown → `/requests`, public routes outside `Layout`), `Layout.jsx` (header, nav built from `areas.js` and filtered by `can()`, `<Outlet />`) and `NotPermittedPage.jsx`. Eight area folders under `frontend/src/areas/`, each with `api.js` and `routes.jsx`: `auth` holds the contract comments for `/api/login`, `/api/logout` and `/api/me`, plus `LoginPage.jsx`; `requests` holds the `RequestsPage` placeholder and the one nav entry; the other six export `routes = []` and an empty `api.js`. `main.jsx` renders `<App />` inside `BrowserRouter` and `StrictMode`; the old `src/App.jsx` and `src/__tests__/` are deleted, with `setup.js` moved to `app/__tests__/setup.js` and `vitest.config.js` pointed at it. `react-router` 7.18.4 is the only dependency added. `functional/tests/INFRA-01.spec.js` is rewritten to the four-field header and the login-page assertions.
+
+**Verification** — `npm run test` in `frontend/`: 14 tests in 4 files, all green, coverage printed (96% statements, 99% lines); the old `App.test.jsx` and `Ping.test.jsx` are gone. `npm run test` in `functional/`: INFRA-01 green. `npm run test` (pytest) in `backend/`: still 9 green, untouched by this change. `vite build` completes with zero errors; `oxlint` reports no errors (warnings noted below). The [S5] dev check was walked in a browser against `npm run dev` and the real Flask backend: `/` lands on `/login`; submitting empty shows `login-username-error` and `login-password-error` and the network log records no `POST /api/login`; submitting `org1` / `Passw0rd!` shows the banner with the API's message, `role="alert"`, and the address stays `/login`. Structural rules checked by grep: `fetch` appears only in `app/http.js` (and in its own test, which [S3] permits), and `src/` contains nothing but `app/`, `areas/`, `main.jsx` and `index.css`. `git status` shows only intended files.
+
+**Journey log** — Four things the spec left open, and how each was decided:
+
+- **A failure from `me()` that is not a 401.** `frontend.md` §5 says only that "a 401 means no account", but until SCRUM-26 lands `/api/me` returns Flask's 404 HTML page, and [S4] says that is expected. `AuthProvider` therefore treats *any* failure from `me()` as "no account" and clears `loading` either way; had it only handled 401, the app would sit on a blank screen forever today. Relatedly, `http.js` reads the reply with `response.text()` and then parses, so a 204 (`logout`) and a non-JSON error page both survive, and a failing reply with no `message` becomes `Request failed (<status>)`. That fallback is the sentence in the login banner today; once SCRUM-26 exists, the API's own message replaces it with no change here.
+- **Testing the nav permission filter with no permissioned route in existence.** [S4] forbids giving any route a `permission` key until SCRUM-27 defines the feature keys, so `Layout.test.jsx` mocks `../areas` with a stand-in list carrying `venues.view`. This is the one module mocked beyond the area `api.js` modules [S3] names; it is not `fetch`, and the alternative was leaving the filter untested until SCRUM-27.
+- **Fourteen tests for nine numbered items.** Items 1, 2 and 6 each describe more than one behaviour, and splitting them keeps one assertion subject per test: item 1 → 2 tests, item 2 → 2 tests, item 6 → 3 tests, items 3, 4, 5, 7, 8, 9 → 1 each. That is 13. The fourteenth covers the Log out button: [S2] specifies that it calls `logout()` and then navigates to `/login`, but [S3] lists no test for it, and it is a rule this spec adds, so it has one.
+- **Lint warnings left in place, deliberately.** `oxlint` reports eight warnings and no errors: seven are the unused `request` import in the six empty `api.js` files plus `requests/api.js`, which is the exact file content [S2] prescribes, and one is `auth.jsx` exporting both `AuthProvider` and `useAuth`, which `frontend.md` §5 prescribes. Silencing either would mean departing from a document, so both are left as written and flagged here for the reviewer. Lint is not one of the three CI jobs, so nothing is blocked.
+
+One observation rather than a decision: in development `StrictMode` double-invokes the mount effect, so the browser shows two `GET /api/me` calls per load. That is React's intended development behaviour and does not happen in a production build.
 
 ## [S1] Problem
 

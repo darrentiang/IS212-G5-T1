@@ -91,7 +91,7 @@ export const routes = [
 
 ## 5. Account context (`app/auth.jsx`)
 
-- On start it calls `me()` from `areas/auth/api.js`. A 401 means no account.
+- On start it calls `me()` from `areas/auth/api.js`. A 401 means no account; any other failure is treated the same, so the app never sits on a blank screen.
 - Holds the account as `/api/me` returns it: username, roles, features.
 - `useAuth()` returns `{ account, loading, can(feature), login(username, password), logout() }`.
   - `login` calls the auth area's `login` and stores what it returns; `logout` calls `logout` and clears the account.
