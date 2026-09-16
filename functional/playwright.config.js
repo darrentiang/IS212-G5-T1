@@ -2,6 +2,10 @@ import { defineConfig, devices } from '@playwright/test'
 
 export default defineConfig({
   testDir: './tests',
+  // Every spec shares one SQLite file, seeded once per run by the backend
+  // webServer command below, so specs must never run at the same time.
+  workers: 1,
+  fullyParallel: false,
   timeout: 30_000,
   retries: 1,
   reporter: [

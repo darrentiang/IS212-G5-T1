@@ -13,6 +13,8 @@ All backend tests go in `backend/tests/`. File naming: `test_<feature>.py`.
 
 The `app` fixture in `backend/tests/conftest.py` gives every test a fresh in-memory database, created and seeded from `backend/seed/data.json` by `seed_database`. Tests never touch the development database in `backend/instance/app.db`, so running pytest cannot disturb a developer's data and no test needs to clean up after another. When a story needs standing data of its own (a venue, an event, an equipment unit), add rows to `seed/data.json` and bump `SCHEMA_VERSION` in `backend/models.py` in the same pull request; every test and every Playwright run then starts from that same data.
 
+The code those tests exercise lives in `backend/areas/<area>/`: `routes.py` for the endpoints, `services.py` for the rules, one area per folder and the same eight areas as the front end (`docs/design/frontend.md` §2 decides which). Models stay in `backend/models.py`. A service refuses by raising `ApiRefusal(status, message)` from `backend/errors.py` and never builds a response itself; every error reply the API sends, ours or Flask's own, is `{"message": "…"}` with the matching status, so a test asserts `resp.get_json()["message"]` whatever went wrong.
+
 ## Link header (REQUIRED)
 
 Every test function is preceded by a two-line header so a reviewer can see which story and criterion the test protects. CI does not parse unit tests; their results stay in the CI log.
