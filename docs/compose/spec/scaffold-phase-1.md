@@ -1,5 +1,5 @@
 ---
-feature: scaffold-phase1
+feature: scaffold-phase-1
 status: delivered
 updated: 2026-09-13
 branch: feature/scaffold-phase1
