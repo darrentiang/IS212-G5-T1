@@ -1,21 +1,15 @@
-// @tc: TC-INFRA-05
-// @test: ping button calls backend and shows pong
+// @tc: TC-INFRA-01
+// @test: app opens on the login page
 // @story: INFRA
 // @ac: 1
-// @type: Happy
-// @scenario: Ping button calls backend and displays pong through full stack
-// @preconditions: Flask backend and Vite frontend are running
-// @steps: 1. Visit app 2. Click "Ping Backend" 3. Assert result shown
-// @test_data: none
-// @expected: "Backend says: pong" is displayed on the page
 import { test, expect } from '@playwright/test'
 
-test('ping button calls backend and shows pong', async ({ page }) => {
+test('app opens on the login page', async ({ page }) => {
   await page.goto('/')
 
-  await expect(page.getByText('ConnectSphere Event Planning')).toBeVisible()
+  await expect(page).toHaveURL(/\/login$/)
 
-  await page.getByRole('button', { name: 'Ping Backend' }).click()
-
-  await expect(page.getByText(/Backend says: pong/)).toBeVisible()
+  await expect(page.getByTestId('login-username-input')).toBeVisible()
+  await expect(page.getByTestId('login-password-input')).toBeVisible()
+  await expect(page.getByTestId('login-submit-button')).toBeVisible()
 })

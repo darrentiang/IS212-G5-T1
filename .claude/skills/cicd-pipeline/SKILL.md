@@ -21,7 +21,7 @@ description: How the CI/CD pipeline works for this project — branch model, wha
 | Order | Job | Tool | What it tests |
 |---|---|---|---|
 | 1 | Pytest | pytest | Backend unit tests (`backend/tests/`) |
-| 2 | Vitest | vitest | Frontend unit tests (`frontend/src/__tests__/`) |
+| 2 | Vitest | vitest | Frontend unit tests (`frontend/src/**/__tests__/`) |
 | 3 | Functional | Playwright | Browser tests (`functional/tests/`) |
 | 4 | Log to Sheet | Node.js | Appends every Playwright result to the Executions tab of the team test sheet |
 

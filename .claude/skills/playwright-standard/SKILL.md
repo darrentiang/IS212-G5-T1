@@ -5,7 +5,7 @@ description: How to write functional tests with Playwright for this project — 
 
 # Playwright Standard — Functional Tests
 
-Test cases come from the team test sheet, not from this file. Read `docs/test-cases/AUTOMATION.md` first: it says how a Playwright test maps to a sheet row. This skill covers how to write the test itself.
+Test cases come from the team test sheet, not from this file. Read `docs/test-cases/AUTOMATION.md` first: it says how a Playwright test maps to a sheet row. Test ids come from `docs/design/ui-guidelines.md`. This skill covers how to write the test itself.
 
 ## What these are
 
@@ -53,11 +53,12 @@ import { test, expect } from '@playwright/test'
 test('organiser logs in with valid credentials', async ({ page }) => {
   await page.goto('/login')
 
-  await page.fill('[data-testid="username"]', 'org1')
-  await page.fill('[data-testid="password"]', 'Passw0rd!')
-  await page.click('[data-testid="login-submit"]')
+  await page.getByTestId('login-username-input').fill('org1')
+  await page.getByTestId('login-password-input').fill('Passw0rd!')
+  await page.getByTestId('login-submit-button').click()
 
-  await expect(page.getByTestId('current-role')).toHaveText(/event organiser/i)
+  await expect(page).toHaveURL(/\/requests$/)
+  await expect(page.getByTestId('layout-roles')).toHaveText(/event organiser/i)
 })
 
 // @tc: TC-SCRUM-26-02
@@ -67,38 +68,34 @@ test('organiser logs in with valid credentials', async ({ page }) => {
 test('wrong password is refused', async ({ page }) => {
   await page.goto('/login')
 
-  await page.fill('[data-testid="username"]', 'org1')
-  await page.fill('[data-testid="password"]', 'wrong')
-  await page.click('[data-testid="login-submit"]')
+  await page.getByTestId('login-username-input').fill('org1')
+  await page.getByTestId('login-password-input').fill('wrong')
+  await page.getByTestId('login-submit-button').click()
 
-  await expect(page.getByTestId('login-error')).toBeVisible()
+  await expect(page.getByTestId('login-banner')).toHaveAttribute('role', 'alert')
   await expect(page).toHaveURL(/\/login$/)
 })
 ```
 
 Map the row to the test: Preconditions → setup (seeded accounts, objects created through the UI or API before the steps); Steps → the actions in order; Test data → the values typed; Expected result → the assertions. Where the row says "nothing changed", reload and assert the state is unchanged.
 
-## Selector strategy
+## Selectors
 
-Use `data-testid` attributes for reliable selectors:
+`docs/design/ui-guidelines.md` is the only home of test ids. Find every element with `page.getByTestId()`; assert text, never find an element by it.
 
 ```javascript
-// Good — stable, not affected by CSS/text changes
-await page.click('[data-testid="submit-event"]')
-await page.fill('[data-testid="event-name"]', 'Test')
+// Good — id from ui-guidelines.md
+await page.getByTestId('request-new-name-input').fill('Annual Dinner')
+await page.getByTestId('request-new-submit-button').click()
+await expect(page.getByTestId('request-detail-banner')).toHaveText(/submitted/i)
 
-// Avoid — brittle
+// Avoid
 await page.click('.btn-primary')           // CSS class
 await page.click('button:nth-child(3)')    // position
-await page.getByText('Submit')             // text (OK for assertions, fragile for actions)
+await page.getByText('Submit').click()     // text used to find an element
 ```
 
-Add `data-testid` to React components:
-
-```jsx
-<input data-testid="event-name" ... />
-<button data-testid="submit-event" ...>
-```
+Never invent a test id. If the element has no id, or not the one the guidelines give, add it to the component in the same pull request; if the pattern itself does not fit, change `ui-guidelines.md` first.
 
 ## Test independence
 
@@ -133,8 +130,8 @@ The Playwright config auto-starts Flask (:5000) and Vite (:5173) before tests ru
 
 - Complete user flows through the browser (fill form → submit → verify result)
 - Navigation between pages
-- Role-based access (wrong role sees wrong page / gets redirected)
-- Visible error messages and success confirmations
+- Role-based access (an account without the feature sees the not-permitted page; controls it cannot use are absent)
+- Banner messages for refusals and successes
 - Data appearing in lists after creation
 
 ## What NOT to test at this level
@@ -149,7 +146,7 @@ The Playwright config auto-starts Flask (:5000) and Vite (:5173) before tests ru
 - [ ] Every curated row for the story in the Test cases tab has exactly one test
 - [ ] Every test has the 4-field `@tc` link header; no description fields in the file
 - [ ] `@test` field matches the `test()` block name exactly
-- [ ] Uses `data-testid` selectors, not CSS classes or text
+- [ ] Finds elements with `getByTestId`, using ids from `docs/design/ui-guidelines.md`
 - [ ] Tests are independent — no cross-test dependencies
 - [ ] Tests pass locally: `npm run test` is green
 - [ ] A human can explain what each test verifies
