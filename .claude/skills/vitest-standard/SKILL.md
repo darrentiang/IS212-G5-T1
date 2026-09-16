@@ -9,7 +9,7 @@ Functional test cases live in the team test sheet and are proved by Playwright, 
 
 ## Location
 
-All frontend tests go in `frontend/src/__tests__/`. File naming: `<Component>.test.jsx`.
+Tests sit in the `__tests__/` folder next to the code they test: `frontend/src/areas/<area>/__tests__/` for an area's pages, `frontend/src/app/__tests__/` for the shared core. File naming: after the file tested, e.g. `LoginPage.test.jsx`, `Layout.test.jsx`. Which area a story belongs to, and how pages are built, is in `docs/design/frontend.md`.
 
 ## Link header (REQUIRED)
 
@@ -34,7 +34,8 @@ No `@tc` line. TC IDs belong to functional rows in the sheet.
 
 ## Mocking rules
 
-- Components never call `fetch` directly; they call functions in `frontend/src/api.js`. Mock that module with `vi.mock('../api')` — never mock `global.fetch` in a component test.
+- Pages call their area's `api.js`, never `fetch` (`docs/design/frontend.md`). From the area's `__tests__/`, mock it with `vi.mock('../api')` — never mock `global.fetch`.
+- Render pages that use the router inside `MemoryRouter` from `react-router`.
 - Call `vi.restoreAllMocks()` in `afterEach` to prevent cross-test contamination
 - If importing JSON fixture data, use `structuredClone(data)` to avoid mutation leaking between tests
 
@@ -45,13 +46,14 @@ No `@tc` line. TC IDs belong to functional rows in the sheet.
 ```javascript
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import LoginForm from '../components/LoginForm'
+import { MemoryRouter } from 'react-router'
+import LoginPage from '../LoginPage'
 
-describe('LoginForm', () => {
+describe('LoginPage', () => {
   // @story: SCRUM-26
   // @ac: 1
   it('renders username, password and submit', () => {
-    render(<LoginForm />)
+    render(<MemoryRouter><LoginPage /></MemoryRouter>)
     expect(screen.getByLabelText(/username/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/password/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /log in/i })).toBeInTheDocument()
@@ -66,7 +68,8 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import * as api from '../api'
-import LoginForm from '../components/LoginForm'
+import { MemoryRouter } from 'react-router'
+import LoginPage from '../LoginPage'
 
 vi.mock('../api')
 
@@ -74,13 +77,13 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-describe('LoginForm', () => {
+describe('LoginPage', () => {
   // @story: SCRUM-26
   // @ac: 3
   it('shows the error returned by the API', async () => {
-    api.login.mockRejectedValue(new Error('Invalid username or password'))
+    api.login.mockRejectedValue(Object.assign(new Error('Invalid username or password'), { status: 401 }))
 
-    render(<LoginForm />)
+    render(<MemoryRouter><LoginPage /></MemoryRouter>)
     await userEvent.type(screen.getByLabelText(/username/i), 'org1')
     await userEvent.type(screen.getByLabelText(/password/i), 'wrong')
     await userEvent.click(screen.getByRole('button', { name: /log in/i }))
@@ -98,7 +101,7 @@ describe('LoginForm', () => {
 cd frontend
 npm run test              # run all
 npm run test:watch        # watch mode
-npx vitest run src/__tests__/LoginForm.test.jsx  # one file
+npx vitest run src/areas/auth/__tests__/LoginPage.test.jsx  # one file
 ```
 
 ## Definition of Done for tests
