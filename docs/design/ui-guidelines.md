@@ -50,7 +50,7 @@ Every page except `/login` sits inside the same layout.
 
 - Label above its field.
 - Required fields: label ends with ` *`, the input has `aria-required="true"`. No native `required` attribute (browser pop-ups bypass our messages and cannot be asserted consistently).
-- On submit the page checks required fields are filled and shows a message under each empty one, sending nothing. Every other rule is the API's: a refusal about one field shows under that field, any other refusal in the banner.
+- On submit the page checks required fields are filled and shows a message under each empty one, sending nothing. Every other rule is the API's, and an API refusal always shows in the banner, never under a field.
 - Input types: `date`, `time`, `number` where the value is one; a select for fixed choices; a textarea for long text.
 - Buttons at the bottom right. One primary button (the action that completes the story), secondary buttons to its left (e.g. Save draft left of Submit).
 - All buttons disabled while the request is being sent.

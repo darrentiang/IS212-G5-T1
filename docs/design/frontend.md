@@ -104,7 +104,7 @@ export const routes = [
 
 - `request(method, path, body)` sends `credentials: 'include'`, a JSON body and header, and parses the JSON reply.
 - 2xx → returns the parsed body.
-- Anything else → throws `ApiError` (a subclass of `Error`) with `status`, `message` (the reply's `message`) and `fields` (the reply's `fields` object, field name → message, when present).
+- Anything else → throws `ApiError` (a subclass of `Error`) with `status` and `message` (the reply's `message`). Every refusal from the API is `{ "message": "…" }`; the API never reports per-field errors.
 - It never navigates and never renders.
 
 **`areas/<area>/api.js`** holds that area's calls: one exported async function per endpoint, named for the action (`listRequests()`, `submitRequest(data)`), each a one-line call to `request()`. Pages import only their own area's `api.js`; tests mock it with `vi.mock('../api')`.
@@ -115,7 +115,7 @@ export const routes = [
 // POST /api/requests
 // body:    { name, purpose, description, date, start_time, end_time, attendance, venue, accessibility, equipment, registration }
 // 201:     the created request
-// 400:     { message, fields }   403: { message }
+// 400/403: { message }
 export const submitRequest = (data) => request('POST', '/api/requests', data)
 ```
 
@@ -124,8 +124,7 @@ The story author commits this first and opens a draft pull request, so a Develop
 **Handling an `ApiError`** (the caller decides):
 - 401 from `login` → a refused login: `error.message` in the login banner.
 - 401 from any other call → the session has ended: clear the account through `useAuth()`; routing sends the user to `/login`.
-- `fields` present → each message under its field.
-- Otherwise → `error.message` in the page banner.
+- Any other error → `error.message` in the page banner. Messages under a field come only from the page's own required-field check (`ui-guidelines.md` §4), never from the API.
 
 ## 7. Pages
 
