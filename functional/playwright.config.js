@@ -18,7 +18,7 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: 'python ../backend/app.py',
+      command: 'python ../backend/seed.py --reset && python ../backend/app.py',
       port: 5000,
       reuseExistingServer: !process.env.CI,
       timeout: 15_000,

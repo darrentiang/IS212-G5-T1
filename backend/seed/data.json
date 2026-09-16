@@ -1,0 +1,59 @@
+{
+  "roles": [
+    "Event Organiser",
+    "Event Coordinator",
+    "Venue Staff",
+    "Technical Support Staff",
+    "Attendee"
+  ],
+  "accounts": [
+    {
+      "username": "org1",
+      "password": "Passw0rd!",
+      "organisation": "Client Organisation A",
+      "roles": ["Event Organiser"]
+    },
+    {
+      "username": "org2",
+      "password": "Passw0rd!",
+      "organisation": "Client Organisation B",
+      "roles": ["Event Organiser"]
+    },
+    {
+      "username": "coord1",
+      "password": "Passw0rd!",
+      "organisation": null,
+      "roles": ["Event Coordinator"]
+    },
+    {
+      "username": "coord2",
+      "password": "Passw0rd!",
+      "organisation": null,
+      "roles": ["Event Coordinator"]
+    },
+    {
+      "username": "venue1",
+      "password": "Passw0rd!",
+      "organisation": null,
+      "roles": ["Venue Staff"]
+    },
+    {
+      "username": "tech1",
+      "password": "Passw0rd!",
+      "organisation": null,
+      "roles": ["Technical Support Staff"]
+    },
+    {
+      "username": "att1",
+      "password": "Passw0rd!",
+      "organisation": null,
+      "roles": ["Attendee"]
+    },
+    {
+      "username": "multi1",
+      "password": "Passw0rd!",
+      "organisation": null,
+      "roles": ["Event Coordinator", "Venue Staff"]
+    }
+  ]
+}

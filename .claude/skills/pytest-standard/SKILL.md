@@ -11,6 +11,8 @@ Functional test cases live in the team test sheet and are proved by Playwright, 
 
 All backend tests go in `backend/tests/`. File naming: `test_<feature>.py`.
 
+The `app` fixture in `backend/tests/conftest.py` gives every test a fresh in-memory database, created and seeded from `backend/seed/data.json` by `seed_database`. Tests never touch the development database in `backend/instance/app.db`, so running pytest cannot disturb a developer's data and no test needs to clean up after another. When a story needs standing data of its own (a venue, an event, an equipment unit), add rows to `seed/data.json` and bump `SCHEMA_VERSION` in `backend/models.py` in the same pull request; every test and every Playwright run then starts from that same data.
+
 ## Link header (REQUIRED)
 
 Every test function is preceded by a two-line header so a reviewer can see which story and criterion the test protects. CI does not parse unit tests; their results stay in the CI log.
