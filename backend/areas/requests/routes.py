@@ -1,12 +1,13 @@
 """Event request — Jira area(s) 02–07.
 
-SCRUM-27: read-only list and detail with role rules. Create/edit is SCRUM-28+.
+SCRUM-27: read-only list and detail with role rules.
+SCRUM-28: create a request and submit it (direct or from Draft).
 """
 
-from flask import Blueprint, g, jsonify
+from flask import Blueprint, g, jsonify, request as flask_request
 
 from areas.requests import services
-from permissions import REQUESTS_VIEW, require
+from permissions import REQUESTS_EDIT, REQUESTS_VIEW, require
 
 bp = Blueprint("requests", __name__, url_prefix="/api")
 
@@ -25,3 +26,22 @@ def get_request(request_id):
     account = g.account
     row = services.get_visible_request(account, request_id)
     return jsonify(services.request_detail_dict(row, account))
+
+
+@bp.post("/requests")
+@require(REQUESTS_EDIT)
+def submit_request():
+    """SCRUM-28: submit a new event request directly."""
+    account = g.account
+    data = flask_request.get_json(silent=True) or {}
+    created = services.submit_new_request(account, data)
+    return jsonify(services.request_to_dict(created)), 201
+
+
+@bp.post("/requests/<int:request_id>/submit")
+@require(REQUESTS_EDIT)
+def submit_draft_request(request_id):
+    """SCRUM-28: submit a previously saved Draft."""
+    account = g.account
+    submitted = services.submit_draft(account, request_id)
+    return jsonify(services.request_to_dict(submitted)), 200
