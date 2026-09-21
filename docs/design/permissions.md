@@ -26,7 +26,22 @@ Kept current by every story that adds an action: the row is added or changed in 
 
 Rule: an action not listed as permitted for any of the account's roles is refused, a message is shown, and no data changes.
 
+## Feature keys
+
+Keys used in `backend/permissions.py` and on API routes / `features` from `/api/me`. A pytest asserts this table matches `ROLE_FEATURES` in code (ADR-002). Object rules ("own only", "all except Draft") stay in services, not in this table.
+
+| Key | Event Organiser | Event Coordinator | Venue Staff | Technical Support Staff | Attendee |
+|---|---|---|---|---|---|
+| requests.view | Yes | Yes | No | No | No |
+| requests.edit | Yes | Yes | No | No | No |
+| venues.view | No | Yes | Yes | No | No |
+| equipment.view | No | No | No | Yes | No |
+| registration.view | No | Yes | No | No | Yes |
+| internal_notes.view | No | Yes | No | No | No |
+| notifications.view | Yes | Yes | Yes | Yes | Yes |
+
 | Version | Date | Change | Reason |
 |---|---|---|---|
 | 1.0 | 10-09-2026 | Initial table | Pre-sprint preparation |
 | 1.1 | 15-09-2026 | Multi-role accounts; assigned-coordinator restriction on edits and arrangements; resubmit, reassign, change request, notification rows | Q-06, D-09, D-13, D-14, Q-11, Q-12 |
+| 1.2 | 21-09-2026 | Feature keys section mapping API keys to the action table | SCRUM-27 review: ADR-002 requires code ≡ document |

@@ -1,3 +1,6 @@
 import { request } from '../../app/http'
 
-// Add this area's calls here; see docs/design/frontend.md §6
+// GET /api/registration/events
+// 200: [ { id, name, purpose, status, registration_enabled } ]
+// 403: { message }
+export const listOpenEvents = () => request('GET', '/api/registration/events')

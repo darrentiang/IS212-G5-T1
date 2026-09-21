@@ -19,6 +19,14 @@ Do not invent statuses, roles, fields, limits, messages or timings that are not 
 ## Seeded accounts (use these names in preconditions and test data)
 `org1`, `org2` (Event Organisers, different client organisations) · `coord1`, `coord2` (Event Coordinators) · `venue1` (Venue Staff) · `tech1` (Technical Support Staff) · `att1` (Attendee) · `multi1` (Event Coordinator and Venue Staff, the one two-role account). Password for all: `Passw0rd!`.
 
+## Seeded event requests (SCRUM-27 access data; loaded from `backend/seed/data.json`)
+- **Annual Dinner** — created by `org1`, status **Submitted**
+- **Design Workshop** — created by `org1`, status **Draft**
+- **Client B Conference** — created by `org2`, status **Submitted**
+- **Open House** — created by `org1`, status **Confirmed**, registration enabled
+
+Create/edit/submit of requests is SCRUM-28 and later; these rows exist so access-control stories can be tested.
+
 ## Method (label each row with the step that produced it)
 1. Visualise the workflow: who does this, from which screen, in which status.
 2. **Happy** — one row per distinct path through the story, not per role. Two roles that follow the same steps to the same result are one row; a second row only where the story's own rules make the steps or the result differ (e.g. an account with two roles, when the story says roles are shown).

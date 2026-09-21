@@ -55,5 +55,39 @@
       "organisation": null,
       "roles": ["Event Coordinator", "Venue Staff"]
     }
+  ],
+  "event_requests": [
+    {
+      "name": "Annual Dinner",
+      "purpose": "Client organisation A year-end dinner",
+      "status": "Submitted",
+      "created_by": "org1",
+      "registration_enabled": false,
+      "coordinator_notes": "Internal: venue shortlist pending."
+    },
+    {
+      "name": "Design Workshop",
+      "purpose": "Internal design workshop",
+      "status": "Draft",
+      "created_by": "org1",
+      "registration_enabled": false,
+      "coordinator_notes": null
+    },
+    {
+      "name": "Client B Conference",
+      "purpose": "Client organisation B annual conference",
+      "status": "Submitted",
+      "created_by": "org2",
+      "registration_enabled": false,
+      "coordinator_notes": "Internal: equipment list not final."
+    },
+    {
+      "name": "Open House",
+      "purpose": "Public open house",
+      "status": "Confirmed",
+      "created_by": "org1",
+      "registration_enabled": true,
+      "coordinator_notes": "Internal: do not publish staff roster."
+    }
   ]
 }
