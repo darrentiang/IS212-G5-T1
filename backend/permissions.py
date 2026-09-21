@@ -82,12 +82,18 @@ def features_for(account):
 
 
 def require(feature):
-    """Flask decorator: refuse 403 when the session account lacks feature."""
+    """Flask decorator for routes (ADR-002, frontend.md §6).
+
+    Not logged in → 401 (client sends the user to /login).
+    Logged in without the feature → 403 (page shows the refusal banner).
+    """
 
     def decorator(view):
         @wraps(view)
         def wrapper(*args, **kwargs):
             account = getattr(g, "account", None)
+            if account is None:
+                raise ApiRefusal(401, "Not logged in")
             if not can(account, feature):
                 raise ApiRefusal(403, "You do not have permission to perform this action.")
             return view(*args, **kwargs)

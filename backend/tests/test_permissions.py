@@ -3,6 +3,9 @@
 Unit tests prove the permission matrix and object rules (ADR-002).
 """
 
+import os
+import re
+
 from permissions import (
     ALL_FEATURES,
     EQUIPMENT_VIEW,
@@ -11,11 +14,68 @@ from permissions import (
     REGISTRATION_VIEW,
     REQUESTS_EDIT,
     REQUESTS_VIEW,
+    ROLE_FEATURES,
     VENUES_VIEW,
     can,
     features_for,
 )
 from models import Account
+
+PERMISSIONS_MD = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    "docs",
+    "design",
+    "permissions.md",
+)
+
+ROLE_COLUMNS = [
+    "Event Organiser",
+    "Event Coordinator",
+    "Venue Staff",
+    "Technical Support Staff",
+    "Attendee",
+]
+
+
+def _parse_feature_keys_table(markdown_text):
+    """Parse the Feature keys table into {key: {role: bool}}."""
+    match = re.search(
+        r"## Feature keys.*?\n\n(\| Key \|.*?)(?:\n\n|\n\| Version)",
+        markdown_text,
+        re.DOTALL,
+    )
+    assert match, "permissions.md must contain a '## Feature keys' section"
+    table = match.group(1)
+    rows = {}
+    for line in table.splitlines():
+        line = line.strip()
+        if not line.startswith("|") or line.startswith("| Key") or line.startswith("|---"):
+            continue
+        cells = [c.strip() for c in line.strip("|").split("|")]
+        if len(cells) != 6:
+            continue
+        key = cells[0]
+        rows[key] = {role: cells[i + 1] == "Yes" for i, role in enumerate(ROLE_COLUMNS)}
+    return rows
+
+
+# @story: SCRUM-27
+# @ac: 8
+def test_permissions_doc_matches_code():
+    """ADR-002: matrix in permissions.py equals Feature keys in permissions.md."""
+    with open(PERMISSIONS_MD, encoding="utf-8") as handle:
+        doc_rows = _parse_feature_keys_table(handle.read())
+
+    assert set(doc_rows.keys()) == set(ALL_FEATURES)
+
+    for role in ROLE_COLUMNS:
+        for key in ALL_FEATURES:
+            in_code = key in ROLE_FEATURES.get(role, set())
+            allowed = doc_rows[key][role]
+            assert in_code == allowed, (
+                f"{role} / {key}: permissions.md allowed={allowed}, "
+                f"permissions.py has feature={in_code}"
+            )
 
 
 # @story: SCRUM-27
@@ -222,8 +282,14 @@ def test_coord_detail_includes_notes_attendee_payload_does_not(client):
 # @story: SCRUM-27
 # @ac: 8
 def test_unauthenticated_requests_are_refused(client):
-    assert client.get("/api/requests").status_code in (401, 403)
-    assert client.get("/api/registration/events").status_code in (401, 403)
+    """Not logged in → 401 (frontend.md §6 routes this to /login)."""
+    resp_list = client.get("/api/requests")
+    assert resp_list.status_code == 401
+    assert resp_list.get_json()["message"] == "Not logged in"
+
+    resp_reg = client.get("/api/registration/events")
+    assert resp_reg.status_code == 401
+    assert resp_reg.get_json()["message"] == "Not logged in"
 
 
 # @story: SCRUM-27
