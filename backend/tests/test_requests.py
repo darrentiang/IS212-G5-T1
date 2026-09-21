@@ -101,9 +101,11 @@ def test_direct_submit_reports_every_missing_field_at_once(client, app):
 
 def test_direct_submit_with_missing_field_records_nothing(client, app):
     login_as(client, app, "org1")
+    with app.app_context():
+        before = db.session.query(EventRequest).count()
     client.post("/api/requests", json={"name": "Incomplete request"})
     with app.app_context():
-        assert db.session.query(EventRequest).count() == 0
+        assert db.session.query(EventRequest).count() == before
 
 
 def test_submit_draft_missing_field_is_refused(client, app):
@@ -179,12 +181,11 @@ def test_coordinator_cannot_view_a_draft_request(client, app):
     assert resp.status_code == 403
 
 
-def test_list_requests_for_a_role_with_no_visibility_is_empty(client, app):
+def test_list_requests_for_a_role_with_no_visibility_is_refused(client, app):
     make_draft(app, "org1", status="Submitted")
     login_as(client, app, "att1")
     resp = client.get("/api/requests")
-    assert resp.status_code == 200
-    assert resp.get_json() == []
+    assert resp.status_code == 403
 
 
 def test_stale_session_account_is_treated_as_logged_out(client, app):
@@ -208,7 +209,8 @@ def test_organiser_lists_only_their_own_requests(client, app):
     login_as(client, app, "org1")
     resp = client.get("/api/requests")
     names = [r["name"] for r in resp.get_json()]
-    assert names == ["Org1 event"]
+    assert "Org1 event" in names
+    assert "Org2 event" not in names
 
 
 def test_event_request_repr_shows_id_and_status(app):

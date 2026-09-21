@@ -71,7 +71,16 @@
       "status": "Draft",
       "created_by": "org1",
       "registration_enabled": false,
-      "coordinator_notes": null
+      "coordinator_notes": null,
+      "description": "Internal workshop on the new event templates",
+      "date": "2026-12-04",
+      "start_time": "10:00",
+      "end_time": "12:00",
+      "attendance": 20,
+      "venue_requirements": "Meeting room with whiteboard",
+      "accessibility_needs": "None",
+      "equipment_requirements": "Projector",
+      "registration_needs": "Internal sign-up sheet"
     },
     {
       "name": "Client B Conference",

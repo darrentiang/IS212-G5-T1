@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
+import { useAuth } from '../../app/auth'
 import { listRequests } from './api'
 
 // SCRUM-27: list only what the API returns for this account.
+// SCRUM-28: the New request button for an account that may submit one.
 export default function RequestsPage() {
+  const { can } = useAuth() ?? {}
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
   const [banner, setBanner] = useState(null)
@@ -31,6 +34,15 @@ export default function RequestsPage() {
         <h1 className="text-xl font-semibold text-gray-900" data-testid="requests-title">
           Requests
         </h1>
+        {can?.('requests.edit') && (
+          <Link
+            to="/requests/new"
+            className="rounded bg-blue-700 px-4 py-2 text-sm font-medium text-white"
+            data-testid="requests-new-button"
+          >
+            New request
+          </Link>
+        )}
       </div>
 
       {banner && (
