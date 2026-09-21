@@ -1,19 +1,76 @@
-// Placeholder so the scaffold has a landing page; replaced by SCRUM-28/29.
-// It follows the page anatomy in docs/design/ui-guidelines.md §3 — title row,
-// then content — so that it is the example every real page copies.
+import { useEffect, useState } from 'react'
+import { Link } from 'react-router'
+import { listRequests } from './api'
+
+// SCRUM-27: list only what the API returns for this account.
 export default function RequestsPage() {
+  const [rows, setRows] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [banner, setBanner] = useState(null)
+
+  useEffect(() => {
+    let active = true
+    listRequests()
+      .then((data) => {
+        if (active) setRows(data)
+      })
+      .catch((error) => {
+        if (active) setBanner(error.message)
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [])
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4">
         <h1 className="text-xl font-semibold text-gray-900" data-testid="requests-title">
           Requests
         </h1>
-        {/* SCRUM-28 adds the New request button here, at the right of this row. */}
       </div>
 
-      <p className="text-gray-600" data-testid="requests-empty">
-        No requests yet.
-      </p>
+      {banner && (
+        <p role="alert" className="border border-red-300 bg-red-50 text-red-800 rounded px-3 py-2 text-sm" data-testid="requests-banner">
+          {banner}
+        </p>
+      )}
+
+      {loading ? null : rows.length === 0 ? (
+        <p className="text-gray-600" data-testid="requests-empty">
+          No requests yet.
+        </p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead>
+              <tr className="text-left border-b border-gray-200">
+                <th className="py-2 pr-4">Name</th>
+                <th className="py-2 pr-4">Status</th>
+                <th className="py-2 pr-4">Created by</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={row.id} className="border-b border-gray-100" data-testid={`requests-row-${row.id}`}>
+                  <td className="py-2 pr-4">
+                    <Link to={`/requests/${row.id}`} className="text-blue-700 hover:underline">
+                      {row.name}
+                    </Link>
+                  </td>
+                  <td className="py-2 pr-4" data-testid={`requests-status-${row.id}`}>
+                    {row.status}
+                  </td>
+                  <td className="py-2 pr-4">{row.created_by}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   )
 }

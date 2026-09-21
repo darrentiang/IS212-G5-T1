@@ -23,7 +23,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from db import db
-from models import SCHEMA_VERSION, Account, Role, SchemaMeta
+from models import SCHEMA_VERSION, Account, EventRequest, Role, SchemaMeta
 
 DEFAULT_DATA_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "seed", "data.json")
 
@@ -60,6 +60,7 @@ def seed_database(db, data_path=DEFAULT_DATA_PATH):
             roles[name] = role
             db.session.add(role)
 
+        accounts = {}
         for entry in data["accounts"]:
             account = Account(
                 username=entry["username"],
@@ -68,6 +69,22 @@ def seed_database(db, data_path=DEFAULT_DATA_PATH):
             account.set_password(entry["password"])
             account.roles = [roles[name] for name in entry["roles"]]
             db.session.add(account)
+            accounts[entry["username"]] = account
+
+        db.session.flush()
+
+        for entry in data.get("event_requests", []):
+            owner = accounts[entry["created_by"]]
+            db.session.add(
+                EventRequest(
+                    name=entry["name"],
+                    purpose=entry.get("purpose"),
+                    status=entry["status"],
+                    created_by=owner,
+                    registration_enabled=bool(entry.get("registration_enabled", False)),
+                    coordinator_notes=entry.get("coordinator_notes"),
+                )
+            )
 
         db.session.add(SchemaMeta(version=SCHEMA_VERSION))
         db.session.commit()

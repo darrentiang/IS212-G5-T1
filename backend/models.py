@@ -1,20 +1,15 @@
 """Database models for the ConnectSphere API.
 
-Only the accounts and roles needed by every story live here. Venues, events and
-equipment are added by the stories that need them; each such story bumps
-SCHEMA_VERSION so that a stale development database refuses to start.
-
-No permission logic lives here: the role -> feature matrix is SCRUM-27 and
-ADR-002. These models only record which roles an account holds.
+SCRUM-26: accounts and roles. SCRUM-27: event requests for role-based
+read access. No permission logic here — see backend/permissions.py.
 """
 
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from db import db
 
-# Bumped by any story that changes the shape of the database. app.py refuses to
-# start when the stored version differs; seed.py --reset rebuilds the database.
-SCHEMA_VERSION = 1
+# Bumped when the shape of the database changes (SCRUM-27 added event_requests).
+SCHEMA_VERSION = 2
 
 
 account_roles = db.Table(
@@ -44,31 +39,47 @@ class Account(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(64), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
-    # The client organisation an Event Organiser belongs to; plain text, and
-    # None for internal staff accounts.
     organisation = db.Column(db.String(128), nullable=True)
 
     roles = db.relationship("Role", secondary=account_roles, backref="accounts")
 
     def set_password(self, password):
-        """Store the hash of password. The plain value is never persisted."""
         self.password_hash = generate_password_hash(password)
 
     def check_password(self, password):
-        """True when password matches the stored hash."""
         return check_password_hash(self.password_hash, password)
 
     def has_role(self, name):
-        """True when this account holds the role called name."""
         return any(role.name == name for role in self.roles)
 
     @property
     def role_names(self):
-        """The account's role names, sorted, for a stable API surface."""
         return sorted(role.name for role in self.roles)
 
     def __repr__(self):
         return f"<Account {self.username}>"
+
+
+class EventRequest(db.Model):
+    """Minimal event request for access-control reads (SCRUM-27).
+
+    Create/edit/submit are SCRUM-28/29/30; this story only reads.
+    """
+
+    __tablename__ = "event_requests"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(128), nullable=False)
+    purpose = db.Column(db.String(255), nullable=True)
+    status = db.Column(db.String(32), nullable=False)
+    created_by_id = db.Column(db.Integer, db.ForeignKey("accounts.id"), nullable=False)
+    registration_enabled = db.Column(db.Boolean, nullable=False, default=False)
+    coordinator_notes = db.Column(db.Text, nullable=True)
+
+    created_by = db.relationship("Account", backref="event_requests")
+
+    def __repr__(self):
+        return f"<EventRequest {self.id} {self.name} {self.status}>"
 
 
 class SchemaMeta(db.Model):
