@@ -1,15 +1,18 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router'
+import { Link, useLocation } from 'react-router'
 import { useAuth } from '../../app/auth'
 import { listRequests } from './api'
 
 // SCRUM-27: list only what the API returns for this account.
 // SCRUM-28: the New request button for an account that may submit one.
+// SCRUM-30: the success banner carried from RequestDetailPage's navigate() after deleting a draft.
 export default function RequestsPage() {
   const { can } = useAuth() ?? {}
+  const location = useLocation()
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
   const [banner, setBanner] = useState(null)
+  const [successBanner, setSuccessBanner] = useState(location.state?.banner ?? null)
 
   useEffect(() => {
     let active = true
@@ -18,7 +21,10 @@ export default function RequestsPage() {
         if (active) setRows(data)
       })
       .catch((error) => {
-        if (active) setBanner(error.message)
+        if (active) {
+          setBanner(error.message)
+          setSuccessBanner(null)
+        }
       })
       .finally(() => {
         if (active) setLoading(false)
@@ -48,6 +54,11 @@ export default function RequestsPage() {
       {banner && (
         <p role="alert" className="border border-red-300 bg-red-50 text-red-800 rounded px-3 py-2 text-sm" data-testid="requests-banner">
           {banner}
+        </p>
+      )}
+      {!banner && successBanner && (
+        <p role="status" className="border border-green-300 bg-green-50 text-green-800 rounded px-3 py-2 text-sm" data-testid="requests-banner">
+          {successBanner}
         </p>
       )}
 

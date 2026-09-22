@@ -1,5 +1,5 @@
-# @story: SCRUM-28
-# @ac: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
+# @story: SCRUM-27, SCRUM-28, SCRUM-30
+# @ac: SCRUM-28 1-10; SCRUM-30 1-10 (below the SCRUM-27/28 sections)
 
 from datetime import date, timedelta
 
@@ -340,3 +340,215 @@ def test_event_request_repr_shows_id_and_status(app):
     with app.app_context():
         req = EventRequest(created_by_id=1, status="Draft")
         assert repr(req) == f"<EventRequest {req.id} Draft>"
+
+
+# ==========================================================================
+# SCRUM-30: save, edit and delete a Draft
+# ==========================================================================
+
+# --- Happy: AC1, AC9, a draft can be saved with just a name ---
+
+
+def test_save_draft_with_only_name_succeeds(client, app):
+    # org2, not org1: the seed data already gives org1 an open Draft.
+    login_as(client, app, "org2")
+    resp = client.post("/api/requests/draft", json={"name": "Tech Fair 2026"})
+    assert resp.status_code == 201
+    body = resp.get_json()
+    assert body["status"] == "Draft"
+    assert body["name"] == "Tech Fair 2026"
+
+
+def test_save_draft_leaves_unset_fields_empty(client, app):
+    login_as(client, app, "org2")
+    resp = client.post("/api/requests/draft", json={"name": "Tech Fair 2026"})
+    body = resp.get_json()
+    assert body["purpose"] is None
+    assert body["attendance"] is None
+
+
+# --- Happy: AC6, an invalid field value is accepted; validated only at submit ---
+
+
+def test_save_draft_with_invalid_attendance_is_accepted(client, app):
+    login_as(client, app, "org2")
+    resp = client.post(
+        "/api/requests/draft", json={"name": "Tech Fair 2026", "attendance": -5}
+    )
+    assert resp.status_code == 201
+    assert resp.get_json()["attendance"] == -5
+
+
+# --- Negative: AC9, a draft cannot be saved with no fields at all ---
+
+
+def test_save_draft_without_a_name_is_refused(client, app):
+    login_as(client, app, "org2")
+    resp = client.post("/api/requests/draft", json={})
+    assert resp.status_code == 400
+    assert "name" in resp.get_json()["message"]
+
+
+def test_save_draft_with_whitespace_only_name_is_refused(client, app):
+    login_as(client, app, "org2")
+    resp = client.post("/api/requests/draft", json={"name": "   "})
+    assert resp.status_code == 400
+    assert "name" in resp.get_json()["message"]
+
+
+# --- Negative: AC7, only one open draft at a time ---
+
+
+def test_save_second_draft_while_one_is_open_is_refused(client, app):
+    login_as(client, app, "org1")
+    make_draft(app, "org1", name="First draft")
+    resp = client.post("/api/requests/draft", json={"name": "Second draft"})
+    assert resp.status_code == 400
+    assert "draft" in resp.get_json()["message"].lower()
+
+
+def test_save_draft_allowed_when_existing_requests_are_not_drafts(client, app):
+    login_as(client, app, "org2")
+    make_draft(app, "org2", status="Submitted", name="Already submitted")
+    resp = client.post("/api/requests/draft", json={"name": "New draft"})
+    assert resp.status_code == 201
+
+
+# --- Negative: only an Event Organiser may save a draft ---
+
+
+def test_non_organiser_cannot_save_a_draft(client, app):
+    login_as(client, app, "coord1")
+    resp = client.post("/api/requests/draft", json={"name": "Tech Fair 2026"})
+    assert resp.status_code == 403
+
+
+def test_logged_out_cannot_save_a_draft(client, app):
+    resp = client.post("/api/requests/draft", json={"name": "Tech Fair 2026"})
+    assert resp.status_code == 401
+
+
+# --- Cross: AC2, a draft never appears in a Coordinator's list ---
+
+
+def test_coordinator_does_not_see_a_newly_saved_draft(client, app):
+    login_as(client, app, "org2")
+    created = client.post("/api/requests/draft", json={"name": "Tech Fair 2026"})
+    assert created.status_code == 201
+    login_as(client, app, "coord1")
+    resp = client.get("/api/requests")
+    names = [r["name"] for r in resp.get_json()]
+    assert "Tech Fair 2026" not in names
+
+
+# --- Happy: AC3, the creating Organiser can edit any field of their own draft ---
+
+
+def test_update_draft_changes_the_name(client, app):
+    login_as(client, app, "org1")
+    draft_id = make_draft(app, "org1", name="Old name")
+    resp = client.put(f"/api/requests/{draft_id}", json={"name": "New name"})
+    assert resp.status_code == 200
+    assert resp.get_json()["name"] == "New name"
+
+
+def test_update_draft_changes_any_other_field(client, app):
+    login_as(client, app, "org1")
+    draft_id = make_draft(app, "org1")
+    resp = client.put(f"/api/requests/{draft_id}", json={"attendance": 50})
+    assert resp.status_code == 200
+    assert resp.get_json()["attendance"] == 50
+
+
+def test_update_draft_with_blank_name_is_refused(client, app):
+    login_as(client, app, "org1")
+    draft_id = make_draft(app, "org1")
+    resp = client.put(f"/api/requests/{draft_id}", json={"name": "   "})
+    assert resp.status_code == 400
+    assert "name" in resp.get_json()["message"]
+
+
+def test_update_a_submitted_request_is_refused(client, app):
+    login_as(client, app, "org1")
+    request_id = make_draft(app, "org1", status="Submitted")
+    resp = client.put(f"/api/requests/{request_id}", json={"name": "New name"})
+    assert resp.status_code == 400
+    assert "Draft" in resp.get_json()["message"]
+
+
+# --- Negative: AC3, AC10, only the creating Organiser may edit a draft ---
+
+
+def test_other_organiser_cannot_edit_a_draft(client, app):
+    draft_id = make_draft(app, "org1")
+    login_as(client, app, "org2")
+    resp = client.put(f"/api/requests/{draft_id}", json={"name": "Hijacked"})
+    assert resp.status_code == 404
+
+
+def test_coordinator_cannot_edit_a_draft(client, app):
+    draft_id = make_draft(app, "org1")
+    login_as(client, app, "coord1")
+    resp = client.put(f"/api/requests/{draft_id}", json={"name": "Hijacked"})
+    assert resp.status_code == 403
+
+
+# --- Happy: AC3, AC8, the creating Organiser can permanently delete their draft ---
+
+
+def test_delete_own_draft_succeeds(client, app):
+    login_as(client, app, "org1")
+    draft_id = make_draft(app, "org1")
+    resp = client.delete(f"/api/requests/{draft_id}")
+    assert resp.status_code == 204
+
+
+def test_deleted_draft_is_not_recoverable(client, app):
+    login_as(client, app, "org1")
+    draft_id = make_draft(app, "org1")
+    client.delete(f"/api/requests/{draft_id}")
+    resp = client.get(f"/api/requests/{draft_id}")
+    assert resp.status_code == 404
+
+
+def test_deleted_draft_does_not_appear_in_list(client, app):
+    login_as(client, app, "org1")
+    draft_id = make_draft(app, "org1", name="Gone soon")
+    client.delete(f"/api/requests/{draft_id}")
+    resp = client.get("/api/requests")
+    ids = [r["id"] for r in resp.get_json()]
+    assert draft_id not in ids
+
+
+# --- Negative: AC4, a Submitted request cannot be deleted as a draft ---
+
+
+def test_delete_a_submitted_request_is_refused(client, app):
+    login_as(client, app, "org1")
+    request_id = make_draft(app, "org1", status="Submitted")
+    resp = client.delete(f"/api/requests/{request_id}")
+    assert resp.status_code == 400
+    assert "Draft" in resp.get_json()["message"]
+    with app.app_context():
+        assert db.session.get(EventRequest, request_id) is not None
+
+
+# --- Negative: AC3, AC10, only the creating Organiser may delete a draft ---
+
+
+def test_other_organiser_cannot_delete_a_draft(client, app):
+    draft_id = make_draft(app, "org1")
+    login_as(client, app, "org2")
+    resp = client.delete(f"/api/requests/{draft_id}")
+    assert resp.status_code == 404
+    with app.app_context():
+        assert db.session.get(EventRequest, draft_id) is not None
+
+
+def test_coordinator_cannot_delete_a_draft(client, app):
+    draft_id = make_draft(app, "org1")
+    login_as(client, app, "coord1")
+    resp = client.delete(f"/api/requests/{draft_id}")
+    assert resp.status_code == 403
+    with app.app_context():
+        assert db.session.get(EventRequest, draft_id) is not None

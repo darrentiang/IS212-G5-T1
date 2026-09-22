@@ -25,3 +25,22 @@ export const submitRequest = (data) => request('POST', '/api/requests', data)
 // 200:     the request, now Submitted
 // 400/403/404: { message }
 export const submitDraft = (id) => request('POST', `/api/requests/${id}/submit`)
+
+// POST /api/requests/draft
+// body:    { name, purpose, description, date, start_time, end_time, attendance,
+//            venue_requirements, accessibility_needs, equipment_requirements,
+//            registration_needs } — only name is required
+// 201:     the saved Draft
+// 400/403: { message }
+export const saveDraft = (data) => request('POST', '/api/requests/draft', data)
+
+// PUT /api/requests/:id
+// body:    any subset of the fields above
+// 200:     the updated Draft
+// 400/403/404: { message }
+export const updateDraft = (id, data) => request('PUT', `/api/requests/${id}`, data)
+
+// DELETE /api/requests/:id
+// 204:     deleted
+// 400/403/404: { message }
+export const deleteDraft = (id) => request('DELETE', `/api/requests/${id}`)
