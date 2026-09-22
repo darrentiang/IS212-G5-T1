@@ -414,11 +414,48 @@ def test_save_draft_allowed_when_existing_requests_are_not_drafts(client, app):
     assert resp.status_code == 201
 
 
+def test_save_draft_allowed_after_deleting_the_open_one(client, app):
+    login_as(client, app, "org2")
+    draft_id = make_draft(app, "org2", name="First draft")
+    delete_resp = client.delete(f"/api/requests/{draft_id}")
+    assert delete_resp.status_code == 204
+
+    resp = client.post("/api/requests/draft", json={"name": "New draft"})
+    assert resp.status_code == 201
+
+
+# --- Happy: AC6, an invalid date or time is also accepted; validated only at submit ---
+
+
+def test_save_draft_with_invalid_date_is_accepted(client, app):
+    login_as(client, app, "org2")
+    resp = client.post(
+        "/api/requests/draft", json={"name": "Tech Fair 2026", "date": "not-a-date"}
+    )
+    assert resp.status_code == 201
+    assert resp.get_json()["date"] == "not-a-date"
+
+
+def test_save_draft_with_invalid_time_is_accepted(client, app):
+    login_as(client, app, "org2")
+    resp = client.post(
+        "/api/requests/draft", json={"name": "Tech Fair 2026", "start_time": "9am", "end_time": "5pm"}
+    )
+    assert resp.status_code == 201
+    assert resp.get_json()["start_time"] == "9am"
+
+
 # --- Negative: only an Event Organiser may save a draft ---
 
 
 def test_non_organiser_cannot_save_a_draft(client, app):
     login_as(client, app, "coord1")
+    resp = client.post("/api/requests/draft", json={"name": "Tech Fair 2026"})
+    assert resp.status_code == 403
+
+
+def test_attendee_cannot_save_a_draft(client, app):
+    login_as(client, app, "att1")
     resp = client.post("/api/requests/draft", json={"name": "Tech Fair 2026"})
     assert resp.status_code == 403
 
@@ -441,6 +478,31 @@ def test_coordinator_does_not_see_a_newly_saved_draft(client, app):
     assert "Tech Fair 2026" not in names
 
 
+# --- Happy: AC3, the creating Organiser can reopen (view) their own draft ---
+
+
+def test_organiser_can_view_their_own_draft(client, app):
+    login_as(client, app, "org1")
+    draft_id = make_draft(app, "org1", name="My own draft")
+    resp = client.get(f"/api/requests/{draft_id}")
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert body["name"] == "My own draft"
+    assert body["status"] == "Draft"
+
+
+# --- Negative: AC10, viewing a draft directly by id is refused for anyone else ---
+# (a Coordinator's refusal is already proven by SCRUM-27's
+# test_coordinator_cannot_view_a_draft_request, above)
+
+
+def test_other_organiser_cannot_view_a_draft_directly(client, app):
+    draft_id = make_draft(app, "org1", name="Not yours")
+    login_as(client, app, "org2")
+    resp = client.get(f"/api/requests/{draft_id}")
+    assert resp.status_code == 403
+
+
 # --- Happy: AC3, the creating Organiser can edit any field of their own draft ---
 
 
@@ -450,6 +512,18 @@ def test_update_draft_changes_the_name(client, app):
     resp = client.put(f"/api/requests/{draft_id}", json={"name": "New name"})
     assert resp.status_code == 200
     assert resp.get_json()["name"] == "New name"
+
+
+def test_update_draft_cannot_change_status_directly(client, app):
+    """AC3 lets the Organiser edit fields, not bypass Submit (SCRUM-28) by
+    smuggling a status change through the edit endpoint."""
+    login_as(client, app, "org1")
+    draft_id = make_draft(app, "org1")
+    resp = client.put(f"/api/requests/{draft_id}", json={"status": "Submitted"})
+    assert resp.status_code == 200
+    assert resp.get_json()["status"] == "Draft"
+    with app.app_context():
+        assert db.session.get(EventRequest, draft_id).status == "Draft"
 
 
 def test_update_draft_changes_any_other_field(client, app):
