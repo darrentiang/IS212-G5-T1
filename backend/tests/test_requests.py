@@ -516,7 +516,11 @@ def test_update_draft_changes_the_name(client, app):
 
 def test_update_draft_cannot_change_status_directly(client, app):
     """AC3 lets the Organiser edit fields, not bypass Submit (SCRUM-28) by
-    smuggling a status change through the edit endpoint."""
+    smuggling a status change through the edit endpoint. 200, not 400:
+    `status` is silently dropped the same way _apply_fields already drops
+    any other field outside EventRequest.REQUIRED_FIELDS (id, created_by_id,
+    submitted_at, ...) — it is not a validation failure on an editable
+    field, so it is not treated as one."""
     login_as(client, app, "org1")
     draft_id = make_draft(app, "org1")
     resp = client.put(f"/api/requests/{draft_id}", json={"status": "Submitted"})

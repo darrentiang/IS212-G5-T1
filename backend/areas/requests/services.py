@@ -28,7 +28,14 @@ def visible_requests(account):
 
 
 def get_visible_request(account, request_id):
-    """One request if the account may see it, else refuse 403 / 404."""
+    """One request if the account may see it, else refuse 403 / 404.
+
+    Deliberately 403, not 404, when it exists but the account may not see
+    it: a read reveals existence (SCRUM-27). A write that isn't the
+    account's own instead answers 404 (_get_own_request, below), matching
+    SCRUM-28's original submit_draft: existence is not revealed by what
+    another Organiser is allowed to change.
+    """
     event_request = db.session.get(EventRequest, request_id)
     if event_request is None:
         raise ApiRefusal(404, "Event request not found.")
