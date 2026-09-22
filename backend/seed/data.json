@@ -11,49 +11,66 @@
       "username": "org1",
       "password": "Passw0rd!",
       "organisation": "Client Organisation A",
-      "roles": ["Event Organiser"]
+      "roles": [
+        "Event Organiser"
+      ]
     },
     {
       "username": "org2",
       "password": "Passw0rd!",
       "organisation": "Client Organisation B",
-      "roles": ["Event Organiser"]
+      "roles": [
+        "Event Organiser"
+      ]
     },
     {
       "username": "coord1",
       "password": "Passw0rd!",
       "organisation": null,
-      "roles": ["Event Coordinator"]
+      "roles": [
+        "Event Coordinator"
+      ]
     },
     {
       "username": "coord2",
       "password": "Passw0rd!",
       "organisation": null,
-      "roles": ["Event Coordinator"]
+      "roles": [
+        "Event Coordinator"
+      ]
     },
     {
       "username": "venue1",
       "password": "Passw0rd!",
       "organisation": null,
-      "roles": ["Venue Staff"]
+      "roles": [
+        "Venue Staff"
+      ]
     },
     {
       "username": "tech1",
       "password": "Passw0rd!",
       "organisation": null,
-      "roles": ["Technical Support Staff"]
+      "roles": [
+        "Technical Support Staff"
+      ]
     },
     {
       "username": "att1",
       "password": "Passw0rd!",
       "organisation": null,
-      "roles": ["Attendee"]
+      "roles": [
+        "Attendee"
+      ]
     },
     {
       "username": "multi1",
       "password": "Passw0rd!",
       "organisation": null,
-      "roles": ["Event Coordinator", "Venue Staff"]
+      "roles": [
+        "Event Coordinator",
+        "Venue Staff"
+      ]
     }
   ],
   "event_requests": [
@@ -97,6 +114,57 @@
       "created_by": "org1",
       "registration_enabled": true,
       "coordinator_notes": "Internal: do not publish staff roster."
+    }
+  ],
+  "facilities": [
+    "Projector",
+    "Stage lighting",
+    "Sound system",
+    "Whiteboard",
+    "Catering kitchen",
+    "Wi-Fi"
+  ],
+  "accessibility_features": [
+    "Step-free access",
+    "Hearing loop",
+    "Accessible toilet",
+    "Lift access",
+    "Reserved seating"
+  ],
+  "venues": [
+    {
+      "name": "Seminar Room 1",
+      "location": "Block A Level 2",
+      "max_capacity": 60,
+      "opening_time": "08:00",
+      "closing_time": "20:00",
+      "facilities": [
+        "Projector",
+        "Whiteboard",
+        "Wi-Fi"
+      ],
+      "accessibility_features": [
+        "Step-free access",
+        "Lift access"
+      ]
+    },
+    {
+      "name": "Auditorium",
+      "location": "Block C Level 1",
+      "max_capacity": 400,
+      "opening_time": "09:00",
+      "closing_time": "22:00",
+      "facilities": [
+        "Projector",
+        "Stage lighting",
+        "Sound system"
+      ],
+      "accessibility_features": [
+        "Step-free access",
+        "Hearing loop",
+        "Accessible toilet",
+        "Reserved seating"
+      ]
     }
   ]
 }

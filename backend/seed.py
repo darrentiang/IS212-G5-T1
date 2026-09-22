@@ -19,17 +19,34 @@ import argparse
 import json
 import os
 import sys
+from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from db import db
-from models import SCHEMA_VERSION, Account, EventRequest, Role, SchemaMeta
+from models import (
+    SCHEMA_VERSION,
+    AccessibilityFeature,
+    Account,
+    EventRequest,
+    Facility,
+    Role,
+    SchemaMeta,
+    Venue,
+)
 
 DEFAULT_DATA_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "seed", "data.json")
 
 
 class AlreadySeededError(RuntimeError):
     """Raised when asked to seed a database that already holds seed data."""
+
+
+def parse_time(value):
+    """'08:00' from the seed file to a time, or None when it is absent."""
+    if value is None:
+        return None
+    return datetime.strptime(value, "%H:%M").time()
 
 
 def seed_database(db, data_path=DEFAULT_DATA_PATH):
@@ -87,6 +104,34 @@ def seed_database(db, data_path=DEFAULT_DATA_PATH):
                     registration_enabled=bool(entry.get("registration_enabled", False)),
                     coordinator_notes=entry.get("coordinator_notes"),
                     **{k: v for k, v in optional_fields.items() if k not in ("name", "purpose")},
+                )
+            )
+
+        facilities = {}
+        for name in data.get("facilities", []):
+            facility = Facility(name=name)
+            facilities[name] = facility
+            db.session.add(facility)
+
+        accessibility_features = {}
+        for name in data.get("accessibility_features", []):
+            feature = AccessibilityFeature(name=name)
+            accessibility_features[name] = feature
+            db.session.add(feature)
+
+        for entry in data.get("venues", []):
+            db.session.add(
+                Venue(
+                    name=entry["name"],
+                    location=entry["location"],
+                    max_capacity=entry["max_capacity"],
+                    opening_time=parse_time(entry.get("opening_time")),
+                    closing_time=parse_time(entry.get("closing_time")),
+                    facilities=[facilities[name] for name in entry.get("facilities", [])],
+                    accessibility_features=[
+                        accessibility_features[name]
+                        for name in entry.get("accessibility_features", [])
+                    ],
                 )
             )
 
