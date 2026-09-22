@@ -79,6 +79,30 @@ def test_permissions_doc_matches_code():
 
 
 # @story: SCRUM-27
+# @ac: 8
+def test_can_rejects_missing_account_and_unknown_feature(app):
+    with app.app_context():
+        from models import Role
+        from db import db
+
+        org = Account(username="t_org_edge")
+        org.roles = [db.session.query(Role).filter_by(name="Event Organiser").one()]
+        assert can(None, REQUESTS_VIEW) is False
+        assert can(org, "not.a.feature") is False
+        assert can(org, EQUIPMENT_VIEW) is False
+
+
+# @story: SCRUM-27
+# @ac: 1
+def test_event_request_repr(app):
+    with app.app_context():
+        from models import EventRequest
+
+        row = EventRequest(id=9, name="X", status="Draft")
+        assert repr(row) == "<EventRequest 9 Draft>"
+
+
+# @story: SCRUM-27
 # @ac: 1, 3
 def test_can_reflects_single_role_features(app):
     with app.app_context():

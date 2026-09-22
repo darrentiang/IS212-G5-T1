@@ -57,4 +57,20 @@ describe('request', () => {
     expect(thrown.status).toBe(404)
     expect(thrown.message).toBe('Request failed (404)')
   })
+
+  // @story: setup
+  // @ac: frontend-scaffold
+  it('treats a non-JSON body as no payload', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValue({
+      ok: false,
+      status: 500,
+      text: () => Promise.resolve('<html>oops</html>'),
+    })
+
+    const thrown = await request('GET', '/api/me').catch((error) => error)
+
+    expect(thrown).toBeInstanceOf(ApiError)
+    expect(thrown.status).toBe(500)
+    expect(thrown.message).toBe('Request failed (500)')
+  })
 })
