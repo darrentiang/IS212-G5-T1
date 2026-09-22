@@ -6,6 +6,7 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 |---|---|---|---|
 | 1.0 | 16-09-2026 | Initial guidelines | Functional tests for SCRUM-26/27 need stable test ids before the scaffold is built |
 | 1.1 | 16-09-2026 | Landing page by permission; page anatomy; loading; inline action forms, no modals; dates, times and status constants; notifications count | The first pages are about to be built by four Developers; these are the choices that would otherwise be made four ways |
+| 1.2 | 22-09-2026 | `/venues/new` and `/venues/:id` in §1; a checkbox group for several choices from a fixed list in §5 | SCRUM-31 adds the two pages, and picks facilities and accessibility features from seeded lists rather than free text |
 
 ## 1. Pages
 
@@ -15,7 +16,9 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | `/requests` | `requests` | Logged in; the API returns only what the account may see |
 | `/requests/new` | `request-new` | Feature per `permissions.md` |
 | `/requests/:id` | `request-detail` | Feature and object rule per `permissions.md` |
-| `/venues` (later) | `venues` | Feature per `permissions.md` |
+| `/venues` | `venues` | Feature per `permissions.md` |
+| `/venues/new` | `venue-new` | Feature per `permissions.md` |
+| `/venues/:id` | `venue-detail` | Feature per `permissions.md` |
 | — (shown in place of a refused page) | `not-permitted` | Anyone whose account lacks the page's feature |
 
 - Not logged in → any page sends the user to `/login`.
@@ -70,6 +73,7 @@ While the page is waiting for the API it renders the title row and nothing below
 - Required fields: label ends with ` *`, the input has `aria-required="true"`. No native `required` attribute (browser pop-ups bypass our messages and cannot be asserted consistently).
 - On submit the page checks required fields are filled and shows a message under each empty one, sending nothing. Every other rule is the API's, and an API refusal always shows in the banner, never under a field.
 - Input types: `date`, `time`, `number` where the value is one; a select for fixed choices; a textarea for long text.
+- **Several choices from a fixed list** are a group of checkboxes, one per option, inside a `fieldset` whose `legend` is the field's label. One checkbox's test id is `<page>-<field>-<value>-input`, the option's own text in kebab-case (`venue-new-facilities-stage-lighting-input`). A select with `multiple` is not used: one checkbox per option is what a test can tick and read back.
 - Buttons at the bottom right. One primary button (the action that completes the story), secondary buttons to its left (e.g. Save draft left of Submit).
 - All buttons disabled while the request is being sent.
 
