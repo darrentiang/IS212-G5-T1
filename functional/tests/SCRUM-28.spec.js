@@ -115,3 +115,117 @@ test('a request that is already Submitted cannot be submitted again', async ({ p
   await expect(page.getByTestId('request-detail-status')).toHaveText('Submitted')
   await expect(page.getByTestId('request-detail-submit-button')).toHaveCount(0)
 })
+
+// @tc: TC-SCRUM-28-06
+// @test: submission is refused when the date is earlier than today
+// @story: SCRUM-28
+// @ac: 7
+test('submission is refused when the date is earlier than today', async ({ page }) => {
+  await login(page, 'org1')
+  await page.getByTestId('layout-nav-requests').click()
+  await page.getByTestId('requests-new-button').click()
+
+  const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+  await fillNewRequestForm(page, { date: yesterday })
+  await page.getByTestId('request-new-submit-button').click()
+
+  await expect(page.getByTestId('request-new-banner')).toHaveText('Date cannot be earlier than today.')
+  await expect(page).toHaveURL(/\/requests\/new$/)
+})
+
+// @tc: TC-SCRUM-28-07
+// @test: a date of exactly today is accepted
+// @story: SCRUM-28
+// @ac: 7
+test('a date of exactly today is accepted', async ({ page }) => {
+  await login(page, 'org1')
+  await page.getByTestId('layout-nav-requests').click()
+  await page.getByTestId('requests-new-button').click()
+
+  const today = new Date().toISOString().slice(0, 10)
+  await fillNewRequestForm(page, { name: 'Today Event', date: today })
+  await page.getByTestId('request-new-submit-button').click()
+
+  await expect(page.getByTestId('request-detail-banner')).toHaveText('Request submitted')
+  await expect(page.getByTestId('request-detail-status')).toHaveText('Submitted')
+})
+
+// @tc: TC-SCRUM-28-08
+// @test: submission is refused when the start time is later than the end time
+// @story: SCRUM-28
+// @ac: 8
+test('submission is refused when the start time is later than the end time', async ({ page }) => {
+  await login(page, 'org1')
+  await page.getByTestId('layout-nav-requests').click()
+  await page.getByTestId('requests-new-button').click()
+
+  await fillNewRequestForm(page, { 'start-time': '17:00', 'end-time': '09:00' })
+  await page.getByTestId('request-new-submit-button').click()
+
+  await expect(page.getByTestId('request-new-banner')).toHaveText('Start time must be before the end time.')
+  await expect(page).toHaveURL(/\/requests\/new$/)
+})
+
+// @tc: TC-SCRUM-28-09
+// @test: a start time equal to the end time is refused
+// @story: SCRUM-28
+// @ac: 8
+test('a start time equal to the end time is refused', async ({ page }) => {
+  await login(page, 'org1')
+  await page.getByTestId('layout-nav-requests').click()
+  await page.getByTestId('requests-new-button').click()
+
+  await fillNewRequestForm(page, { 'start-time': '09:00', 'end-time': '09:00' })
+  await page.getByTestId('request-new-submit-button').click()
+
+  await expect(page.getByTestId('request-new-banner')).toHaveText('Start time must be before the end time.')
+  await expect(page).toHaveURL(/\/requests\/new$/)
+})
+
+// @tc: TC-SCRUM-28-10
+// @test: submission is refused when attendance is negative, non-numeric, or a decimal
+// @story: SCRUM-28
+// @ac: 9
+test('submission is refused when attendance is negative, non-numeric, or a decimal', async ({ page }) => {
+  await login(page, 'org1')
+  await page.getByTestId('layout-nav-requests').click()
+  await page.getByTestId('requests-new-button').click()
+
+  await fillNewRequestForm(page, { attendance: '-5' })
+  await page.getByTestId('request-new-submit-button').click()
+
+  await expect(page.getByTestId('request-new-banner')).toHaveText('Attendance must be a positive whole number.')
+  await expect(page).toHaveURL(/\/requests\/new$/)
+})
+
+// @tc: TC-SCRUM-28-11
+// @test: an attendance of 0 is refused
+// @story: SCRUM-28
+// @ac: 9
+test('an attendance of 0 is refused', async ({ page }) => {
+  await login(page, 'org1')
+  await page.getByTestId('layout-nav-requests').click()
+  await page.getByTestId('requests-new-button').click()
+
+  await fillNewRequestForm(page, { attendance: '0' })
+  await page.getByTestId('request-new-submit-button').click()
+
+  await expect(page.getByTestId('request-new-banner')).toHaveText('Attendance must be a positive whole number.')
+  await expect(page).toHaveURL(/\/requests\/new$/)
+})
+
+// @tc: TC-SCRUM-28-12
+// @test: submission is refused when a required field contains only whitespace
+// @story: SCRUM-28
+// @ac: 10
+test('submission is refused when a required field contains only whitespace', async ({ page }) => {
+  await login(page, 'org1')
+  await page.getByTestId('layout-nav-requests').click()
+  await page.getByTestId('requests-new-button').click()
+
+  await fillNewRequestForm(page, { name: '   ' })
+  await page.getByTestId('request-new-submit-button').click()
+
+  await expect(page.getByTestId('request-new-name-error')).toBeVisible()
+  await expect(page).toHaveURL(/\/requests\/new$/)
+})

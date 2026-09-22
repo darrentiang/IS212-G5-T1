@@ -4,7 +4,7 @@
 Object rules from permissions.md / ADR-002 live here next to the query.
 """
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 from db import db
 from errors import ApiRefusal
@@ -70,6 +70,50 @@ def _refuse_if_incomplete(event_request):
         raise ApiRefusal(400, "Missing required fields: " + ", ".join(missing))
 
 
+def _parse_positive_int(value):
+    """The int a positive, whole attendance value represents, else None."""
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    if number != int(number) or number <= 0:
+        return None
+    return int(number)
+
+
+def _refuse_if_invalid_date(event_request):
+    try:
+        entered = datetime.strptime(event_request.date, "%Y-%m-%d").date()
+    except (TypeError, ValueError):
+        entered = None
+    if entered is None or entered < date.today():
+        raise ApiRefusal(400, "Date cannot be earlier than today.")
+
+
+def _refuse_if_invalid_times(event_request):
+    try:
+        start = datetime.strptime(event_request.start_time, "%H:%M")
+        end = datetime.strptime(event_request.end_time, "%H:%M")
+    except (TypeError, ValueError):
+        start = end = None
+    if start is None or start >= end:
+        raise ApiRefusal(400, "Start time must be before the end time.")
+
+
+def _refuse_if_invalid_attendance(event_request):
+    attendance = _parse_positive_int(event_request.attendance)
+    if attendance is None:
+        raise ApiRefusal(400, "Attendance must be a positive whole number.")
+    event_request.attendance = attendance
+
+
+def _refuse_if_business_rules_violated(event_request):
+    """AC7, AC8, AC9, AC10: checked only once every required field is present."""
+    _refuse_if_invalid_date(event_request)
+    _refuse_if_invalid_times(event_request)
+    _refuse_if_invalid_attendance(event_request)
+
+
 def submit_new_request(account, data):
     """Create and submit a request directly (state-model.md: '— -> Submitted').
 
@@ -81,6 +125,7 @@ def submit_new_request(account, data):
     event_request = EventRequest(created_by_id=account.id, status="Draft")
     _apply_fields(event_request, data)
     _refuse_if_incomplete(event_request)
+    _refuse_if_business_rules_violated(event_request)
 
     event_request.status = "Submitted"
     event_request.submitted_at = datetime.now(timezone.utc)
@@ -104,6 +149,7 @@ def submit_draft(account, request_id):
         raise ApiRefusal(400, "Only a Draft request can be submitted.")
 
     _refuse_if_incomplete(event_request)
+    _refuse_if_business_rules_violated(event_request)
 
     event_request.status = "Submitted"
     event_request.submitted_at = datetime.now(timezone.utc)

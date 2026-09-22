@@ -1,5 +1,7 @@
 # @story: SCRUM-28
-# @ac: 1, 2, 3, 4, 5, 6
+# @ac: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
+
+from datetime import date, timedelta
 
 from db import db
 from models import Account, EventRequest
@@ -114,6 +116,107 @@ def test_submit_draft_missing_field_is_refused(client, app):
     resp = client.post(f"/api/requests/{draft_id}/submit")
     assert resp.status_code == 400
     assert "venue_requirements" in resp.get_json()["message"]
+
+
+# --- Negative: AC7, date cannot be earlier than today ---
+
+
+def test_direct_submit_with_past_date_is_refused(client, app):
+    login_as(client, app, "org1")
+    yesterday = (date.today() - timedelta(days=1)).isoformat()
+    resp = client.post("/api/requests", json={**VALID_REQUEST, "date": yesterday})
+    assert resp.status_code == 400
+    assert resp.get_json()["message"] == "Date cannot be earlier than today."
+
+
+def test_direct_submit_with_todays_date_is_accepted(client, app):
+    login_as(client, app, "org1")
+    resp = client.post("/api/requests", json={**VALID_REQUEST, "date": date.today().isoformat()})
+    assert resp.status_code == 201
+
+
+def test_direct_submit_with_malformed_date_is_refused(client, app):
+    login_as(client, app, "org1")
+    resp = client.post("/api/requests", json={**VALID_REQUEST, "date": "20 Nov 2026"})
+    assert resp.status_code == 400
+    assert resp.get_json()["message"] == "Date cannot be earlier than today."
+
+
+# --- Negative: AC8, start time cannot be later than or equal to end time ---
+
+
+def test_direct_submit_with_start_after_end_is_refused(client, app):
+    login_as(client, app, "org1")
+    resp = client.post(
+        "/api/requests", json={**VALID_REQUEST, "start_time": "17:00", "end_time": "09:00"}
+    )
+    assert resp.status_code == 400
+    assert resp.get_json()["message"] == "Start time must be before the end time."
+
+
+def test_direct_submit_with_start_equal_end_is_refused(client, app):
+    login_as(client, app, "org1")
+    resp = client.post(
+        "/api/requests", json={**VALID_REQUEST, "start_time": "09:00", "end_time": "09:00"}
+    )
+    assert resp.status_code == 400
+    assert resp.get_json()["message"] == "Start time must be before the end time."
+
+
+def test_direct_submit_with_malformed_time_is_refused(client, app):
+    login_as(client, app, "org1")
+    resp = client.post("/api/requests", json={**VALID_REQUEST, "start_time": "9am"})
+    assert resp.status_code == 400
+    assert resp.get_json()["message"] == "Start time must be before the end time."
+
+
+# --- Negative: AC9, attendance must be a positive whole number ---
+
+
+def test_direct_submit_with_negative_attendance_is_refused(client, app):
+    login_as(client, app, "org1")
+    resp = client.post("/api/requests", json={**VALID_REQUEST, "attendance": -5})
+    assert resp.status_code == 400
+    assert resp.get_json()["message"] == "Attendance must be a positive whole number."
+
+
+def test_direct_submit_with_zero_attendance_is_refused(client, app):
+    login_as(client, app, "org1")
+    resp = client.post("/api/requests", json={**VALID_REQUEST, "attendance": 0})
+    assert resp.status_code == 400
+    assert resp.get_json()["message"] == "Attendance must be a positive whole number."
+
+
+def test_direct_submit_with_decimal_attendance_is_refused(client, app):
+    login_as(client, app, "org1")
+    resp = client.post("/api/requests", json={**VALID_REQUEST, "attendance": 20.5})
+    assert resp.status_code == 400
+    assert resp.get_json()["message"] == "Attendance must be a positive whole number."
+
+
+def test_direct_submit_with_non_numeric_attendance_is_refused(client, app):
+    login_as(client, app, "org1")
+    resp = client.post("/api/requests", json={**VALID_REQUEST, "attendance": "abc"})
+    assert resp.status_code == 400
+    assert resp.get_json()["message"] == "Attendance must be a positive whole number."
+
+
+def test_submit_draft_with_invalid_attendance_is_refused(client, app):
+    login_as(client, app, "org1")
+    draft_id = make_draft(app, "org1", attendance=-1)
+    resp = client.post(f"/api/requests/{draft_id}/submit")
+    assert resp.status_code == 400
+    assert resp.get_json()["message"] == "Attendance must be a positive whole number."
+
+
+# --- Negative: AC10, a required field of only whitespace is treated as missing ---
+
+
+def test_direct_submit_with_whitespace_only_name_is_refused(client, app):
+    login_as(client, app, "org1")
+    resp = client.post("/api/requests", json={**VALID_REQUEST, "name": "   "})
+    assert resp.status_code == 400
+    assert "name" in resp.get_json()["message"]
 
 
 # --- Negative: only an Event Organiser may submit ---
