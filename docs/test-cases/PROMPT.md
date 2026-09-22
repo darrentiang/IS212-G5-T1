@@ -6,6 +6,7 @@ Use this to draft functional test cases for ONE story, before any code for that 
 |---|---|---|---|
 | 1.0 | 15-09-2026 | Initial prompt | Test cases drafted with AI, curated by the team |
 | 1.1 | 16-09-2026 | `ui-guidelines.md` and neighbouring stories as inputs; story-boundary rule; one Happy row per path, not per role; expected result capped at three clauses | First real run (SCRUM-26) drafted six near-identical Happy rows asserting another story's behaviour, with paragraph-long expected results |
+| 1.2 | 22-09-2026 | Seeded venues and the facility and accessibility lists added to the seeded-data sections | SCRUM-31 seeds venues; rows for a venue story must name the seeded records and the fixed list values rather than invent them |
 
 ## Inputs (stop and ask if any is missing)
 1. The story from Jira: key (SCRUM-nn), title, user story sentence, numbered acceptance criteria. Use the Jira text verbatim; never paraphrase or invent criteria.
@@ -26,6 +27,16 @@ Do not invent statuses, roles, fields, limits, messages or timings that are not 
 - **Open House** — created by `org1`, status **Confirmed**, registration enabled
 
 Create/edit/submit of requests is SCRUM-28 and later; these rows exist so access-control stories can be tested.
+
+## Seeded venues and the two fixed lists (SCRUM-31 data; loaded from `backend/seed/data.json`)
+- **Seminar Room 1** — Block A Level 2, maximum capacity 60, 08:00–20:00; facilities Projector, Whiteboard, Wi-Fi; accessibility features Step-free access, Lift access
+- **Auditorium** — Block C Level 1, maximum capacity 400, 09:00–22:00; facilities Projector, Stage lighting, Sound system; accessibility features Step-free access, Hearing loop, Accessible toilet, Reserved seating
+
+A venue's facilities and accessibility features are chosen from these fixed lists, not typed (team decision, 22-09-2026):
+- **Facilities:** Projector, Stage lighting, Sound system, Whiteboard, Catering kitchen, Wi-Fi
+- **Accessibility features:** Step-free access, Hearing loop, Accessible toilet, Lift access, Reserved seating
+
+Editing a venue is SCRUM-75, retiring one SCRUM-76 and room layouts SCRUM-32; these two venues exist so a story that reads venues has standing data.
 
 ## Method (label each row with the step that produced it)
 1. Visualise the workflow: who does this, from which screen, in which status.
