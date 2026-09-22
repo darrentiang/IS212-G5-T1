@@ -55,4 +55,63 @@ describe('RequestDetailPage', () => {
     })
     expect(screen.queryByTestId('request-detail-name')).not.toBeInTheDocument()
   })
+
+  // @story: SCRUM-27
+  // @ac: 6
+  it('shows coordinator notes when the API includes them', async () => {
+    api.getRequest.mockResolvedValue({
+      id: 1,
+      name: 'Annual Dinner',
+      status: 'Submitted',
+      created_by: 'org1',
+      registration_enabled: false,
+      coordinator_notes: 'Internal: venue shortlist pending.',
+    })
+
+    renderDetail()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('request-detail-coordinator-notes')).toHaveTextContent('venue shortlist')
+    })
+  })
+
+  // @story: SCRUM-27
+  // @ac: 1
+  it('ignores the API result after unmount', async () => {
+    let resolveGet
+    api.getRequest.mockReturnValue(
+      new Promise((resolve) => {
+        resolveGet = resolve
+      }),
+    )
+    const { unmount } = render(
+      <MemoryRouter initialEntries={['/requests/1']}>
+        <Routes>
+          <Route path="/requests/:id" element={<RequestDetailPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    unmount()
+    resolveGet({ id: 1, name: 'Annual Dinner', status: 'Submitted', created_by: 'org1', registration_enabled: false })
+  })
+
+  // @story: SCRUM-27
+  // @ac: 8
+  it('ignores the API error after unmount', async () => {
+    let rejectGet
+    api.getRequest.mockReturnValue(
+      new Promise((resolve, reject) => {
+        rejectGet = reject
+      }),
+    )
+    const { unmount } = render(
+      <MemoryRouter initialEntries={['/requests/1']}>
+        <Routes>
+          <Route path="/requests/:id" element={<RequestDetailPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    unmount()
+    rejectGet(new Error('gone'))
+  })
 })

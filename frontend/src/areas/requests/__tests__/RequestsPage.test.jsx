@@ -46,4 +46,56 @@ describe('RequestsPage', () => {
       expect(screen.getByTestId('requests-banner')).toHaveTextContent(/permission/i)
     })
   })
+
+  // @story: SCRUM-27
+  // @ac: 1
+  it('shows the empty message when the API returns no requests', async () => {
+    api.listRequests.mockResolvedValue([])
+
+    render(
+      <MemoryRouter>
+        <RequestsPage />
+      </MemoryRouter>,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByTestId('requests-empty')).toBeInTheDocument()
+    })
+  })
+
+  // @story: SCRUM-27
+  // @ac: 1
+  it('ignores the API result after unmount', async () => {
+    let resolveList
+    api.listRequests.mockReturnValue(
+      new Promise((resolve) => {
+        resolveList = resolve
+      }),
+    )
+    const { unmount } = render(
+      <MemoryRouter>
+        <RequestsPage />
+      </MemoryRouter>,
+    )
+    unmount()
+    resolveList([])
+  })
+
+  // @story: SCRUM-27
+  // @ac: 8
+  it('ignores the API error after unmount', async () => {
+    let rejectList
+    api.listRequests.mockReturnValue(
+      new Promise((resolve, reject) => {
+        rejectList = reject
+      }),
+    )
+    const { unmount } = render(
+      <MemoryRouter>
+        <RequestsPage />
+      </MemoryRouter>,
+    )
+    unmount()
+    rejectList(new Error('gone'))
+  })
 })
