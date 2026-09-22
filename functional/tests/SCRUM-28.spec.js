@@ -35,6 +35,15 @@ async function fillNewRequestForm(page, overrides = {}) {
   }
 }
 
+// The server compares against its local date, not UTC, so building "today"
+// with toISOString() can be off by a day near local midnight.
+function isoDate(date) {
+  const yyyy = date.getFullYear()
+  const mm = String(date.getMonth() + 1).padStart(2, '0')
+  const dd = String(date.getDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}`
+}
+
 // @tc: TC-SCRUM-28-01
 // @test: organiser submits a new event request directly with all required fields completed
 // @story: SCRUM-28
@@ -125,7 +134,7 @@ test('submission is refused when the date is earlier than today', async ({ page 
   await page.getByTestId('layout-nav-requests').click()
   await page.getByTestId('requests-new-button').click()
 
-  const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+  const yesterday = isoDate(new Date(Date.now() - 24 * 60 * 60 * 1000))
   await fillNewRequestForm(page, { date: yesterday })
   await page.getByTestId('request-new-submit-button').click()
 
@@ -142,7 +151,7 @@ test('a date of exactly today is accepted', async ({ page }) => {
   await page.getByTestId('layout-nav-requests').click()
   await page.getByTestId('requests-new-button').click()
 
-  const today = new Date().toISOString().slice(0, 10)
+  const today = isoDate(new Date())
   await fillNewRequestForm(page, { name: 'Today Event', date: today })
   await page.getByTestId('request-new-submit-button').click()
 

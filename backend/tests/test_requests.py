@@ -139,6 +139,15 @@ def test_direct_submit_with_malformed_date_is_refused(client, app):
     login_as(client, app, "org1")
     resp = client.post("/api/requests", json={**VALID_REQUEST, "date": "20 Nov 2026"})
     assert resp.status_code == 400
+    assert resp.get_json()["message"] == "Date must be a valid date."
+
+
+def test_submit_draft_with_past_date_is_refused(client, app):
+    login_as(client, app, "org1")
+    yesterday = (date.today() - timedelta(days=1)).isoformat()
+    draft_id = make_draft(app, "org1", date=yesterday)
+    resp = client.post(f"/api/requests/{draft_id}/submit")
+    assert resp.status_code == 400
     assert resp.get_json()["message"] == "Date cannot be earlier than today."
 
 
@@ -166,6 +175,14 @@ def test_direct_submit_with_start_equal_end_is_refused(client, app):
 def test_direct_submit_with_malformed_time_is_refused(client, app):
     login_as(client, app, "org1")
     resp = client.post("/api/requests", json={**VALID_REQUEST, "start_time": "9am"})
+    assert resp.status_code == 400
+    assert resp.get_json()["message"] == "Start and end time must be valid times."
+
+
+def test_submit_draft_with_start_after_end_is_refused(client, app):
+    login_as(client, app, "org1")
+    draft_id = make_draft(app, "org1", start_time="17:00", end_time="09:00")
+    resp = client.post(f"/api/requests/{draft_id}/submit")
     assert resp.status_code == 400
     assert resp.get_json()["message"] == "Start time must be before the end time."
 
@@ -212,11 +229,12 @@ def test_submit_draft_with_invalid_attendance_is_refused(client, app):
 # --- Negative: AC10, a required field of only whitespace is treated as missing ---
 
 
-def test_direct_submit_with_whitespace_only_name_is_refused(client, app):
-    login_as(client, app, "org1")
-    resp = client.post("/api/requests", json={**VALID_REQUEST, "name": "   "})
-    assert resp.status_code == 400
-    assert "name" in resp.get_json()["message"]
+def test_direct_submit_with_whitespace_only_field_is_refused_and_named(client, app):
+    for field in EventRequest.REQUIRED_FIELDS:
+        login_as(client, app, "org1")
+        resp = client.post("/api/requests", json={**VALID_REQUEST, field: "   "})
+        assert resp.status_code == 400, f"expected refusal when '{field}' is whitespace only"
+        assert field in resp.get_json()["message"]
 
 
 # --- Negative: only an Event Organiser may submit ---

@@ -85,8 +85,8 @@ def _refuse_if_invalid_date(event_request):
     try:
         entered = datetime.strptime(event_request.date, "%Y-%m-%d").date()
     except (TypeError, ValueError):
-        entered = None
-    if entered is None or entered < date.today():
+        raise ApiRefusal(400, "Date must be a valid date.")
+    if entered < date.today():
         raise ApiRefusal(400, "Date cannot be earlier than today.")
 
 
@@ -95,8 +95,8 @@ def _refuse_if_invalid_times(event_request):
         start = datetime.strptime(event_request.start_time, "%H:%M")
         end = datetime.strptime(event_request.end_time, "%H:%M")
     except (TypeError, ValueError):
-        start = end = None
-    if start is None or start >= end:
+        raise ApiRefusal(400, "Start and end time must be valid times.")
+    if start >= end:
         raise ApiRefusal(400, "Start time must be before the end time.")
 
 
