@@ -22,6 +22,7 @@ Read this before writing Playwright or unit tests for a story. The test-case row
 - Preconditions column → test setup (seeded accounts, objects created through the UI or API before the steps).
 - Steps column → the actions in order. Test data column → the values typed.
 - Expected result column → the assertions. Assert what the row says is shown or not shown; where the row says "nothing changed", assert the state is unchanged (reload and check).
+- **Standing data belongs in the seed** (`backend/seed/data.json`): the accounts, and the records a story reads but never changes. **Data a test changes it creates itself**, through the UI if that is the story, otherwise through the API before the steps. One SQLite file is shared by every spec in a run, so a test asserts on its own records by name or id, never on a row count and never on the list being empty — another spec's records are in the same list.
 - A row that cannot be automated (rare) keeps its sheet row with "Reviewed by" noting "manual"; do not write a placeholder test that always passes.
 
 ## Unit tests — `backend/tests/test_<feature>.py`, `frontend/src/areas/<area>/__tests__/`
