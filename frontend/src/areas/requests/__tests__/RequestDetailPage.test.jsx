@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import * as api from '../api'
 import RequestDetailPage from '../RequestDetailPage'
@@ -39,6 +40,7 @@ describe('RequestDetailPage', () => {
     })
     expect(screen.getByTestId('request-detail-status')).toHaveTextContent('Submitted')
     expect(screen.queryByTestId('request-detail-coordinator-notes')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('request-detail-submit-button')).not.toBeInTheDocument()
   })
 
   // @story: SCRUM-27
@@ -113,5 +115,75 @@ describe('RequestDetailPage', () => {
     )
     unmount()
     rejectGet(new Error('gone'))
+  })
+
+  // @story: SCRUM-28
+  // @ac: 2
+  it("offers Submit on the owner's Draft request", async () => {
+    api.getRequest.mockResolvedValue({
+      id: 1,
+      name: 'Design Workshop',
+      status: 'Draft',
+      created_by: 'org1',
+      registration_enabled: false,
+    })
+
+    renderDetail()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('request-detail-submit-button')).toBeInTheDocument()
+    })
+  })
+
+  // @story: SCRUM-28
+  // @ac: 2, 4, 6
+  it('submits the Draft and shows the new status with a success banner', async () => {
+    api.getRequest.mockResolvedValue({
+      id: 1,
+      name: 'Design Workshop',
+      status: 'Draft',
+      created_by: 'org1',
+      registration_enabled: false,
+    })
+    api.submitDraft.mockResolvedValue({
+      id: 1,
+      name: 'Design Workshop',
+      status: 'Submitted',
+      created_by: 'org1',
+      registration_enabled: false,
+    })
+
+    renderDetail()
+    await waitFor(() => screen.getByTestId('request-detail-submit-button'))
+    await userEvent.click(screen.getByTestId('request-detail-submit-button'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('request-detail-status')).toHaveTextContent('Submitted')
+    })
+    expect(screen.getByTestId('request-detail-banner')).toHaveTextContent('Request submitted')
+    expect(screen.queryByTestId('request-detail-submit-button')).not.toBeInTheDocument()
+  })
+
+  // @story: SCRUM-28
+  // @ac: 3
+  it('shows the API refusal when submitting an already-Submitted request', async () => {
+    api.getRequest.mockResolvedValue({
+      id: 1,
+      name: 'Design Workshop',
+      status: 'Draft',
+      created_by: 'org1',
+      registration_enabled: false,
+    })
+    api.submitDraft.mockRejectedValue(
+      Object.assign(new Error('Only a Draft request can be submitted.'), { status: 400 }),
+    )
+
+    renderDetail()
+    await waitFor(() => screen.getByTestId('request-detail-submit-button'))
+    await userEvent.click(screen.getByTestId('request-detail-submit-button'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('request-detail-banner')).toHaveTextContent('Only a Draft request can be submitted.')
+    })
   })
 })

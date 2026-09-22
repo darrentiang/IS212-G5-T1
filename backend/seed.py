@@ -92,6 +92,9 @@ def seed_database(db, data_path=DEFAULT_DATA_PATH):
 
         for entry in data.get("event_requests", []):
             owner = accounts[entry["created_by"]]
+            optional_fields = {
+                field: entry[field] for field in EventRequest.REQUIRED_FIELDS if field in entry
+            }
             db.session.add(
                 EventRequest(
                     name=entry["name"],
@@ -100,6 +103,7 @@ def seed_database(db, data_path=DEFAULT_DATA_PATH):
                     created_by=owner,
                     registration_enabled=bool(entry.get("registration_enabled", False)),
                     coordinator_notes=entry.get("coordinator_notes"),
+                    **{k: v for k, v in optional_fields.items() if k not in ("name", "purpose")},
                 )
             )
 

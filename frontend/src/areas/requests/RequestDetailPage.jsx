@@ -1,13 +1,19 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router'
-import { getRequest } from './api'
+import { Link, useLocation, useParams } from 'react-router'
+import { STATUS } from '../../app/format'
+import { getRequest, submitDraft } from './api'
 
 // SCRUM-27: show one request or the API refusal (banner), never invent data.
+// SCRUM-28: show the success banner carried from RequestNewPage's navigate(),
+// and let the Draft's owner submit it (state-model.md: 'Draft -> Submitted').
 export default function RequestDetailPage() {
   const { id } = useParams()
+  const location = useLocation()
   const [row, setRow] = useState(null)
   const [loading, setLoading] = useState(true)
   const [banner, setBanner] = useState(null)
+  const [successBanner, setSuccessBanner] = useState(location.state?.banner ?? null)
+  const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -16,7 +22,10 @@ export default function RequestDetailPage() {
         if (active) setRow(data)
       })
       .catch((error) => {
-        if (active) setBanner(error.message)
+        if (active) {
+          setBanner(error.message)
+          setSuccessBanner(null)
+        }
       })
       .finally(() => {
         if (active) setLoading(false)
@@ -25,6 +34,21 @@ export default function RequestDetailPage() {
       active = false
     }
   }, [id])
+
+  const handleSubmitDraft = async () => {
+    setSubmitting(true)
+    try {
+      const updated = await submitDraft(id)
+      setRow(updated)
+      setBanner(null)
+      setSuccessBanner('Request submitted')
+    } catch (error) {
+      setBanner(error.message)
+      setSuccessBanner(null)
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -39,6 +63,11 @@ export default function RequestDetailPage() {
       {banner && (
         <p role="alert" className="border border-red-300 bg-red-50 text-red-800 rounded px-3 py-2 text-sm" data-testid="request-detail-banner">
           {banner}
+        </p>
+      )}
+      {!banner && successBanner && (
+        <p role="status" className="border border-green-300 bg-green-50 text-green-800 rounded px-3 py-2 text-sm" data-testid="request-detail-banner">
+          {successBanner}
         </p>
       )}
 
@@ -63,6 +92,20 @@ export default function RequestDetailPage() {
             </div>
           )}
         </dl>
+      )}
+
+      {!loading && !banner && row && row.status === STATUS.REQUEST.DRAFT && (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            disabled={submitting}
+            onClick={handleSubmitDraft}
+            className="rounded bg-blue-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+            data-testid="request-detail-submit-button"
+          >
+            Submit
+          </button>
+        </div>
       )}
     </div>
   )

@@ -99,7 +99,7 @@ def test_event_request_repr(app):
         from models import EventRequest
 
         row = EventRequest(id=9, name="X", status="Draft")
-        assert repr(row) == "<EventRequest 9 X Draft>"
+        assert repr(row) == "<EventRequest 9 Draft>"
 
 
 # @story: SCRUM-27

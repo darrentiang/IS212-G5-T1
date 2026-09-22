@@ -1,17 +1,20 @@
 """Database models for the ConnectSphere API.
 
 SCRUM-26: accounts and roles. SCRUM-27: event requests for role-based
-read access. SCRUM-31: venues with their facilities and accessibility
-features. No permission logic here — see backend/permissions.py.
+read access. SCRUM-28: event request creation and submission. SCRUM-31:
+venues with their facilities and accessibility features. No permission
+logic here — see backend/permissions.py.
 """
 
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from db import db
 
-# Bumped when the shape of the database changes (SCRUM-31 added venues and
-# the two fixed lists they choose from).
-SCHEMA_VERSION = 3
+# Bumped by any story that changes the shape of the database. app.py refuses to
+# start when the stored version differs; seed.py --reset rebuilds the database.
+# SCRUM-28 added event request columns; SCRUM-31 added venues and the two
+# fixed lists they choose from.
+SCHEMA_VERSION = 4
 
 
 account_roles = db.Table(
@@ -63,25 +66,78 @@ class Account(db.Model):
 
 
 class EventRequest(db.Model):
-    """Minimal event request for access-control reads (SCRUM-27).
+    """An Event Organiser's request (docs/design/state-model.md, 'Event request').
 
-    Create/edit/submit are SCRUM-28/29/30; this story only reads.
+    SCRUM-27 added read-only access with role rules (own only / all except
+    Draft, internal notes gating). SCRUM-28 added creation and the
+    Draft -> Submitted transition. Later stories add columns and transitions
+    in their own pull requests.
     """
 
     __tablename__ = "event_requests"
 
+    STATUSES = ("Draft", "Submitted", "Approved", "Rejected", "Planning", "Confirmed", "Completed", "Cancelled")
+
+    # The fields an Event Organiser must record; all required to submit
+    # (state-model.md AC1). Column names match the API's snake_case field
+    # names (docs/design/frontend.md §6 contract comments).
+    REQUIRED_FIELDS = (
+        "name",
+        "purpose",
+        "description",
+        "date",
+        "start_time",
+        "end_time",
+        "attendance",
+        "venue_requirements",
+        "accessibility_needs",
+        "equipment_requirements",
+        "registration_needs",
+    )
+
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(128), nullable=False)
-    purpose = db.Column(db.String(255), nullable=True)
-    status = db.Column(db.String(32), nullable=False)
     created_by_id = db.Column(db.Integer, db.ForeignKey("accounts.id"), nullable=False)
+    status = db.Column(db.String(32), nullable=False, default="Draft")
+
+    name = db.Column(db.String(200))
+    purpose = db.Column(db.String(500))
+    description = db.Column(db.Text)
+    date = db.Column(db.String(10))  # ISO yyyy-mm-dd
+    start_time = db.Column(db.String(5))  # HH:MM
+    end_time = db.Column(db.String(5))  # HH:MM
+    attendance = db.Column(db.Integer)
+    venue_requirements = db.Column(db.Text)
+    accessibility_needs = db.Column(db.Text)
+    equipment_requirements = db.Column(db.Text)
+    registration_needs = db.Column(db.Text)
+
     registration_enabled = db.Column(db.Boolean, nullable=False, default=False)
     coordinator_notes = db.Column(db.Text, nullable=True)
+    submitted_at = db.Column(db.DateTime, nullable=True)
 
     created_by = db.relationship("Account", backref="event_requests")
 
+    def missing_fields(self):
+        """Names of required fields that are unset or blank, in REQUIRED_FIELDS order."""
+        missing = []
+        for field in self.REQUIRED_FIELDS:
+            value = getattr(self, field)
+            if value is None or (isinstance(value, str) and value.strip() == ""):
+                missing.append(field)
+        return missing
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "status": self.status,
+            "created_by": self.created_by.username if self.created_by else None,
+            "registration_enabled": bool(self.registration_enabled),
+            "submitted_at": self.submitted_at.isoformat() if self.submitted_at else None,
+            **{field: getattr(self, field) for field in self.REQUIRED_FIELDS},
+        }
+
     def __repr__(self):
-        return f"<EventRequest {self.id} {self.name} {self.status}>"
+        return f"<EventRequest {self.id} {self.status}>"
 
 
 venue_facilities = db.Table(

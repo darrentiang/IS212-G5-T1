@@ -11,7 +11,7 @@ from werkzeug.security import check_password_hash
 import app as app_module
 from app import create_app, default_database_uri
 from db import db
-from models import SCHEMA_VERSION, Account, Role, SchemaMeta
+from models import SCHEMA_VERSION, Account, EventRequest, Role, SchemaMeta
 from seed import AlreadySeededError, seed_database
 
 ROLE_NAMES = {
@@ -183,3 +183,19 @@ def test_health_reports_an_error_when_the_database_cannot_be_reached():
 
     assert resp.status_code == 200
     assert resp.get_json() == {"status": "ok", "database": "error"}
+
+
+# @story: SCRUM-28
+# @ac: 1
+def test_every_seeded_request_past_draft_is_complete(app):
+    """A request may only leave Draft with every required field filled
+    (SCRUM-28). The seed writes rows straight to the database, bypassing the
+    service that enforces it, so the seed is the one place that invariant can
+    rot without a test noticing.
+    """
+    with app.app_context():
+        rows = db.session.query(EventRequest).filter(EventRequest.status != "Draft").all()
+
+        assert rows, "seed should hold at least one request past Draft"
+        incomplete = {row.name: row.missing_fields() for row in rows if row.missing_fields()}
+        assert incomplete == {}
