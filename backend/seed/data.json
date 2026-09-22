@@ -80,7 +80,16 @@
       "status": "Submitted",
       "created_by": "org1",
       "registration_enabled": false,
-      "coordinator_notes": "Internal: venue shortlist pending."
+      "coordinator_notes": "Internal: venue shortlist pending.",
+      "description": "Year-end dinner for Client Organisation A staff and their guests",
+      "date": "2026-11-27",
+      "start_time": "18:30",
+      "end_time": "22:00",
+      "attendance": 180,
+      "venue_requirements": "Banquet layout with a stage for speeches",
+      "accessibility_needs": "Step-free access and reserved seating",
+      "equipment_requirements": "Sound system and stage lighting",
+      "registration_needs": "No registration; the client supplies the guest list"
     },
     {
       "name": "Design Workshop",
@@ -105,7 +114,16 @@
       "status": "Submitted",
       "created_by": "org2",
       "registration_enabled": false,
-      "coordinator_notes": "Internal: equipment list not final."
+      "coordinator_notes": "Internal: equipment list not final.",
+      "description": "Annual conference for Client Organisation B members",
+      "date": "2026-10-15",
+      "start_time": "09:00",
+      "end_time": "17:00",
+      "attendance": 350,
+      "venue_requirements": "Theatre layout with a speaker platform",
+      "accessibility_needs": "Hearing loop and an accessible toilet",
+      "equipment_requirements": "Projector, sound system and two microphones",
+      "registration_needs": "No public registration; the client supplies the attendee list"
     },
     {
       "name": "Open House",
@@ -113,7 +131,16 @@
       "status": "Confirmed",
       "created_by": "org1",
       "registration_enabled": true,
-      "coordinator_notes": "Internal: do not publish staff roster."
+      "coordinator_notes": "Internal: do not publish staff roster.",
+      "description": "Public open house showcasing the ConnectSphere venues",
+      "date": "2026-10-03",
+      "start_time": "10:00",
+      "end_time": "16:00",
+      "attendance": 250,
+      "venue_requirements": "Open floor with room for exhibition stands",
+      "accessibility_needs": "Step-free access throughout",
+      "equipment_requirements": "Projector and sound system",
+      "registration_needs": "Public registration through the system, capped at 250 attendees"
     }
   ],
   "facilities": [

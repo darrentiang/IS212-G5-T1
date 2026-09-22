@@ -34,6 +34,10 @@ export default function RequestNewPage() {
     const missing = FIELDS.filter((field) => String(values[field.name]).trim() === '')
     if (missing.length > 0) {
       setFieldErrors(Object.fromEntries(missing.map((field) => [field.name, `${field.label} is required.`])))
+      // One banner at a time, cleared by the user's next action
+      // (docs/design/ui-guidelines.md §5): a refusal from an earlier attempt
+      // must not sit above this attempt's field messages.
+      setBanner(null)
       return
     }
     setFieldErrors({})
