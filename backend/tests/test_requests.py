@@ -379,6 +379,24 @@ def test_save_draft_with_invalid_attendance_is_accepted(client, app):
     assert resp.get_json()["attendance"] == -5
 
 
+def test_save_draft_with_invalid_date_is_accepted(client, app):
+    login_as(client, app, "org2")
+    resp = client.post(
+        "/api/requests/draft", json={"name": "Tech Fair 2026", "date": "not-a-date"}
+    )
+    assert resp.status_code == 201
+    assert resp.get_json()["date"] == "not-a-date"
+
+
+def test_save_draft_with_invalid_time_is_accepted(client, app):
+    login_as(client, app, "org2")
+    resp = client.post(
+        "/api/requests/draft", json={"name": "Tech Fair 2026", "start_time": "9am", "end_time": "5pm"}
+    )
+    assert resp.status_code == 201
+    assert resp.get_json()["start_time"] == "9am"
+
+
 # --- Negative: AC9, a draft cannot be saved with no fields at all ---
 
 
@@ -439,27 +457,6 @@ def test_one_draft_limit_is_per_organiser_not_global(client, app):
             .count()
         )
         assert org1_drafts == 1
-
-
-# --- Happy: AC6, an invalid date or time is also accepted; validated only at submit ---
-
-
-def test_save_draft_with_invalid_date_is_accepted(client, app):
-    login_as(client, app, "org2")
-    resp = client.post(
-        "/api/requests/draft", json={"name": "Tech Fair 2026", "date": "not-a-date"}
-    )
-    assert resp.status_code == 201
-    assert resp.get_json()["date"] == "not-a-date"
-
-
-def test_save_draft_with_invalid_time_is_accepted(client, app):
-    login_as(client, app, "org2")
-    resp = client.post(
-        "/api/requests/draft", json={"name": "Tech Fair 2026", "start_time": "9am", "end_time": "5pm"}
-    )
-    assert resp.status_code == 201
-    assert resp.get_json()["start_time"] == "9am"
 
 
 # --- Negative: only an Event Organiser may save a draft ---
@@ -585,6 +582,9 @@ def test_update_draft_with_empty_payload_makes_no_changes(client, app):
     assert resp.get_json()["name"] == "Original Name"
 
 
+# --- Negative: AC9, editing an own Draft still requires a name; AC3, only while Draft ---
+
+
 def test_update_draft_with_blank_name_is_refused(client, app):
     login_as(client, app, "org1")
     draft_id = make_draft(app, "org1")
@@ -628,12 +628,6 @@ def test_delete_own_draft_succeeds(client, app):
     assert resp.status_code == 204
 
 
-def test_delete_non_existent_draft_is_404(client, app):
-    login_as(client, app, "org1")
-    resp = client.delete("/api/requests/999999")
-    assert resp.status_code == 404
-
-
 def test_deleted_draft_is_not_recoverable(client, app):
     login_as(client, app, "org1")
     draft_id = make_draft(app, "org1")
@@ -651,7 +645,13 @@ def test_deleted_draft_does_not_appear_in_list(client, app):
     assert draft_id not in ids
 
 
-# --- Negative: AC4, a Submitted request cannot be deleted as a draft ---
+# --- Negative: deleting an id that does not exist, or that is no longer a Draft ---
+
+
+def test_delete_non_existent_draft_is_404(client, app):
+    login_as(client, app, "org1")
+    resp = client.delete("/api/requests/999999")
+    assert resp.status_code == 404
 
 
 def test_delete_a_submitted_request_is_refused(client, app):
