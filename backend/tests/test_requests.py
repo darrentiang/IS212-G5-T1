@@ -3,6 +3,8 @@
 
 from datetime import date, timedelta
 
+import pytest
+
 from db import db
 from models import Account, EventRequest
 
@@ -10,7 +12,8 @@ VALID_REQUEST = {
     "name": "Tech Fair 2026",
     "purpose": "Career networking",
     "description": "Annual tech career fair",
-    "date": "2026-11-20",
+    # A fixed date becomes a past date and fails the "not before today" rule.
+    "date": (date.today() + timedelta(days=30)).isoformat(),
     "start_time": "09:00",
     "end_time": "17:00",
     "attendance": 200,
@@ -214,6 +217,14 @@ def test_direct_submit_with_decimal_attendance_is_refused(client, app):
 def test_direct_submit_with_non_numeric_attendance_is_refused(client, app):
     login_as(client, app, "org1")
     resp = client.post("/api/requests", json={**VALID_REQUEST, "attendance": "abc"})
+    assert resp.status_code == 400
+    assert resp.get_json()["message"] == "Attendance must be a positive whole number."
+
+
+@pytest.mark.parametrize("attendance", ["nan", "inf", "1e400", "20.0", "1e5", True, "abc"])
+def test_direct_submit_with_non_whole_number_attendance_is_refused(client, app, attendance):
+    login_as(client, app, "org1")
+    resp = client.post("/api/requests", json={**VALID_REQUEST, "attendance": attendance})
     assert resp.status_code == 400
     assert resp.get_json()["message"] == "Attendance must be a positive whole number."
 
