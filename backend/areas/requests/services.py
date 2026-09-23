@@ -72,13 +72,16 @@ def _refuse_if_incomplete(event_request):
 
 def _parse_positive_int(value):
     """The int a positive, whole attendance value represents, else None."""
+    # Same rule as venues' maximum capacity: int() rejects anything that is
+    # not a whole number ('20.5', '20.0', '1e5', 'nan', 'inf', True included),
+    # whether it arrives as a JSON number or as a string from the form.
     try:
-        number = float(value)
-    except (TypeError, ValueError):
+        number = int(str(value).strip())
+    except ValueError:
         return None
-    if number != int(number) or number <= 0:
+    if number < 1:
         return None
-    return int(number)
+    return number
 
 
 def _refuse_if_invalid_date(event_request):
