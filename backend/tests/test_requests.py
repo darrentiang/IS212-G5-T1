@@ -424,6 +424,23 @@ def test_save_draft_allowed_after_deleting_the_open_one(client, app):
     assert resp.status_code == 201
 
 
+def test_one_draft_limit_is_per_organiser_not_global(client, app):
+    # org1 already holds the seeded Draft "Design Workshop" throughout this
+    # file; org2 saving their own must not be blocked by it.
+    login_as(client, app, "org2")
+    resp = client.post("/api/requests/draft", json={"name": "Org 2 Draft"})
+    assert resp.status_code == 201
+
+    with app.app_context():
+        org1_id = db.session.query(Account).filter_by(username="org1").one().id
+        org1_drafts = (
+            db.session.query(EventRequest)
+            .filter_by(created_by_id=org1_id, status="Draft")
+            .count()
+        )
+        assert org1_drafts == 1
+
+
 # --- Happy: AC6, an invalid date or time is also accepted; validated only at submit ---
 
 
@@ -476,6 +493,15 @@ def test_coordinator_does_not_see_a_newly_saved_draft(client, app):
     resp = client.get("/api/requests")
     names = [r["name"] for r in resp.get_json()]
     assert "Tech Fair 2026" not in names
+
+
+def test_other_organiser_does_not_see_a_draft_in_their_list(client, app):
+    make_draft(app, "org1", name="Org 1 Secret Draft")
+    login_as(client, app, "org2")
+    resp = client.get("/api/requests")
+    assert resp.status_code == 200
+    names = [r["name"] for r in resp.get_json()]
+    assert "Org 1 Secret Draft" not in names
 
 
 # --- Happy: AC3, the creating Organiser can reopen (view) their own draft ---
@@ -538,6 +564,27 @@ def test_update_draft_changes_any_other_field(client, app):
     assert resp.get_json()["attendance"] == 50
 
 
+def test_update_draft_with_invalid_fields_is_accepted(client, app):
+    """AC6 applies to an edit, not just the initial save."""
+    login_as(client, app, "org1")
+    draft_id = make_draft(app, "org1")
+    resp = client.put(
+        f"/api/requests/{draft_id}", json={"attendance": -10, "date": "not-a-date"}
+    )
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert body["attendance"] == -10
+    assert body["date"] == "not-a-date"
+
+
+def test_update_draft_with_empty_payload_makes_no_changes(client, app):
+    login_as(client, app, "org1")
+    draft_id = make_draft(app, "org1", name="Original Name")
+    resp = client.put(f"/api/requests/{draft_id}", json={})
+    assert resp.status_code == 200
+    assert resp.get_json()["name"] == "Original Name"
+
+
 def test_update_draft_with_blank_name_is_refused(client, app):
     login_as(client, app, "org1")
     draft_id = make_draft(app, "org1")
@@ -579,6 +626,12 @@ def test_delete_own_draft_succeeds(client, app):
     draft_id = make_draft(app, "org1")
     resp = client.delete(f"/api/requests/{draft_id}")
     assert resp.status_code == 204
+
+
+def test_delete_non_existent_draft_is_404(client, app):
+    login_as(client, app, "org1")
+    resp = client.delete("/api/requests/999999")
+    assert resp.status_code == 404
 
 
 def test_deleted_draft_is_not_recoverable(client, app):
