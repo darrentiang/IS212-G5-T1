@@ -75,25 +75,28 @@ export default function VenueNewPage() {
   }
 
   return (
-    <div className="space-y-4">
-      <Link to="/venues" className="text-blue-700 hover:underline text-sm" data-testid="venue-new-back-link">
-        Back to Venues
-      </Link>
-
-      <h1 className="text-xl font-semibold text-gray-900" data-testid="venue-new-title">
-        Add venue
-      </h1>
+    <div className="space-y-8">
+      <div className="space-y-2">
+        <Link to="/venues" className="back-link" data-testid="venue-new-back-link">
+          Back to Venues
+        </Link>
+        <div className="page-header">
+          <h1 className="page-title" data-testid="venue-new-title">
+            Add venue
+          </h1>
+        </div>
+      </div>
 
       {banner && (
-        <p role="alert" className="border border-red-300 bg-red-50 text-red-800 rounded px-3 py-2 text-sm" data-testid="venue-new-banner">
+        <p role="alert" className="banner-error" data-testid="venue-new-banner">
           {banner}
         </p>
       )}
 
       {ready ? (
-        <form onSubmit={handleSubmit} noValidate className="space-y-4 max-w-xl">
-          <div className="space-y-1">
-            <label htmlFor="venue-new-name" className="block text-sm text-gray-700">
+        <form onSubmit={handleSubmit} noValidate className="card form-card space-y-4">
+          <div>
+            <label htmlFor="venue-new-name" className="label">
               Name *
             </label>
             <input
@@ -102,18 +105,18 @@ export default function VenueNewPage() {
               value={name}
               onChange={(event) => setName(event.target.value)}
               aria-required="true"
-              className="w-full border border-gray-300 rounded px-3 py-2"
+              className="input"
               data-testid="venue-new-name-input"
             />
             {fieldErrors.name && (
-              <p className="text-sm text-red-700" data-testid="venue-new-name-error">
+              <p className="field-error" data-testid="venue-new-name-error">
                 {fieldErrors.name}
               </p>
             )}
           </div>
 
-          <div className="space-y-1">
-            <label htmlFor="venue-new-location" className="block text-sm text-gray-700">
+          <div>
+            <label htmlFor="venue-new-location" className="label">
               Location *
             </label>
             <input
@@ -122,18 +125,18 @@ export default function VenueNewPage() {
               value={location}
               onChange={(event) => setLocation(event.target.value)}
               aria-required="true"
-              className="w-full border border-gray-300 rounded px-3 py-2"
+              className="input"
               data-testid="venue-new-location-input"
             />
             {fieldErrors.location && (
-              <p className="text-sm text-red-700" data-testid="venue-new-location-error">
+              <p className="field-error" data-testid="venue-new-location-error">
                 {fieldErrors.location}
               </p>
             )}
           </div>
 
-          <div className="space-y-1">
-            <label htmlFor="venue-new-max-capacity" className="block text-sm text-gray-700">
+          <div>
+            <label htmlFor="venue-new-max-capacity" className="label">
               Maximum capacity *
             </label>
             <input
@@ -142,18 +145,18 @@ export default function VenueNewPage() {
               value={maxCapacity}
               onChange={(event) => setMaxCapacity(event.target.value)}
               aria-required="true"
-              className="w-full border border-gray-300 rounded px-3 py-2"
+              className="input"
               data-testid="venue-new-max-capacity-input"
             />
             {fieldErrors['max-capacity'] && (
-              <p className="text-sm text-red-700" data-testid="venue-new-max-capacity-error">
+              <p className="field-error" data-testid="venue-new-max-capacity-error">
                 {fieldErrors['max-capacity']}
               </p>
             )}
           </div>
 
-          <div className="space-y-1">
-            <label htmlFor="venue-new-opening-time" className="block text-sm text-gray-700">
+          <div>
+            <label htmlFor="venue-new-opening-time" className="label">
               Opening time
             </label>
             <input
@@ -161,13 +164,13 @@ export default function VenueNewPage() {
               type="time"
               value={openingTime}
               onChange={(event) => setOpeningTime(event.target.value)}
-              className="w-full border border-gray-300 rounded px-3 py-2"
+              className="input"
               data-testid="venue-new-opening-time-input"
             />
           </div>
 
-          <div className="space-y-1">
-            <label htmlFor="venue-new-closing-time" className="block text-sm text-gray-700">
+          <div>
+            <label htmlFor="venue-new-closing-time" className="label">
               Closing time
             </label>
             <input
@@ -175,15 +178,15 @@ export default function VenueNewPage() {
               type="time"
               value={closingTime}
               onChange={(event) => setClosingTime(event.target.value)}
-              className="w-full border border-gray-300 rounded px-3 py-2"
+              className="input"
               data-testid="venue-new-closing-time-input"
             />
           </div>
 
-          <fieldset className="space-y-1">
-            <legend className="block text-sm text-gray-700">Facilities</legend>
+          <fieldset>
+            <legend className="label">Facilities</legend>
             {options.facilities.map((option) => (
-              <label key={option} className="flex items-center gap-2 text-sm text-gray-700">
+              <label key={option} className="flex items-center gap-2 py-1">
                 <input
                   type="checkbox"
                   checked={facilities.includes(option)}
@@ -195,10 +198,10 @@ export default function VenueNewPage() {
             ))}
           </fieldset>
 
-          <fieldset className="space-y-1">
-            <legend className="block text-sm text-gray-700">Accessibility features</legend>
+          <fieldset>
+            <legend className="label">Accessibility features</legend>
             {options.accessibility_features.map((option) => (
-              <label key={option} className="flex items-center gap-2 text-sm text-gray-700">
+              <label key={option} className="flex items-center gap-2 py-1">
                 <input
                   type="checkbox"
                   checked={accessibilityFeatures.includes(option)}
@@ -210,11 +213,11 @@ export default function VenueNewPage() {
             ))}
           </fieldset>
 
-          <div className="flex justify-end">
+          <div className="flex justify-end pt-2">
             <button
               type="submit"
               disabled={submitting}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
+              className="btn btn-primary"
               data-testid="venue-new-save-button"
             >
               Save
