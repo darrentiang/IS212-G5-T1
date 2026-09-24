@@ -89,7 +89,8 @@
       "venue_requirements": "Banquet layout with a stage for speeches",
       "accessibility_needs": "Step-free access and reserved seating",
       "equipment_requirements": "Sound system and stage lighting",
-      "registration_needs": "No registration; the client supplies the guest list"
+      "registration_needs": "No registration; the client supplies the guest list",
+      "submitted_at": "2026-09-01T10:00:00+00:00"
     },
     {
       "name": "Design Workshop",
@@ -123,7 +124,8 @@
       "venue_requirements": "Theatre layout with a speaker platform",
       "accessibility_needs": "Hearing loop and an accessible toilet",
       "equipment_requirements": "Projector, sound system and two microphones",
-      "registration_needs": "No public registration; the client supplies the attendee list"
+      "registration_needs": "No public registration; the client supplies the attendee list",
+      "submitted_at": "2026-09-02T09:00:00+00:00"
     },
     {
       "name": "Open House",
@@ -140,7 +142,8 @@
       "venue_requirements": "Open floor with room for exhibition stands",
       "accessibility_needs": "Step-free access throughout",
       "equipment_requirements": "Projector and sound system",
-      "registration_needs": "Public registration through the system, capped at 250 attendees"
+      "registration_needs": "Public registration through the system, capped at 250 attendees",
+      "submitted_at": "2026-09-03T08:00:00+00:00"
     }
   ],
   "facilities": [

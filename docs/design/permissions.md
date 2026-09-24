@@ -24,6 +24,8 @@ Kept current by every story that adds an action: the row is added or changed in 
 | View internal planning information (coordinator notes, booking requests, equipment requirements, decisions, reasons) | No | Yes | Venue-related only | Equipment-related only | Never |
 | View own notifications | Yes | Yes | Yes | Yes | Yes |
 
+The Event Organiser can see the approve/reject decision, resulting status and any reason on their own event request (SCRUM-29). The internal-planning row's "decisions, reasons" are later planning records, not that request-level decision.
+
 Rule: an action not listed as permitted for any of the account's roles is refused, a message is shown, and no data changes.
 
 ## Feature keys
@@ -34,6 +36,7 @@ Keys used in `backend/permissions.py` and on API routes / `features` from `/api/
 |---|---|---|---|---|---|
 | requests.view | Yes | Yes | No | No | No |
 | requests.edit | Yes | Yes | No | No | No |
+| requests.decide | No | Yes | No | No | No |
 | venues.view | No | Yes | Yes | No | No |
 | venues.edit | No | No | Yes | No | No |
 | equipment.view | No | No | No | Yes | No |
@@ -47,3 +50,4 @@ Keys used in `backend/permissions.py` and on API routes / `features` from `/api/
 | 1.1 | 15-09-2026 | Multi-role accounts; assigned-coordinator restriction on edits and arrangements; resubmit, reassign, change request, notification rows | Q-06, D-09, D-13, D-14, Q-11, Q-12 |
 | 1.2 | 21-09-2026 | Feature keys section mapping API keys to the action table | SCRUM-27 review: ADR-002 requires code ≡ document |
 | 1.3 | 22-09-2026 | `venues.edit` feature key, Venue Staff only | SCRUM-31: adding a venue needs a key of its own; `venues.view` is held by Event Coordinators, who may see venues but not maintain them |
+| 1.4 | 24-09-2026 | `requests.decide` for Event Coordinators; Organiser may see the request-level approve/reject reason | SCRUM-29: Organisers already hold `requests.edit`, so decide needs its own key; AC6 makes that decision public on the request |

@@ -6,6 +6,7 @@ How the React front end is built: folders, routing and the permission guard, the
 |---|---|---|---|
 | 1.0 | 16-09-2026 | Initial conventions | The scaffold and SCRUM-26/27 need one agreed way to build pages, routes and API calls; code is split by area so Developers on different stories rarely edit the same file |
 | 1.1 | 16-09-2026 | Home is the first permitted nav entry; `app/format.js` for dates, times and status text | `ui-guidelines.md` v1.1 |
+| 1.2 | 25-09-2026 | `formatDateTime` in `app/format.js` | `ui-guidelines.md` v1.3 (SCRUM-29) |
 
 ## 1. Folders
 
@@ -24,7 +25,7 @@ frontend/src/
     auth.jsx             account context from /api/me
     http.js              the only fetch: request() and ApiError
     home.js              homePathFor(account); imported by App.jsx only
-    format.js            formatDate, formatTime, formatPeriod, STATUS; the only shared functions
+    format.js            formatDate, formatTime, formatPeriod, formatDateTime, STATUS; the only shared functions
     NotPermittedPage.jsx
     __tests__/
   areas/
@@ -136,7 +137,7 @@ The story author commits this first and opens a draft pull request, so a Develop
 - Every `catch` puts the error on screen (banner or field). No empty `catch`, no `console.log` as error handling.
 - Success that moves to another page: `navigate(path, { state: { banner: 'Request submitted' } })`; the landing page shows `location.state?.banner` as its success banner.
 - Labels linked to inputs with `htmlFor` / `id`.
-- Dates, times and status words come from `app/format.js`: `formatDate(iso)` → `03 Oct 2026`, `formatTime('14:30')` → `14:30`, `formatPeriod(date, start, end)` → `03 Oct 2026, 14:30–16:00`; `STATUS.SUBMITTED === 'Submitted'` and so on for every status in `state-model.md`, grouped per record (`STATUS.REQUEST`, `STATUS.BOOKING`, `STATUS.RESERVATION`, `STATUS.UNIT`, `STATUS.REGISTRATION`). A page never formats a date or types a status string itself.
+- Dates, times and status words come from `app/format.js`: `formatDate(iso)` → `03 Oct 2026`, `formatTime('14:30')` → `14:30`, `formatPeriod(date, start, end)` → `03 Oct 2026, 14:30–16:00`, `formatDateTime('2026-10-03T14:30:00')` → `03 Oct 2026, 14:30`; `STATUS.SUBMITTED === 'Submitted'` and so on for every status in `state-model.md`, grouped per record (`STATUS.REQUEST`, `STATUS.BOOKING`, `STATUS.RESERVATION`, `STATUS.UNIT`, `STATUS.REGISTRATION`). A page never formats a date or types a status string itself.
 - While loading, a page renders its title row only (`ui-guidelines.md` §3): keep a `loading` state, initially true, cleared in `finally`.
 
 ## 8. When two stories share a file

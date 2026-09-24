@@ -1,4 +1,4 @@
-"""Role → feature matrix — SCRUM-27, SCRUM-31 (ADR-002).
+"""Role → feature matrix — SCRUM-27, SCRUM-31, SCRUM-29 (ADR-002).
 
 Direct transcription of docs/design/permissions.md. An account may hold
 several roles (Q-06, D-09); it may do anything any of its roles allows.
@@ -14,6 +14,7 @@ from errors import ApiRefusal
 # Feature keys used on routes and in /api/login, /api/me "features".
 REQUESTS_VIEW = "requests.view"
 REQUESTS_EDIT = "requests.edit"
+REQUESTS_DECIDE = "requests.decide"  # SCRUM-29: approve or reject a Submitted request
 VENUES_VIEW = "venues.view"
 VENUES_EDIT = "venues.edit"  # SCRUM-31: maintain venue records (Venue Staff)
 EQUIPMENT_VIEW = "equipment.view"
@@ -25,6 +26,7 @@ ALL_FEATURES = frozenset(
     {
         REQUESTS_VIEW,
         REQUESTS_EDIT,
+        REQUESTS_DECIDE,
         VENUES_VIEW,
         VENUES_EDIT,
         EQUIPMENT_VIEW,
@@ -44,6 +46,7 @@ ROLE_FEATURES = {
     "Event Coordinator": {
         REQUESTS_VIEW,  # all except Draft (service filter)
         REQUESTS_EDIT,
+        REQUESTS_DECIDE,
         VENUES_VIEW,
         REGISTRATION_VIEW,
         INTERNAL_NOTES_VIEW,

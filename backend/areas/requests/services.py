@@ -1,5 +1,5 @@
-"""Event-request rules — SCRUM-27 (read access, object rules) and SCRUM-28
-(create and submit).
+"""Event-request rules — SCRUM-27 (read access, object rules), SCRUM-28
+(create and submit) and SCRUM-29 (approve or reject).
 
 Object rules from permissions.md / ADR-002 live here next to the query.
 """
@@ -155,3 +155,66 @@ def submit_draft(account, request_id):
     event_request.submitted_at = datetime.now(timezone.utc)
     db.session.commit()
     return event_request
+
+
+_MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+
+
+def _format_decision_datetime(value):
+    """Match ui-guidelines.md §9: '03 Oct 2026, 14:30'. Stored values are UTC."""
+    return f"{value.day:02d} {_MONTHS[value.month - 1]} {value.year}, {value.hour:02d}:{value.minute:02d}"
+
+
+def _optional_reason(data):
+    raw = (data or {}).get("reason")
+    if raw is None:
+        return None
+    trimmed = str(raw).strip()
+    return trimmed or None
+
+
+def _already_decided_message(event_request):
+    when = _format_decision_datetime(event_request.decided_at) if event_request.decided_at else None
+    if when:
+        return f"This request has already been decided ({event_request.decision} on {when})."
+    return f"This request has already been decided ({event_request.decision})."
+
+
+def _get_decidable_request(account, request_id):
+    """A Submitted request the coordinator may decide, else refuse.
+
+    AC1: only Submitted. AC7: an already decided request is refused with the
+    existing decision and its date. The route's require(REQUESTS_DECIDE) has
+    already refused anyone who is not an Event Coordinator.
+    """
+    event_request = get_visible_request(account, request_id)
+    if event_request.status != "Submitted":
+        if event_request.decision:
+            raise ApiRefusal(409, _already_decided_message(event_request))
+        raise ApiRefusal(409, "Only a Submitted request can be decided.")
+    return event_request
+
+
+def _record_decision(event_request, account, decision, reason):
+    event_request.status = decision
+    event_request.decision = decision
+    event_request.decision_reason = reason
+    event_request.decided_at = datetime.now(timezone.utc)
+    event_request.decided_by_id = account.id
+    db.session.commit()
+    return event_request
+
+
+def approve_request(account, request_id, data):
+    """Submitted -> Approved (state-model.md). Reason is optional."""
+    event_request = _get_decidable_request(account, request_id)
+    return _record_decision(event_request, account, "Approved", _optional_reason(data))
+
+
+def reject_request(account, request_id, data):
+    """Submitted -> Rejected (state-model.md). Reason is required."""
+    event_request = _get_decidable_request(account, request_id)
+    reason = _optional_reason(data)
+    if not reason:
+        raise ApiRefusal(400, "A reason is required to reject.")
+    return _record_decision(event_request, account, "Rejected", reason)
