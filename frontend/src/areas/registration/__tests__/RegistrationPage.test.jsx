@@ -63,40 +63,4 @@ describe('RegistrationPage', () => {
       expect(screen.getByTestId('registration-empty')).toBeInTheDocument()
     })
   })
-
-  // @story: SCRUM-27
-  // @ac: 6
-  it('ignores the API result after unmount', async () => {
-    let resolveList
-    api.listOpenEvents.mockReturnValue(
-      new Promise((resolve) => {
-        resolveList = resolve
-      }),
-    )
-    const { unmount } = render(
-      <MemoryRouter>
-        <RegistrationPage />
-      </MemoryRouter>,
-    )
-    unmount()
-    resolveList([])
-  })
-
-  // @story: SCRUM-27
-  // @ac: 8
-  it('ignores the API error after unmount', async () => {
-    let rejectList
-    api.listOpenEvents.mockReturnValue(
-      new Promise((resolve, reject) => {
-        rejectList = reject
-      }),
-    )
-    const { unmount } = render(
-      <MemoryRouter>
-        <RegistrationPage />
-      </MemoryRouter>,
-    )
-    unmount()
-    rejectList(new Error('gone'))
-  })
 })

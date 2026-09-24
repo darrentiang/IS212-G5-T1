@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router'
-import { submitRequest } from './api'
+import { saveDraft, submitRequest } from './api'
 
 // SCRUM-28: an Event Organiser submits a request directly (docs/design/state-model.md, '— -> Submitted').
+// SCRUM-30: or saves it as a Draft (docs/design/state-model.md, '— -> Draft'); only the name is required to save.
 const FIELDS = [
   { name: 'name', label: 'Event name', type: 'text' },
   { name: 'purpose', label: 'Purpose', type: 'text' },
@@ -16,6 +17,10 @@ const FIELDS = [
   { name: 'equipment_requirements', label: 'Equipment requirements', type: 'textarea' },
   { name: 'registration_needs', label: 'Registration needs', type: 'textarea' },
 ]
+
+// Short fields share a row of three from tablet up; every other field takes
+// the whole row (docs/design/visual-style.md, Form card).
+const SHORT = new Set(['date', 'start_time', 'end_time', 'attendance'])
 
 const EMPTY = Object.fromEntries(FIELDS.map((field) => [field.name, '']))
 
@@ -53,68 +58,99 @@ export default function RequestNewPage() {
     }
   }
 
-  return (
-    <div className="space-y-4">
-      <Link to="/requests" className="text-blue-700 hover:underline text-sm" data-testid="request-new-back-link">
-        Back to Requests
-      </Link>
+  const handleSaveDraft = async () => {
+    // AC (SCRUM-30): only the event name is required to save a draft.
+    if (String(values.name).trim() === '') {
+      setFieldErrors({ name: 'Event name is required.' })
+      setBanner(null)
+      return
+    }
+    setFieldErrors({})
 
-      <h1 className="text-xl font-semibold text-gray-900" data-testid="request-new-title">
-        New request
-      </h1>
+    setSubmitting(true)
+    try {
+      const created = await saveDraft(values)
+      navigate(`/requests/${created.id}`, { state: { banner: 'Draft saved' } })
+    } catch (error) {
+      setBanner(error.message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="space-y-8">
+      <div className="space-y-2">
+        <Link to="/requests" className="back-link" data-testid="request-new-back-link">
+          Back to Requests
+        </Link>
+        <div className="page-header">
+          <h1 className="page-title" data-testid="request-new-title">
+            New request
+          </h1>
+        </div>
+      </div>
 
       {banner && (
         <p
           role="alert"
-          className="border border-red-300 bg-red-50 text-red-800 rounded px-3 py-2 text-sm"
+          className="banner-error"
           data-testid="request-new-banner"
         >
           {banner}
         </p>
       )}
 
-      <form className="space-y-4" onSubmit={handleSubmit} noValidate>
-        {FIELDS.map((field) => (
-          <div key={field.name}>
-            <label htmlFor={`request-new-${field.name}`} className="block text-sm font-medium text-gray-700">
-              {field.label} *
-            </label>
-            {field.type === 'textarea' ? (
-              <textarea
-                id={`request-new-${field.name}`}
-                aria-required="true"
-                className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 text-sm"
-                value={values[field.name]}
-                onChange={(event) => setValue(field.name, event.target.value)}
-                data-testid={`request-new-${field.name.replaceAll('_', '-')}-input`}
-              />
-            ) : (
-              <input
-                id={`request-new-${field.name}`}
-                type={field.type}
-                aria-required="true"
-                className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 text-sm"
-                value={values[field.name]}
-                onChange={(event) => setValue(field.name, event.target.value)}
-                data-testid={`request-new-${field.name.replaceAll('_', '-')}-input`}
-              />
-            )}
-            {fieldErrors[field.name] && (
-              <p
-                className="mt-1 text-sm text-red-700"
-                data-testid={`request-new-${field.name.replaceAll('_', '-')}-error`}
-              >
-                {fieldErrors[field.name]}
-              </p>
-            )}
-          </div>
-        ))}
+      <form className="card form-card space-y-4" onSubmit={handleSubmit} noValidate>
+        <div className="grid gap-4 md:grid-cols-3">
+          {FIELDS.map((field) => (
+            <div key={field.name} className={SHORT.has(field.name) ? undefined : 'md:col-span-3'}>
+              <label htmlFor={`request-new-${field.name}`} className="label">
+                {field.label} *
+              </label>
+              {field.type === 'textarea' ? (
+                <textarea
+                  id={`request-new-${field.name}`}
+                  aria-required="true"
+                  className="input"
+                  value={values[field.name]}
+                  onChange={(event) => setValue(field.name, event.target.value)}
+                  data-testid={`request-new-${field.name.replaceAll('_', '-')}-input`}
+                />
+              ) : (
+                <input
+                  id={`request-new-${field.name}`}
+                  type={field.type}
+                  aria-required="true"
+                  className="input"
+                  value={values[field.name]}
+                  onChange={(event) => setValue(field.name, event.target.value)}
+                  data-testid={`request-new-${field.name.replaceAll('_', '-')}-input`}
+                />
+              )}
+              {fieldErrors[field.name] && (
+                <p className="field-error" data-testid={`request-new-${field.name.replaceAll('_', '-')}-error`}>
+                  {fieldErrors[field.name]}
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
 
-        <div className="flex justify-end">
+        <div className="flex flex-wrap justify-end gap-2 pt-2">
+          <button
+            type="button"
+            disabled={submitting}
+            onClick={handleSaveDraft}
+            className="btn btn-secondary"
+            data-testid="request-new-save-draft-button"
+          >
+            Save draft
+          </button>
           <button
             type="submit"
             disabled={submitting}
-            className="rounded bg-blue-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+            className="btn btn-primary"
             data-testid="request-new-submit-button"
           >
             Submit

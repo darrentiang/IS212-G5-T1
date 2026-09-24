@@ -7,7 +7,8 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | 1.0 | 16-09-2026 | Initial guidelines | Functional tests for SCRUM-26/27 need stable test ids before the scaffold is built |
 | 1.1 | 16-09-2026 | Landing page by permission; page anatomy; loading; inline action forms, no modals; dates, times and status constants; notifications count | The first pages are about to be built by four Developers; these are the choices that would otherwise be made four ways |
 | 1.2 | 22-09-2026 | `/venues/new` and `/venues/:id` in §1; a checkbox group for several choices from a fixed list in §5 | SCRUM-31 adds the two pages, and picks facilities and accessibility features from seeded lists rather than free text |
-| 1.3 | 25-09-2026 | A moment in time (`03 Oct 2026, 14:30`) in §9, formatted with `formatDateTime` | SCRUM-29 shows when a request was submitted and decided; the API sends those as ISO date-times in UTC |
+| 1.3 | 24-09-2026 | §12 Look: the visual style and the status-to-colour table; §1 a welcome home page for an account that may open no page | UI refresh: one shared look in `visual-style.md`; Technical Support Staff have no page yet and were landing on the not-permitted page |
+ 1.4 | 25-09-2026 | A moment in time (`03 Oct 2026, 14:30`) in §9, formatted with `formatDateTime` | SCRUM-29 shows when a request was submitted and decided; the API sends those as ISO date-times in UTC |
 
 ## 1. Pages
 
@@ -25,6 +26,7 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 - Not logged in → any page sends the user to `/login`.
 - **Home** is the first nav entry, in nav order, that the account may open. After logging in, `/`, unknown addresses and the not-permitted page's link all go home (pages send the user to `/`; the app resolves it). Venue Staff therefore land on Venues, an Attendee on Registration, never on a page they cannot open.
 - An account without a page's feature sees the not-permitted page at the same address; it is not redirected.
+- An account that may open **no** page (Technical Support Staff today) gets a welcome home page at `/`, inside the layout: "Welcome, <username>" and one sentence saying there is nothing to do for their role yet. Test ids: `home-title`, `home-message`.
 
 ## 2. Layout
 
@@ -72,7 +74,7 @@ While the page is waiting for the API it renders the title row and nothing below
 
 - Label above its field.
 - Required fields: label ends with ` *`, the input has `aria-required="true"`. No native `required` attribute (browser pop-ups bypass our messages and cannot be asserted consistently).
-- On submit the page checks required fields are filled and shows a message under each empty one, sending nothing. Every other rule is the API's, and an API refusal always shows in the banner, never under a field.
+- On submit the page checks required fields are filled and shows a message under each empty one, sending nothing. Every other rule is the API's, and an API refusal always shows in the banner, never under a field. Because the banner is not beside the field, the API's refusal message names the field it is about ("Attendance must be a positive whole number.", "Date cannot be earlier than today.").
 - Input types: `date`, `time`, `number` where the value is one; a select for fixed choices; a textarea for long text.
 - **Several choices from a fixed list** are a group of checkboxes, one per option, inside a `fieldset` whose `legend` is the field's label. One checkbox's test id is `<page>-<field>-<value>-input`, the option's own text in kebab-case (`venue-new-facilities-stage-lighting-input`). A select with `multiple` is not used: one checkbox per option is what a test can tick and read back.
 - Buttons at the bottom right. One primary button (the action that completes the story), secondary buttons to its left (e.g. Save draft left of Submit).
@@ -139,3 +141,20 @@ While the page is waiting for the API it renders the title row and nothing below
 3. Controls the account cannot use are hidden, and the page still shows a refusal if the API says no.
 4. Status and flag text come from `STATUS`; dates and times from `app/format.js`; colour never stands alone.
 5. The page follows the §3 order; no modal, overlay or browser dialog anywhere.
+
+## 12. Look
+
+How pages look (tokens, type, spacing and the shared classes) is in `visual-style.md`; pages use its classes and never style a pattern by hand. The one product decision it leaves here is which status gets which colour. A status is shown as a badge, the status text itself on a tint of its colour; colour never stands alone (§6). Pages get the class from `statusBadgeClass(status)` in `app/format.js`, keyed by the `STATUS` constants.
+
+| Status | Badge colour |
+|---|---|
+| Draft | Neutral |
+| Submitted | Info |
+| Approved | Success |
+| Planning | Warning |
+| Confirmed | Success |
+| Rejected | Danger |
+| Cancelled | Danger |
+| Completed | Neutral |
+
+A status not in this table is neutral until a story adds its row here.

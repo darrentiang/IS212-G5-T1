@@ -1,5 +1,6 @@
 """Event-request rules — SCRUM-27 (read access, object rules), SCRUM-28
 (create and submit) and SCRUM-29 (approve or reject).
+(create and submit) and SCRUM-30 (save, edit and delete a Draft).
 
 Object rules from permissions.md / ADR-002 live here next to the query.
 """
@@ -28,7 +29,14 @@ def visible_requests(account):
 
 
 def get_visible_request(account, request_id):
-    """One request if the account may see it, else refuse 403 / 404."""
+    """One request if the account may see it, else refuse 403 / 404.
+
+    Deliberately 403, not 404, when it exists but the account may not see
+    it: a read reveals existence (SCRUM-27). A write that isn't the
+    account's own instead answers 404 (_get_own_request, below), matching
+    SCRUM-28's original submit_draft: existence is not revealed by what
+    another Organiser is allowed to change.
+    """
     event_request = db.session.get(EventRequest, request_id)
     if event_request is None:
         raise ApiRefusal(404, "Event request not found.")
@@ -64,6 +72,19 @@ def _apply_fields(event_request, data):
             setattr(event_request, field, data[field])
 
 
+def _get_own_request(account, request_id):
+    """An own request by id, else refuse 404 (never leaks whether it exists)."""
+    event_request = db.session.get(EventRequest, request_id)
+    if event_request is None or event_request.created_by_id != account.id:
+        raise ApiRefusal(404, "Event request not found.")
+    return event_request
+
+
+def _refuse_if_name_missing(event_request):
+    if event_request.name is None or event_request.name.strip() == "":
+        raise ApiRefusal(400, "Missing required fields: name")
+
+
 def _refuse_if_incomplete(event_request):
     missing = event_request.missing_fields()
     if missing:
@@ -72,13 +93,16 @@ def _refuse_if_incomplete(event_request):
 
 def _parse_positive_int(value):
     """The int a positive, whole attendance value represents, else None."""
+    # Same rule as venues' maximum capacity: int() rejects anything that is
+    # not a whole number ('20.5', '20.0', '1e5', 'nan', 'inf', True included),
+    # whether it arrives as a JSON number or as a string from the form.
     try:
-        number = float(value)
-    except (TypeError, ValueError):
+        number = int(str(value).strip())
+    except ValueError:
         return None
-    if number != int(number) or number <= 0:
+    if number < 1:
         return None
-    return int(number)
+    return number
 
 
 def _refuse_if_invalid_date(event_request):
@@ -140,10 +164,7 @@ def submit_draft(account, request_id):
     AC2: only a request that is Draft (or new) may be submitted this way.
     """
     _require_organiser(account)
-
-    event_request = db.session.get(EventRequest, request_id)
-    if event_request is None or event_request.created_by_id != account.id:
-        raise ApiRefusal(404, "Event request not found.")
+    event_request = _get_own_request(account, request_id)
 
     if event_request.status != "Draft":
         raise ApiRefusal(400, "Only a Draft request can be submitted.")
@@ -201,6 +222,29 @@ def _record_decision(event_request, account, decision, reason):
     event_request.decision_reason = reason
     event_request.decided_at = datetime.now(timezone.utc)
     event_request.decided_by_id = account.id
+def save_new_draft(account, data):
+    """Save a new Draft (state-model.md: '— -> Draft').
+
+    AC1, AC-story: only the event name is required to save a draft; every
+    other field, even an invalid one, is accepted as given and validated
+    only when the request is later submitted (SCRUM-28). AC-story: an
+    Organiser may have only one open Draft at a time.
+    """
+    _require_organiser(account)
+
+    existing = (
+        db.session.query(EventRequest)
+        .filter_by(created_by_id=account.id, status="Draft")
+        .first()
+    )
+    if existing is not None:
+        raise ApiRefusal(400, "You already have an open draft. Submit or delete it before starting another.")
+
+    event_request = EventRequest(created_by_id=account.id, status="Draft")
+    _apply_fields(event_request, data)
+    _refuse_if_name_missing(event_request)
+
+    db.session.add(event_request)
     db.session.commit()
     return event_request
 
@@ -218,3 +262,28 @@ def reject_request(account, request_id, data):
     if not reason:
         raise ApiRefusal(400, "A reason is required to reject.")
     return _record_decision(event_request, account, "Rejected", reason)
+def update_draft(account, request_id, data):
+    """Edit any field of an own Draft, including the name (AC3)."""
+    _require_organiser(account)
+    event_request = _get_own_request(account, request_id)
+
+    if event_request.status != "Draft":
+        raise ApiRefusal(400, "Only a Draft request can be edited.")
+
+    _apply_fields(event_request, data)
+    _refuse_if_name_missing(event_request)
+
+    db.session.commit()
+    return event_request
+
+
+def delete_draft(account, request_id):
+    """Permanently delete an own Draft (AC4: not once Submitted)."""
+    _require_organiser(account)
+    event_request = _get_own_request(account, request_id)
+
+    if event_request.status != "Draft":
+        raise ApiRefusal(400, "Only a Draft request can be deleted.")
+
+    db.session.delete(event_request)
+    db.session.commit()

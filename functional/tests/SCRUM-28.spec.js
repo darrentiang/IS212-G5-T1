@@ -14,11 +14,27 @@ async function login(page, username) {
   await expect(page.getByTestId('layout-username')).toHaveText(username)
 }
 
+// The server compares against its local date, not UTC, so building "today"
+// with toISOString() can be off by a day near local midnight.
+function isoDate(date) {
+  const yyyy = date.getFullYear()
+  const mm = String(date.getMonth() + 1).padStart(2, '0')
+  const dd = String(date.getDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}`
+}
+
+// Always in the future, so the happy-path rows never age into a past date.
+function daysFromToday(days) {
+  const date = new Date()
+  date.setDate(date.getDate() + days)
+  return isoDate(date)
+}
+
 const VALID_REQUEST = {
   name: 'Tech Fair 2026',
   purpose: 'Career networking',
   description: 'Annual tech career fair',
-  date: '2026-11-20',
+  date: daysFromToday(30),
   'start-time': '09:00',
   'end-time': '17:00',
   attendance: '200',
@@ -33,15 +49,6 @@ async function fillNewRequestForm(page, overrides = {}) {
   for (const [field, value] of Object.entries(values)) {
     await page.getByTestId(`request-new-${field}-input`).fill(value)
   }
-}
-
-// The server compares against its local date, not UTC, so building "today"
-// with toISOString() can be off by a day near local midnight.
-function isoDate(date) {
-  const yyyy = date.getFullYear()
-  const mm = String(date.getMonth() + 1).padStart(2, '0')
-  const dd = String(date.getDate()).padStart(2, '0')
-  return `${yyyy}-${mm}-${dd}`
 }
 
 // @tc: TC-SCRUM-28-01
@@ -197,14 +204,19 @@ test('a start time equal to the end time is refused', async ({ page }) => {
 // @ac: 9
 test('submission is refused when attendance is negative, non-numeric, or a decimal', async ({ page }) => {
   await login(page, 'org1')
-  await page.getByTestId('layout-nav-requests').click()
-  await page.getByTestId('requests-new-button').click()
 
-  await fillNewRequestForm(page, { attendance: '-5' })
-  await page.getByTestId('request-new-submit-button').click()
+  // A fresh form per value, so one value's banner cannot pass for the next's.
+  for (const attendance of ['-5', '20.5']) {
+    await page.getByTestId('layout-nav-requests').click()
+    await page.getByTestId('requests-new-button').click()
+    await expect(page.getByTestId('request-new-banner')).toHaveCount(0)
 
-  await expect(page.getByTestId('request-new-banner')).toHaveText('Attendance must be a positive whole number.')
-  await expect(page).toHaveURL(/\/requests\/new$/)
+    await fillNewRequestForm(page, { attendance })
+    await page.getByTestId('request-new-submit-button').click()
+
+    await expect(page.getByTestId('request-new-banner')).toHaveText('Attendance must be a positive whole number.')
+    await expect(page).toHaveURL(/\/requests\/new$/)
+  }
 })
 
 // @tc: TC-SCRUM-28-11

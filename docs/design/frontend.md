@@ -6,7 +6,8 @@ How the React front end is built: folders, routing and the permission guard, the
 |---|---|---|---|
 | 1.0 | 16-09-2026 | Initial conventions | The scaffold and SCRUM-26/27 need one agreed way to build pages, routes and API calls; code is split by area so Developers on different stories rarely edit the same file |
 | 1.1 | 16-09-2026 | Home is the first permitted nav entry; `app/format.js` for dates, times and status text | `ui-guidelines.md` v1.1 |
-| 1.2 | 25-09-2026 | `formatDateTime` in `app/format.js` | `ui-guidelines.md` v1.3 (SCRUM-29) |
+| 1.2 | 24-09-2026 | `index.css` holds the tokens and shared classes (§9, §10 check 10); `statusBadgeClass` in `app/format.js`; `app/HomePage.jsx` for an account that may open no page | UI refresh per `visual-style.md`; `ui-guidelines.md` v1.3 |
+| 1.3 | 25-09-2026 | `formatDateTime` in `app/format.js` | `ui-guidelines.md` v1.3 (SCRUM-29) |
 
 ## 1. Folders
 
@@ -17,7 +18,7 @@ The code is split by **area**: the kind of record a page shows or changes. Each 
 ```
 frontend/src/
   main.jsx               renders App inside BrowserRouter; nothing else
-  index.css              the Tailwind import only
+  index.css              the Tailwind import, design tokens and shared classes (visual-style.md); the only CSS file
   app/                   shared core
     App.jsx              login redirect, permission guard, one <Route> per entry in areas.js
     areas.js             imports every area's routes.jsx; the only list of areas
@@ -25,7 +26,8 @@ frontend/src/
     auth.jsx             account context from /api/me
     http.js              the only fetch: request() and ApiError
     home.js              homePathFor(account); imported by App.jsx only
-    format.js            formatDate, formatTime, formatPeriod, formatDateTime, STATUS; the only shared functions
+    format.js            formatDate, formatTime, formatPeriod, formatDateTime, STATUS, statusBadgeClass; the only shared functions
+    HomePage.jsx         welcome page for an account that may open no page
     NotPermittedPage.jsx
     __tests__/
   areas/
@@ -89,7 +91,7 @@ export const routes = [
 
 - No account → `<Navigate to="/login" replace />`.
 - `permission` present and `can(permission)` false → render `NotPermittedPage` in place; no redirect.
-- **Home** = the first entry with `nav`, in the combined list's order, whose `permission` is absent or `can(permission)`; `app/home.js` exports `homePathFor(account)`; only `App.jsx` imports it. `/` and unknown paths → `<Navigate to={home} replace />`. Pages never compute home: after login, and from the not-permitted page, they go to `/` and `App` does the rest. An account that may open nothing lands on the not-permitted page.
+- **Home** = the first entry with `nav`, in the combined list's order, whose `permission` is absent or `can(permission)`; `app/home.js` exports `homePathFor(account)`; only `App.jsx` imports it. `/` and unknown paths → `<Navigate to={home} replace />`. Pages never compute home: after login, and from the not-permitted page, they go to `/` and `App` does the rest. An account that may open nothing gets `HomePage` at `/`, inside the layout.
 - Nav: entries with `nav`, in `areas.js` order then array order, shown only when the account may open them.
 - The front end never checks role names.
 
@@ -139,6 +141,8 @@ The story author commits this first and opens a draft pull request, so a Develop
 - Labels linked to inputs with `htmlFor` / `id`.
 - Dates, times and status words come from `app/format.js`: `formatDate(iso)` → `03 Oct 2026`, `formatTime('14:30')` → `14:30`, `formatPeriod(date, start, end)` → `03 Oct 2026, 14:30–16:00`, `formatDateTime('2026-10-03T14:30:00')` → `03 Oct 2026, 14:30`; `STATUS.SUBMITTED === 'Submitted'` and so on for every status in `state-model.md`, grouped per record (`STATUS.REQUEST`, `STATUS.BOOKING`, `STATUS.RESERVATION`, `STATUS.UNIT`, `STATUS.REGISTRATION`). A page never formats a date or types a status string itself.
 - While loading, a page renders its title row only (`ui-guidelines.md` §3): keep a `loading` state, initially true, cleared in `finally`.
+- An effect with no dependencies (`[]`) fetches once and needs no stale-response guard: there is no second fetch to race, and React ignores a state update on an unmounted component. An effect keyed to a route parameter (`[id]`) does need one (`let active = true`, `if (active)` in each callback, `active = false` in the cleanup), because a reply for the record the user has left can arrive after the current one. The guard is proved by a test that changes the id and resolves the first reply last.
+- A page reads the account with `const { can } = useAuth()`, with no fallback such as `?? {}` or `can?.()`: `App.jsx` always wraps the pages in `AuthProvider`. A test that renders a page reading the account stubs `useAuth`.
 
 ## 8. When two stories share a file
 
@@ -146,7 +150,9 @@ Some stories share a page (SCRUM-28 Submit and SCRUM-30 Save Draft both change `
 
 ## 9. Styling
 
-- Tailwind utility classes in `className` only. No other CSS file, no CSS modules, no `style` props.
+- The look is `visual-style.md`. Its tokens and shared classes (`.btn`, `.input`, `.card`, `.table`, `.badge`, `.banner-error`, …) live in `index.css`, the only CSS file.
+- Pages use the shared classes for every pattern they cover, and Tailwind utilities only for layout (flex, grid, gaps, widths, spacing). No CSS modules, no `style` props.
+- A status is a `.badge` whose colour class comes from `statusBadgeClass(status)` in `app/format.js`.
 - No component, icon, CSS-in-JS, state or fetching library.
 - Mobile first with Tailwind breakpoints; tables in an `overflow-x-auto` wrapper.
 
@@ -160,3 +166,5 @@ Some stories share a page (SCRUM-28 Submit and SCRUM-30 Save Draft both change `
 6. Every `ApiError` reaches a field message or the banner.
 7. No dependency added beyond `react-router`.
 8. Elements, text and test ids match `ui-guidelines.md`; dates and status words come from `app/format.js`.
+9. A stale-response guard appears only in an effect keyed to a route parameter, with a test that changes the id and resolves the first reply last (§7). No fallback or guard for a state the app cannot reach.
+10. No hand-written button, input, table, badge or banner styling where a shared class exists (§9); utilities only for layout.

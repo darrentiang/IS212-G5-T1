@@ -143,15 +143,19 @@ describe('App', () => {
 
   // @story: setup
   // @ac: ui-shell
-  it('shows the not-permitted page when no page is permitted', async () => {
+  it('shows a welcome home page inside the layout when no page is permitted', async () => {
     mocks.routes = [LOGIN, REQUESTS, VENUES]
     authApi.me.mockResolvedValue({ username: 'att1', roles: ['Attendee'], features: [] })
 
     renderApp('/')
 
-    expect(await screen.findByTestId('not-permitted-message')).toBeInTheDocument()
-    // The link always renders and always points at '/'; for this account '/'
-    // is the not-permitted page itself.
-    expect(screen.getByTestId('not-permitted-home-link')).toHaveAttribute('href', '/')
+    expect(await screen.findByTestId('home-title')).toHaveTextContent('Welcome, att1')
+    expect(screen.getByTestId('home-message')).toHaveTextContent(
+      'There is nothing for your role to do here yet.',
+    )
+    // Inside the layout, not in place of it; and at '/', not redirected.
+    expect(screen.getByTestId('layout-logout-button')).toBeInTheDocument()
+    expect(screen.queryByTestId('not-permitted-message')).not.toBeInTheDocument()
+    expect(screen.getByTestId('address')).toHaveTextContent('/')
   })
 })

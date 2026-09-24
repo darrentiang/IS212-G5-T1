@@ -1,4 +1,4 @@
-import { Link, Outlet, useNavigate } from 'react-router'
+import { NavLink, Outlet, useNavigate } from 'react-router'
 import { useAuth } from './auth'
 import { routes } from './areas'
 
@@ -21,41 +21,44 @@ export default function Layout() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200">
-        <div className="mx-auto max-w-5xl px-4 py-3 flex flex-wrap items-center gap-3">
-          <span className="font-semibold text-gray-900">ConnectSphere</span>
+    <div className="min-h-screen">
+      <header className="topbar">
+        <div className="mx-auto max-w-[1100px] px-4 md:px-6 py-3 flex flex-wrap items-center gap-x-6 gap-y-2">
+          <span className="topbar-brand">ConnectSphere</span>
 
-          <div className="flex-1 flex flex-wrap items-center justify-center gap-x-2 text-sm text-gray-600">
-            <span data-testid="layout-username">{account?.username}</span>
-            <span data-testid="layout-roles">{(account?.roles ?? []).join(', ')}</span>
-          </div>
+          {/* NavLink marks the current page with the "active" class. */}
+          <nav className="order-last w-full md:order-none md:w-auto flex gap-1 overflow-x-auto">
+            {navRoutes.map((route) => (
+              <NavLink
+                key={route.path}
+                to={route.path}
+                className="nav-link"
+                data-testid={`layout-nav-${pageOf(route.path)}`}
+              >
+                {route.nav}
+              </NavLink>
+            ))}
+          </nav>
 
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="px-3 py-1.5 border border-gray-300 rounded text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
-            data-testid="layout-logout-button"
-          >
-            Log out
-          </button>
-        </div>
+          <div className="ml-auto flex min-w-0 items-center gap-3">
+            <div className="topbar-account flex flex-col items-end md:flex-row md:gap-x-2 text-right">
+              <span data-testid="layout-username">{account?.username}</span>
+              <span data-testid="layout-roles">{(account?.roles ?? []).join(', ')}</span>
+            </div>
 
-        <nav className="mx-auto max-w-5xl px-4 pb-2 flex flex-wrap gap-4 text-sm">
-          {navRoutes.map((route) => (
-            <Link
-              key={route.path}
-              to={route.path}
-              className="text-blue-700 hover:underline"
-              data-testid={`layout-nav-${pageOf(route.path)}`}
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="btn btn-secondary"
+              data-testid="layout-logout-button"
             >
-              {route.nav}
-            </Link>
-          ))}
-        </nav>
+              Log out
+            </button>
+          </div>
+        </div>
       </header>
 
-      <main className="mx-auto max-w-5xl px-4 py-6">
+      <main className="mx-auto max-w-[1100px] px-4 md:px-6 py-8">
         <Outlet />
       </main>
     </div>

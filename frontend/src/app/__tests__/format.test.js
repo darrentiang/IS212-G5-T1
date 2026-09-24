@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { STATUS, formatDate, formatDateTime, formatPeriod, formatTime } from '../format'
+import { STATUS, formatDate, formatDateTime, formatPeriod, formatTime, statusBadgeClass } from '../format'
 
 describe('formatDate', () => {
   // @story: setup
@@ -81,5 +81,27 @@ describe('STATUS', () => {
     for (const group of Object.values(STATUS)) {
       expect(Object.isFrozen(group)).toBe(true)
     }
+  })
+})
+
+describe('statusBadgeClass', () => {
+  // @story: setup
+  // @ac: ui-look
+  it('gives every event request status its colour from the Look table', () => {
+    const R = STATUS.REQUEST
+    expect(statusBadgeClass(R.DRAFT)).toBe('badge badge-neutral')
+    expect(statusBadgeClass(R.SUBMITTED)).toBe('badge badge-info')
+    expect(statusBadgeClass(R.APPROVED)).toBe('badge badge-success')
+    expect(statusBadgeClass(R.PLANNING)).toBe('badge badge-warning')
+    expect(statusBadgeClass(R.CONFIRMED)).toBe('badge badge-success')
+    expect(statusBadgeClass(R.REJECTED)).toBe('badge badge-danger')
+    expect(statusBadgeClass(R.CANCELLED)).toBe('badge badge-danger')
+    expect(statusBadgeClass(R.COMPLETED)).toBe('badge badge-neutral')
+  })
+
+  // @story: setup
+  // @ac: ui-look
+  it('falls back to neutral for a status without a colour of its own', () => {
+    expect(statusBadgeClass(STATUS.RESERVATION.RESERVED)).toBe('badge badge-neutral')
   })
 })

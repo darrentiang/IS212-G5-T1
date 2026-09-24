@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Link, useLocation, useParams } from 'react-router'
+import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import { useAuth } from '../../app/auth'
-import { STATUS, formatDate, formatDateTime, formatTime } from '../../app/format'
-import { approveRequest, getRequest, rejectRequest, submitDraft } from './api'
+import { STATUS, formatDate, formatDateTime, formatTime, statusBadgeClass } from '../../app/format'
+import { approveRequest, deleteDraft, getRequest, rejectRequest, submitDraft, updateDraft } from './api'
 
 // SCRUM-27: show one request or the API refusal (banner), never invent data.
 // SCRUM-28: show the success banner carried from RequestNewPage's navigate(),
@@ -35,20 +35,49 @@ const testId = (name) => `request-detail-${name.replaceAll('_', '-')}`
 
 // A Draft may be saved with fields still empty, so format only what is there.
 const show = (value, format) => (value == null || value === '' ? '' : format ? format(value) : value)
+// SCRUM-30: the Draft's owner may also edit any field (including the name)
+// or permanently delete it.
+const EDIT_FIELDS = [
+  { name: 'name', label: 'Event name', type: 'text' },
+  { name: 'purpose', label: 'Purpose', type: 'text' },
+  { name: 'description', label: 'Description', type: 'textarea' },
+  { name: 'date', label: 'Date', type: 'date' },
+  { name: 'start_time', label: 'Start time', type: 'time' },
+  { name: 'end_time', label: 'End time', type: 'time' },
+  { name: 'attendance', label: 'Expected attendance', type: 'number' },
+  { name: 'venue_requirements', label: 'Venue requirements', type: 'textarea' },
+  { name: 'accessibility_needs', label: 'Accessibility needs', type: 'textarea' },
+  { name: 'equipment_requirements', label: 'Equipment requirements', type: 'textarea' },
+  { name: 'registration_needs', label: 'Registration needs', type: 'textarea' },
+]
+
+// Short fields share a row of three from tablet up; every other field takes
+// the whole row (docs/design/visual-style.md, Form card).
+const SHORT = new Set(['date', 'start_time', 'end_time', 'attendance'])
+
+const editValuesFrom = (row) =>
+  Object.fromEntries(EDIT_FIELDS.map((field) => [field.name, row[field.name] ?? '']))
 
 export default function RequestDetailPage() {
   const { id } = useParams()
   const location = useLocation()
   const { can } = useAuth() ?? {}
+  const navigate = useNavigate()
   const [row, setRow] = useState(null)
   const [loading, setLoading] = useState(true)
   const [banner, setBanner] = useState(null)
   const [successBanner, setSuccessBanner] = useState(location.state?.banner ?? null)
   const [submitting, setSubmitting] = useState(false)
+  // Only one inline form open at a time (ui-guidelines.md §7).
   const [openAction, setOpenAction] = useState(null)
   const [reason, setReason] = useState('')
   const [reasonError, setReasonError] = useState(null)
+  const [editValues, setEditValues] = useState(null)
+  const [editError, setEditError] = useState(null)
 
+  // Keyed to id: a reply for the request the user has left can
+  // arrive after the current one, so a stale reply is ignored
+  // (docs/design/frontend.md section 7).
   useEffect(() => {
     let active = true
     getRequest(id)
@@ -84,7 +113,7 @@ export default function RequestDetailPage() {
     }
   }
 
-  const openDecision = (action) => {
+const openDecision = (action) => {
     setOpenAction(action)
     setReason('')
     setReasonError(null)
@@ -132,107 +161,274 @@ export default function RequestDetailPage() {
 
   const canDecide = Boolean(can?.('requests.decide')) && row?.status === STATUS.REQUEST.SUBMITTED
 
-  return (
-    <div className="space-y-4">
-      <Link to="/requests" className="text-blue-700 hover:underline text-sm" data-testid="request-detail-back-link">
-        Back to Requests
-      </Link>
+  const openEdit = () => {
+    setEditValues(editValuesFrom(row))
+    setEditError(null)
+    setOpenAction('edit')
+  }
 
-      <h1 className="text-xl font-semibold text-gray-900" data-testid="request-detail-title">
-        Request
-      </h1>
+  const setEditValue = (name, value) => setEditValues((prev) => ({ ...prev, [name]: value }))
+
+  const handleEditConfirm = async () => {
+    if (String(editValues.name).trim() === '') {
+      setEditError('Event name is required.')
+      return
+    }
+    setEditError(null)
+    setSubmitting(true)
+    try {
+      const updated = await updateDraft(id, editValues)
+      setRow(updated)
+      setBanner(null)
+      setSuccessBanner('Draft updated')
+      setOpenAction(null)
+    } catch (error) {
+      setBanner(error.message)
+      setSuccessBanner(null)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleDeleteConfirm = async () => {
+    setSubmitting(true)
+    try {
+      await deleteDraft(id)
+      navigate('/requests', { state: { banner: 'Draft deleted' } })
+    } catch (error) {
+      setBanner(error.message)
+      setSuccessBanner(null)
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="space-y-8">
+      <div className="space-y-2">
+        <Link to="/requests" className="back-link" data-testid="request-detail-back-link">
+          Back to Requests
+        </Link>
+        <div className="page-header">
+          <h1 className="page-title" data-testid="request-detail-title">
+            Request
+          </h1>
+        </div>
+      </div>
 
       {banner && (
-        <p role="alert" className="border border-red-300 bg-red-50 text-red-800 rounded px-3 py-2 text-sm" data-testid="request-detail-banner">
+        <p role="alert" className="banner-error" data-testid="request-detail-banner">
           {banner}
         </p>
       )}
       {!banner && successBanner && (
-        <p role="status" className="border border-green-300 bg-green-50 text-green-800 rounded px-3 py-2 text-sm" data-testid="request-detail-banner">
+        <p role="status" className="banner-success" data-testid="request-detail-banner">
           {successBanner}
         </p>
       )}
 
-      {loading || !row ? null : (
-        <dl className="space-y-2 text-sm" data-testid="request-detail-fields">
-          {FIELDS.map((field) => (
-            <div key={field.name}>
-              <dt className="font-medium text-gray-700">{field.label}</dt>
-              <dd className="whitespace-pre-wrap" data-testid={testId(field.name)}>
-                {show(row[field.name], field.format)}
+      {loading || banner || !row ? null : (
+        <div className="card space-y-6">
+          <dl className="detail-list" data-testid="request-detail-fields">
+            {/* Keeping HEAD's dynamic FIELDS map but using main's clean styles */}
+            {typeof FIELDS !== 'undefined' && FIELDS.map((field) => (
+              <div key={field.name}>
+                <dt>{field.label}</dt>
+                <dd className="whitespace-pre-wrap" data-testid={testId(field.name)}>
+                  {show(row[field.name], field.format)}
+                </dd>
+              </div>
+            ))}
+            {/* Fallback Name field just in case FIELDS array was removed in main */}
+            {typeof FIELDS === 'undefined' && (
+              <div>
+                <dt>Name</dt>
+                <dd data-testid="request-detail-name">{row.name}</dd>
+              </div>
+            )}
+            <div>
+              <dt>Status</dt>
+              <dd data-testid="request-detail-status">
+                <span className={statusBadgeClass(row.status)}>{row.status}</span>
               </dd>
             </div>
-          ))}
-          <div>
-            <dt className="font-medium text-gray-700">Status</dt>
-            <dd data-testid="request-detail-status">{row.status}</dd>
-          </div>
-          <div>
-            <dt className="font-medium text-gray-700">Created by</dt>
-            <dd data-testid="request-detail-created-by">{row.created_by}</dd>
-          </div>
-          {row.submitted_at && (
             <div>
-              <dt className="font-medium text-gray-700">Submitted on</dt>
-              <dd data-testid="request-detail-submitted-at">{formatDateTime(row.submitted_at)}</dd>
+              <dt>Created by</dt>
+              <dd data-testid="request-detail-created-by">{row.created_by}</dd>
             </div>
-          )}
-          {row.decision && (
-            <>
+            
+            {/* HEAD's Decision Tracking Fields */}
+            {row.submitted_at && (
               <div>
-                <dt className="font-medium text-gray-700">Decision</dt>
-                <dd data-testid="request-detail-decision">{row.decision}</dd>
+                <dt>Submitted on</dt>
+                <dd data-testid="request-detail-submitted-at">{formatDateTime(row.submitted_at)}</dd>
               </div>
-              {row.decision_reason && (
+            )}
+            {row.decision && (
+              <>
                 <div>
-                  <dt className="font-medium text-gray-700">Reason</dt>
-                  <dd className="whitespace-pre-wrap" data-testid="request-detail-decision-reason">
-                    {row.decision_reason}
-                  </dd>
+                  <dt>Decision</dt>
+                  <dd data-testid="request-detail-decision">{row.decision}</dd>
                 </div>
-              )}
-              {row.decided_at && (
+                {row.decision_reason && (
+                  <div>
+                    <dt>Reason</dt>
+                    <dd className="whitespace-pre-wrap" data-testid="request-detail-decision-reason">
+                      {row.decision_reason}
+                    </dd>
+                  </div>
+                )}
+                {row.decided_at && (
+                  <div>
+                    <dt>Decided on</dt>
+                    <dd data-testid="request-detail-decided-at">{formatDateTime(row.decided_at)}</dd>
+                  </div>
+                )}
                 <div>
-                  <dt className="font-medium text-gray-700">Decided on</dt>
-                  <dd data-testid="request-detail-decided-at">{formatDateTime(row.decided_at)}</dd>
+                  <dt>Decided by</dt>
+                  <dd data-testid="request-detail-decided-by">{row.decided_by}</dd>
                 </div>
-              )}
-              <div>
-                <dt className="font-medium text-gray-700">Decided by</dt>
-                <dd data-testid="request-detail-decided-by">{row.decided_by}</dd>
-              </div>
-            </>
-          )}
-          {row.coordinator_notes != null && (
-            <div>
-              <dt className="font-medium text-gray-700">Coordinator notes</dt>
-              <dd data-testid="request-detail-coordinator-notes">{row.coordinator_notes}</dd>
-            </div>
-          )}
-        </dl>
-      )}
+              </>
+            )}
 
-      {!loading && row && row.status === STATUS.REQUEST.DRAFT && (
-        <div className="flex justify-end">
-          <button
-            type="button"
-            disabled={submitting}
-            onClick={handleSubmitDraft}
-            className="rounded bg-blue-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-            data-testid="request-detail-submit-button"
-          >
-            Submit
-          </button>
+            {/* Main's coordinator notes safely checked */}
+            {'coordinator_notes' in row && row.coordinator_notes != null && (
+              <div>
+                <dt>Coordinator notes</dt>
+                <dd data-testid="request-detail-coordinator-notes">{row.coordinator_notes}</dd>
+              </div>
+            )}
+          </dl>
+
+          {/* Main's Draft buttons */}
+          {row.status === STATUS.REQUEST.DRAFT && (
+            <div className="flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={() => setOpenAction('delete')}
+                className="btn btn-danger"
+                data-testid="request-detail-delete-button"
+              >
+                Delete
+              </button>
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={openEdit}
+                className="btn btn-secondary"
+                data-testid="request-detail-edit-button"
+              >
+                Edit
+              </button>
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={handleSubmitDraft}
+                className="btn btn-primary"
+                data-testid="request-detail-submit-button"
+              >
+                Submit
+              </button>
+            </div>
+          )}
         </div>
       )}
 
-      {!loading && canDecide && (
+      {/* Main's Edit form */}
+      {openAction === 'edit' && editValues && (
+        <div className="card form-card space-y-4" data-testid="request-detail-edit-form">
+          <h2 className="section-title">Edit draft</h2>
+          <div className="grid gap-4 md:grid-cols-3">
+            {EDIT_FIELDS.map((field) => (
+              <div key={field.name} className={SHORT.has(field.name) ? undefined : 'md:col-span-3'}>
+                <label htmlFor={`request-detail-edit-${field.name}`} className="label">
+                  {field.label}
+                </label>
+                {field.type === 'textarea' ? (
+                  <textarea
+                    id={`request-detail-edit-${field.name}`}
+                    className="input"
+                    value={editValues[field.name]}
+                    onChange={(event) => setEditValue(field.name, event.target.value)}
+                    data-testid={`request-detail-edit-${field.name.replaceAll('_', '-')}-input`}
+                  />
+                ) : (
+                  <input
+                    id={`request-detail-edit-${field.name}`}
+                    type={field.type}
+                    className="input"
+                    value={editValues[field.name]}
+                    onChange={(event) => setEditValue(field.name, event.target.value)}
+                    data-testid={`request-detail-edit-${field.name.replaceAll('_', '-')}-input`}
+                  />
+                )}
+                {field.name === 'name' && editError && (
+                  <p className="field-error" data-testid="request-detail-edit-name-error">
+                    {editError}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+          <div className="flex flex-wrap justify-end gap-2">
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={() => setOpenAction(null)}
+              className="btn btn-secondary"
+              data-testid="request-detail-edit-cancel-button"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={handleEditConfirm}
+              className="btn btn-primary"
+              data-testid="request-detail-edit-confirm-button"
+            >
+              Save
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Main's Delete form */}
+      {openAction === 'delete' && (
+        <div className="card space-y-4" data-testid="request-detail-delete-form">
+          <h2 className="section-title">Delete draft</h2>
+          <p>Delete this draft permanently? This cannot be undone.</p>
+          <div className="flex flex-wrap justify-end gap-2">
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={() => setOpenAction(null)}
+              className="btn btn-secondary"
+              data-testid="request-detail-delete-cancel-button"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={handleDeleteConfirm}
+              className="btn btn-danger"
+              data-testid="request-detail-delete-confirm-button"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* HEAD's Decision Action Buttons (styled with main's classes) */}
+      {!loading && canDecide && !['approve', 'reject'].includes(openAction) && (
         <div className="flex justify-end gap-2">
           <button
             type="button"
             disabled={submitting}
             onClick={() => openDecision('reject')}
-            className="rounded border border-gray-300 px-4 py-2 text-sm font-medium text-gray-800 disabled:opacity-50"
+            className="btn btn-secondary"
             data-testid="request-detail-reject-button"
           >
             Reject
@@ -241,7 +437,7 @@ export default function RequestDetailPage() {
             type="button"
             disabled={submitting}
             onClick={() => openDecision('approve')}
-            className="rounded bg-blue-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+            className="btn btn-primary"
             data-testid="request-detail-approve-button"
           >
             Approve
@@ -249,30 +445,34 @@ export default function RequestDetailPage() {
         </div>
       )}
 
-      {canDecide && openAction && (
-        <form onSubmit={handleConfirmDecision} noValidate className="space-y-2 rounded border border-gray-200 p-3 text-sm">
-          <label htmlFor={`${openAction}-reason`} className="block font-medium text-gray-700">
-            {DECISIONS[openAction].reasonRequired ? 'Reason *' : 'Reason'}
-          </label>
-          <textarea
-            id={`${openAction}-reason`}
-            value={reason}
-            onChange={(event) => setReason(event.target.value)}
-            aria-required={DECISIONS[openAction].reasonRequired ? 'true' : undefined}
-            className="block w-full rounded border border-gray-300 px-2 py-1"
-            data-testid={`request-detail-${openAction}-reason-input`}
-          />
-          {reasonError && (
-            <p className="text-red-700" data-testid={`request-detail-${openAction}-reason-error`}>
-              {reasonError}
-            </p>
-          )}
-          <div className="flex justify-end gap-2">
+      {/* HEAD's Decision Form (styled with main's classes) */}
+      {canDecide && ['approve', 'reject'].includes(openAction) && (
+        <form onSubmit={handleConfirmDecision} noValidate className="card form-card space-y-4">
+          <h2 className="section-title">{DECISIONS[openAction].label} Request</h2>
+          <div>
+            <label htmlFor={`${openAction}-reason`} className="label">
+              {DECISIONS[openAction].reasonRequired ? 'Reason *' : 'Reason'}
+            </label>
+            <textarea
+              id={`${openAction}-reason`}
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+              aria-required={DECISIONS[openAction].reasonRequired ? 'true' : undefined}
+              className="input"
+              data-testid={`request-detail-${openAction}-reason-input`}
+            />
+            {reasonError && (
+              <p className="field-error" data-testid={`request-detail-${openAction}-reason-error`}>
+                {reasonError}
+              </p>
+            )}
+          </div>
+          <div className="flex flex-wrap justify-end gap-2">
             <button
               type="button"
               disabled={submitting}
               onClick={closeDecision}
-              className="rounded border border-gray-300 px-4 py-2 font-medium text-gray-800 disabled:opacity-50"
+              className="btn btn-secondary"
               data-testid={`request-detail-${openAction}-cancel-button`}
             >
               Cancel
@@ -280,10 +480,10 @@ export default function RequestDetailPage() {
             <button
               type="submit"
               disabled={submitting}
-              className="rounded bg-blue-700 px-4 py-2 font-medium text-white disabled:opacity-50"
+              className="btn btn-primary"
               data-testid={`request-detail-${openAction}-confirm-button`}
             >
-              {DECISIONS[openAction].label}
+              Confirm
             </button>
           </div>
         </form>
