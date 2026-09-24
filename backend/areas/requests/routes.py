@@ -2,6 +2,7 @@
 
 SCRUM-27: read-only list and detail with role rules.
 SCRUM-28: create a request and submit it (direct or from Draft).
+SCRUM-30: save, edit and delete a Draft.
 """
 
 from flask import Blueprint, g, jsonify, request as flask_request
@@ -45,3 +46,32 @@ def submit_draft_request(request_id):
     account = g.account
     submitted = services.submit_draft(account, request_id)
     return jsonify(services.request_to_dict(submitted)), 200
+
+
+@bp.post("/requests/draft")
+@require(REQUESTS_EDIT)
+def save_draft_request():
+    """SCRUM-30: save a new Draft; only the event name is required."""
+    account = g.account
+    data = flask_request.get_json(silent=True) or {}
+    created = services.save_new_draft(account, data)
+    return jsonify(services.request_to_dict(created)), 201
+
+
+@bp.put("/requests/<int:request_id>")
+@require(REQUESTS_EDIT)
+def update_draft_request(request_id):
+    """SCRUM-30: edit any field of an own Draft, including the name."""
+    account = g.account
+    data = flask_request.get_json(silent=True) or {}
+    updated = services.update_draft(account, request_id, data)
+    return jsonify(services.request_to_dict(updated)), 200
+
+
+@bp.delete("/requests/<int:request_id>")
+@require(REQUESTS_EDIT)
+def delete_draft_request(request_id):
+    """SCRUM-30: permanently delete an own Draft."""
+    account = g.account
+    services.delete_draft(account, request_id)
+    return "", 204

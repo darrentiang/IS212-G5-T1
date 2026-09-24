@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router'
-import { submitRequest } from './api'
+import { saveDraft, submitRequest } from './api'
 
 // SCRUM-28: an Event Organiser submits a request directly (docs/design/state-model.md, '— -> Submitted').
+// SCRUM-30: or saves it as a Draft (docs/design/state-model.md, '— -> Draft'); only the name is required to save.
 const FIELDS = [
   { name: 'name', label: 'Event name', type: 'text' },
   { name: 'purpose', label: 'Purpose', type: 'text' },
@@ -46,6 +47,26 @@ export default function RequestNewPage() {
     try {
       const created = await submitRequest(values)
       navigate(`/requests/${created.id}`, { state: { banner: 'Request submitted' } })
+    } catch (error) {
+      setBanner(error.message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleSaveDraft = async () => {
+    // AC (SCRUM-30): only the event name is required to save a draft.
+    if (String(values.name).trim() === '') {
+      setFieldErrors({ name: 'Event name is required.' })
+      setBanner(null)
+      return
+    }
+    setFieldErrors({})
+
+    setSubmitting(true)
+    try {
+      const created = await saveDraft(values)
+      navigate(`/requests/${created.id}`, { state: { banner: 'Draft saved' } })
     } catch (error) {
       setBanner(error.message)
     } finally {
@@ -110,7 +131,16 @@ export default function RequestNewPage() {
           </div>
         ))}
 
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-2">
+          <button
+            type="button"
+            disabled={submitting}
+            onClick={handleSaveDraft}
+            className="rounded border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 disabled:opacity-50"
+            data-testid="request-new-save-draft-button"
+          >
+            Save draft
+          </button>
           <button
             type="submit"
             disabled={submitting}

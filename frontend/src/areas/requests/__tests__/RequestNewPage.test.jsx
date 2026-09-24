@@ -107,4 +107,81 @@ describe('RequestNewPage', () => {
       expect(screen.getByTestId('request-new-banner')).toHaveTextContent('Missing required fields: name')
     })
   })
+
+  // @story: SCRUM-30
+  // @ac: 9
+  it('refuses to save a draft with no name, sending nothing', async () => {
+    renderNewPage()
+
+    await userEvent.click(screen.getByTestId('request-new-save-draft-button'))
+
+    expect(await screen.findByTestId('request-new-name-error')).toBeInTheDocument()
+    expect(api.saveDraft).not.toHaveBeenCalled()
+  })
+
+  // @story: SCRUM-30
+  // @ac: 1, 9
+  it('saves a draft with only a name and lands on it with a success banner', async () => {
+    api.saveDraft.mockResolvedValue({ id: 43, status: 'Draft', name: 'Tech Fair 2026' })
+    api.getRequest.mockResolvedValue({
+      id: 43,
+      name: 'Tech Fair 2026',
+      status: 'Draft',
+      created_by: 'org1',
+      registration_enabled: false,
+    })
+
+    renderNewPage()
+    await userEvent.type(screen.getByTestId('request-new-name-input'), 'Tech Fair 2026')
+    await userEvent.click(screen.getByTestId('request-new-save-draft-button'))
+
+    await waitFor(() => {
+      expect(api.saveDraft).toHaveBeenCalledWith(expect.objectContaining({ name: 'Tech Fair 2026' }))
+    })
+    await waitFor(() => {
+      expect(screen.getByTestId('request-detail-banner')).toHaveTextContent('Draft saved')
+    })
+    expect(screen.getByTestId('request-detail-status')).toHaveTextContent('Draft')
+  })
+
+  // @story: SCRUM-30
+  // @ac: 6
+  it('saves a draft with an invalid attendance value without a field error', async () => {
+    api.saveDraft.mockResolvedValue({ id: 44, status: 'Draft', name: 'Tech Fair 2026' })
+    api.getRequest.mockResolvedValue({
+      id: 44,
+      name: 'Tech Fair 2026',
+      status: 'Draft',
+      created_by: 'org1',
+      registration_enabled: false,
+    })
+
+    renderNewPage()
+    await userEvent.type(screen.getByTestId('request-new-name-input'), 'Tech Fair 2026')
+    await userEvent.type(screen.getByTestId('request-new-attendance-input'), '-5')
+    await userEvent.click(screen.getByTestId('request-new-save-draft-button'))
+
+    await waitFor(() => {
+      expect(api.saveDraft).toHaveBeenCalledWith(expect.objectContaining({ attendance: '-5' }))
+    })
+    expect(screen.queryByTestId('request-new-attendance-error')).not.toBeInTheDocument()
+  })
+
+  // @story: SCRUM-30
+  // @ac: 7
+  it('shows the API refusal when a draft is already open', async () => {
+    api.saveDraft.mockRejectedValue(
+      Object.assign(new Error('You already have an open draft. Submit or delete it before starting another.'), {
+        status: 400,
+      }),
+    )
+
+    renderNewPage()
+    await userEvent.type(screen.getByTestId('request-new-name-input'), 'Second Event')
+    await userEvent.click(screen.getByTestId('request-new-save-draft-button'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('request-new-banner')).toHaveTextContent('already have an open draft')
+    })
+  })
 })
