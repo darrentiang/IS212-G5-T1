@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router'
+import { act, render, screen, waitFor } from '@testing-library/react'
+import { MemoryRouter, Route, RouterProvider, Routes, createMemoryRouter } from 'react-router'
 import * as api from '../api'
 import VenueDetailPage from '../VenueDetailPage'
 
@@ -24,7 +24,9 @@ afterEach(() => {
 function renderPage(state) {
   render(
     <MemoryRouter initialEntries={[{ pathname: '/venues/3', state }]}>
-      <VenueDetailPage />
+      <Routes>
+        <Route path="/venues/:id" element={<VenueDetailPage />} />
+      </Routes>
     </MemoryRouter>,
   )
 }
@@ -46,6 +48,7 @@ describe('VenueDetailPage', () => {
     expect(screen.getByTestId('venue-detail-closing-time')).toHaveTextContent('22:00')
     expect(screen.getByTestId('venue-detail-facilities')).toHaveTextContent('Projector, Stage lighting')
     expect(screen.getByTestId('venue-detail-accessibility-features')).toHaveTextContent('Step-free access, Hearing loop')
+    expect(api.getVenue).toHaveBeenCalledWith('3')
   })
 
   // @story: SCRUM-31
@@ -94,5 +97,56 @@ describe('VenueDetailPage', () => {
     })
     expect(screen.getByTestId('venue-detail-banner')).toHaveAttribute('role', 'alert')
     expect(screen.queryByTestId('venue-detail-fields')).not.toBeInTheDocument()
+  })
+
+  // @story: SCRUM-31
+  // @ac: 4
+  it('keeps the venue the user moved to when the earlier reply arrives last', async () => {
+    let resolveFirst
+    api.getVenue
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveFirst = resolve
+        }),
+      )
+      .mockResolvedValueOnce({ ...HALL_A, id: 4, name: 'Hall B' })
+    const router = createMemoryRouter([{ path: '/venues/:id', element: <VenueDetailPage /> }], {
+      initialEntries: ['/venues/3'],
+    })
+    render(<RouterProvider router={router} />)
+
+    await act(() => router.navigate('/venues/4'))
+    await waitFor(() => {
+      expect(screen.getByTestId('venue-detail-name')).toHaveTextContent('Hall B')
+    })
+    await act(async () => resolveFirst(HALL_A))
+
+    expect(screen.getByTestId('venue-detail-name')).toHaveTextContent('Hall B')
+  })
+
+  // @story: SCRUM-31
+  // @ac: 5
+  it('keeps the venue the user moved to when the earlier refusal arrives last', async () => {
+    let rejectFirst
+    api.getVenue
+      .mockReturnValueOnce(
+        new Promise((resolve, reject) => {
+          rejectFirst = reject
+        }),
+      )
+      .mockResolvedValueOnce({ ...HALL_A, id: 4, name: 'Hall B' })
+    const router = createMemoryRouter([{ path: '/venues/:id', element: <VenueDetailPage /> }], {
+      initialEntries: ['/venues/3'],
+    })
+    render(<RouterProvider router={router} />)
+
+    await act(() => router.navigate('/venues/4'))
+    await waitFor(() => {
+      expect(screen.getByTestId('venue-detail-name')).toHaveTextContent('Hall B')
+    })
+    await act(async () => rejectFirst(new Error('Venue not found.')))
+
+    expect(screen.getByTestId('venue-detail-name')).toHaveTextContent('Hall B')
+    expect(screen.queryByTestId('venue-detail-banner')).not.toBeInTheDocument()
   })
 })

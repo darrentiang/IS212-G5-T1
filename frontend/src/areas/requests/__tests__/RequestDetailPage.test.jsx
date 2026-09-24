@@ -1,12 +1,14 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter, Route, Routes } from 'react-router'
+import { MemoryRouter, Route, RouterProvider, Routes, createMemoryRouter } from 'react-router'
 import * as api from '../api'
+import * as auth from '../../../app/auth'
 import RequestDetailPage from '../RequestDetailPage'
 import RequestsPage from '../RequestsPage'
 
 vi.mock('../api')
+vi.mock('../../../app/auth')
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -46,6 +48,79 @@ describe('RequestDetailPage', () => {
   })
 
   // @story: SCRUM-27
+  // @ac: 1
+  it('keeps the request the user moved to when the earlier reply arrives last', async () => {
+    let resolveFirst
+    api.getRequest
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveFirst = resolve
+        }),
+      )
+      .mockResolvedValueOnce({
+        id: 2,
+        name: 'Design Workshop',
+        status: 'Submitted',
+        created_by: 'org1',
+        registration_enabled: false,
+      })
+    const router = createMemoryRouter([{ path: '/requests/:id', element: <RequestDetailPage /> }], {
+      initialEntries: ['/requests/1'],
+    })
+    render(<RouterProvider router={router} />)
+
+    await act(() => router.navigate('/requests/2'))
+    await waitFor(() => {
+      expect(screen.getByTestId('request-detail-name')).toHaveTextContent('Design Workshop')
+    })
+    await act(async () =>
+      resolveFirst({
+        id: 1,
+        name: 'Annual Dinner',
+        status: 'Submitted',
+        created_by: 'org1',
+        registration_enabled: false,
+      }),
+    )
+
+    expect(screen.getByTestId('request-detail-name')).toHaveTextContent('Design Workshop')
+  })
+
+  // @story: SCRUM-27
+  // @ac: 2, 8
+  it('keeps the request the user moved to when the earlier refusal arrives last', async () => {
+    let rejectFirst
+    api.getRequest
+      .mockReturnValueOnce(
+        new Promise((resolve, reject) => {
+          rejectFirst = reject
+        }),
+      )
+      .mockResolvedValueOnce({
+        id: 2,
+        name: 'Design Workshop',
+        status: 'Submitted',
+        created_by: 'org1',
+        registration_enabled: false,
+      })
+    const router = createMemoryRouter([{ path: '/requests/:id', element: <RequestDetailPage /> }], {
+      initialEntries: ['/requests/1'],
+    })
+    render(<RouterProvider router={router} />)
+
+    await act(() => router.navigate('/requests/2'))
+    await waitFor(() => {
+      expect(screen.getByTestId('request-detail-name')).toHaveTextContent('Design Workshop')
+    })
+    await act(async () =>
+      rejectFirst(Object.assign(new Error('You do not have permission to perform this action.'), { status: 403 })),
+    )
+
+    expect(screen.getByTestId('request-detail-name')).toHaveTextContent('Design Workshop')
+    expect(screen.queryByTestId('request-detail-banner')).not.toBeInTheDocument()
+  })
+
+  // @story: SCRUM-27
   // @ac: 2, 8
   it('shows the refusal banner and no fields when the API refuses', async () => {
     api.getRequest.mockRejectedValue(
@@ -77,46 +152,6 @@ describe('RequestDetailPage', () => {
     await waitFor(() => {
       expect(screen.getByTestId('request-detail-coordinator-notes')).toHaveTextContent('venue shortlist')
     })
-  })
-
-  // @story: SCRUM-27
-  // @ac: 1
-  it('ignores the API result after unmount', async () => {
-    let resolveGet
-    api.getRequest.mockReturnValue(
-      new Promise((resolve) => {
-        resolveGet = resolve
-      }),
-    )
-    const { unmount } = render(
-      <MemoryRouter initialEntries={['/requests/1']}>
-        <Routes>
-          <Route path="/requests/:id" element={<RequestDetailPage />} />
-        </Routes>
-      </MemoryRouter>,
-    )
-    unmount()
-    resolveGet({ id: 1, name: 'Annual Dinner', status: 'Submitted', created_by: 'org1', registration_enabled: false })
-  })
-
-  // @story: SCRUM-27
-  // @ac: 8
-  it('ignores the API error after unmount', async () => {
-    let rejectGet
-    api.getRequest.mockReturnValue(
-      new Promise((resolve, reject) => {
-        rejectGet = reject
-      }),
-    )
-    const { unmount } = render(
-      <MemoryRouter initialEntries={['/requests/1']}>
-        <Routes>
-          <Route path="/requests/:id" element={<RequestDetailPage />} />
-        </Routes>
-      </MemoryRouter>,
-    )
-    unmount()
-    rejectGet(new Error('gone'))
   })
 
   // @story: SCRUM-28
@@ -328,6 +363,8 @@ describe('RequestDetailPage', () => {
     })
     api.deleteDraft.mockResolvedValue()
     api.listRequests = vi.fn().mockResolvedValue([])
+    // The Requests list reads the account; App.jsx provides it, this test stubs it.
+    vi.mocked(auth.useAuth).mockReturnValue({ can: () => false })
 
     renderDetail()
     await waitFor(() => screen.getByTestId('request-detail-delete-button'))

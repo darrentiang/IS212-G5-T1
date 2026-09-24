@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { AuthProvider, useAuth } from '../auth'
 import * as api from '../../areas/auth/api'
 
@@ -86,11 +87,11 @@ describe('AuthProvider', () => {
     await waitFor(() => {
       expect(screen.getByTestId('username')).toHaveTextContent('none')
     })
-    await screen.getByTestId('do-login').click()
+    await userEvent.click(screen.getByTestId('do-login'))
     await waitFor(() => {
       expect(screen.getByTestId('username')).toHaveTextContent('org1')
     })
-    await screen.getByTestId('do-logout').click()
+    await userEvent.click(screen.getByTestId('do-logout'))
     await waitFor(() => {
       expect(screen.getByTestId('username')).toHaveTextContent('none')
     })
@@ -116,51 +117,13 @@ describe('AuthProvider', () => {
     await waitFor(() => {
       expect(screen.getByTestId('username')).toHaveTextContent('none')
     })
-    await screen.getByTestId('do-login').click()
+    await userEvent.click(screen.getByTestId('do-login'))
     await waitFor(() => {
       expect(screen.getByTestId('username')).toHaveTextContent('org1')
     })
-    await screen.getByTestId('do-logout').click()
+    await userEvent.click(screen.getByTestId('do-logout'))
     await waitFor(() => {
       expect(screen.getByTestId('username')).toHaveTextContent('none')
     })
-  })
-
-  // @story: SCRUM-26
-  // @ac: 2
-  it('ignores the /api/me result after unmount', async () => {
-    let resolveMe
-    api.me.mockReturnValue(
-      new Promise((resolve) => {
-        resolveMe = resolve
-      }),
-    )
-
-    const { unmount } = render(
-      <AuthProvider>
-        <Probe />
-      </AuthProvider>,
-    )
-    unmount()
-    resolveMe({ username: 'org1', roles: [], features: [] })
-  })
-
-  // @story: SCRUM-26
-  // @ac: 5
-  it('ignores the /api/me error after unmount', async () => {
-    let rejectMe
-    api.me.mockReturnValue(
-      new Promise((resolve, reject) => {
-        rejectMe = reject
-      }),
-    )
-
-    const { unmount } = render(
-      <AuthProvider>
-        <Probe />
-      </AuthProvider>,
-    )
-    unmount()
-    rejectMe(new Error('gone'))
   })
 })

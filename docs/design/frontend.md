@@ -138,6 +138,8 @@ The story author commits this first and opens a draft pull request, so a Develop
 - Labels linked to inputs with `htmlFor` / `id`.
 - Dates, times and status words come from `app/format.js`: `formatDate(iso)` → `03 Oct 2026`, `formatTime('14:30')` → `14:30`, `formatPeriod(date, start, end)` → `03 Oct 2026, 14:30–16:00`; `STATUS.SUBMITTED === 'Submitted'` and so on for every status in `state-model.md`, grouped per record (`STATUS.REQUEST`, `STATUS.BOOKING`, `STATUS.RESERVATION`, `STATUS.UNIT`, `STATUS.REGISTRATION`). A page never formats a date or types a status string itself.
 - While loading, a page renders its title row only (`ui-guidelines.md` §3): keep a `loading` state, initially true, cleared in `finally`.
+- An effect with no dependencies (`[]`) fetches once and needs no stale-response guard: there is no second fetch to race, and React ignores a state update on an unmounted component. An effect keyed to a route parameter (`[id]`) does need one (`let active = true`, `if (active)` in each callback, `active = false` in the cleanup), because a reply for the record the user has left can arrive after the current one. The guard is proved by a test that changes the id and resolves the first reply last.
+- A page reads the account with `const { can } = useAuth()`, with no fallback such as `?? {}` or `can?.()`: `App.jsx` always wraps the pages in `AuthProvider`. A test that renders a page reading the account stubs `useAuth`.
 
 ## 8. When two stories share a file
 
@@ -159,3 +161,4 @@ Some stories share a page (SCRUM-28 Submit and SCRUM-30 Save Draft both change `
 6. Every `ApiError` reaches a field message or the banner.
 7. No dependency added beyond `react-router`.
 8. Elements, text and test ids match `ui-guidelines.md`; dates and status words come from `app/format.js`.
+9. A stale-response guard appears only in an effect keyed to a route parameter, with a test that changes the id and resolves the first reply last (§7). No fallback or guard for a state the app cannot reach.

@@ -29,20 +29,12 @@ export default function VenueNewPage() {
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
-    let active = true
     getVenueOptions()
       .then((data) => {
-        if (active) {
-          setOptions(data)
-          setReady(true)
-        }
+        setOptions(data)
+        setReady(true)
       })
-      .catch((error) => {
-        if (active) setBanner(error.message)
-      })
-    return () => {
-      active = false
-    }
+      .catch((error) => setBanner(error.message))
   }, [])
 
   function toggle(values, setValues, value) {

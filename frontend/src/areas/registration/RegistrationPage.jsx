@@ -9,20 +9,10 @@ export default function RegistrationPage() {
   const [banner, setBanner] = useState(null)
 
   useEffect(() => {
-    let active = true
     listOpenEvents()
-      .then((data) => {
-        if (active) setRows(data)
-      })
-      .catch((error) => {
-        if (active) setBanner(error.message)
-      })
-      .finally(() => {
-        if (active) setLoading(false)
-      })
-    return () => {
-      active = false
-    }
+      .then((data) => setRows(data))
+      .catch((error) => setBanner(error.message))
+      .finally(() => setLoading(false))
   }, [])
 
   return (

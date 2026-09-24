@@ -35,3 +35,6 @@ functional/test-results/
 backend/junit.xml
 frontend/vitest-report.json
 frontend/coverage/
+
+# Local AI tool output
+Claude outputs/

@@ -20,6 +20,9 @@ export default function VenueDetailPage() {
   // (docs/design/ui-guidelines.md §4).
   const success = routerLocation.state?.banner ?? null
 
+  // Keyed to id: a reply for the venue the user has left can
+  // arrive after the current one, so a stale reply is ignored
+  // (docs/design/frontend.md section 7).
   useEffect(() => {
     let active = true
     getVenue(id)

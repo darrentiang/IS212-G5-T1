@@ -36,6 +36,7 @@ No `@tc` line. TC IDs belong to functional rows in the sheet.
 ## Mocking rules
 
 - Pages call their area's `api.js`, never `fetch` (`docs/design/frontend.md`). From the area's `__tests__/`, mock it with `vi.mock('../api')` — never mock `global.fetch`.
+  - Exception: `app/__tests__/http.test.js` stubs `global.fetch`, because `app/http.js` is the one file that calls it.
 - Render pages that use the router inside `MemoryRouter` from `react-router`.
 - Call `vi.restoreAllMocks()` in `afterEach` to prevent cross-test contamination
 - If importing JSON fixture data, use `structuredClone(data)` to avoid mutation leaking between tests
@@ -95,6 +96,42 @@ describe('LoginPage', () => {
   })
 })
 ```
+
+### Changing a route parameter
+
+A page whose effect is keyed to a route parameter (`[id]`) keeps a stale-response guard (`docs/design/frontend.md` §7). Prove it with `createMemoryRouter`: hold the first reply, move to a second id, let the second reply land, then resolve the first last.
+
+```javascript
+import { act, render, screen, waitFor } from '@testing-library/react'
+import { RouterProvider, createMemoryRouter } from 'react-router'
+
+// @story: SCRUM-31
+// @ac: 4
+it('keeps the venue the user moved to when the earlier reply arrives last', async () => {
+  let resolveFirst
+  api.getVenue
+    .mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveFirst = resolve
+      }),
+    )
+    .mockResolvedValueOnce({ ...HALL_A, id: 4, name: 'Hall B' })
+  const router = createMemoryRouter([{ path: '/venues/:id', element: <VenueDetailPage /> }], {
+    initialEntries: ['/venues/3'],
+  })
+  render(<RouterProvider router={router} />)
+
+  await act(() => router.navigate('/venues/4'))
+  await waitFor(() => {
+    expect(screen.getByTestId('venue-detail-name')).toHaveTextContent('Hall B')
+  })
+  await act(async () => resolveFirst(HALL_A))
+
+  expect(screen.getByTestId('venue-detail-name')).toHaveTextContent('Hall B')
+})
+```
+
+The page must be rendered under a route with the parameter (`/venues/:id`); without one, `useParams()` is empty and the page fetches `undefined`. An effect with `[]` dependencies has no guard and needs no such test; do not write a test that unmounts and asserts nothing.
 
 ## Running tests
 
