@@ -9,6 +9,7 @@ Kept current by every story that adds an action: the row is added or changed in 
 | View event requests | Own only | All except Draft | No | No | No |
 | Edit an event during Planning | No | Assigned coordinator only | No | No | No |
 | Approve or reject an event request; request clarification | No | Yes | No | No | No |
+| View event request resulting status and any reason | Own only | Yes | No | No | No |
 | Reassign an event | No | Assigned coordinator initiates; new coordinator accepts | No | No | No |
 | Confirm, cancel, mark completed | No | Assigned coordinator | No | No | No |
 | View venues and venue booking requests | No | Yes | Yes | No | No |
@@ -23,8 +24,6 @@ Kept current by every story that adds an action: the row is added or changed in 
 | Decide a change request | No | Assigned coordinator | No | No | No |
 | View internal planning information (coordinator notes, booking requests, equipment requirements, decisions, reasons) | No | Yes | Venue-related only | Equipment-related only | Never |
 | View own notifications | Yes | Yes | Yes | Yes | Yes |
-
-The Event Organiser can see the approve/reject decision, resulting status and any reason on their own event request (SCRUM-29). The internal-planning row's "decisions, reasons" are later planning records, not that request-level decision.
 
 Rule: an action not listed as permitted for any of the account's roles is refused, a message is shown, and no data changes.
 

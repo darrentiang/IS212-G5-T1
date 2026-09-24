@@ -70,7 +70,8 @@ class EventRequest(db.Model):
 
     SCRUM-27 added read-only access with role rules (own only / all except
     Draft, internal notes gating). SCRUM-28 added creation and the
-    Draft -> Submitted transition. SCRUM-29 added approve/reject.
+    Draft -> Submitted transition. SCRUM-29 added approve/reject. 
+    Later stories add columns and transitions in their own pull requests.
     """
 
     __tablename__ = "event_requests"
