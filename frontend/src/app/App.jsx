@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router'
 import { AuthProvider, useAuth } from './auth'
 import { routes } from './areas'
+import HomePage from './HomePage'
 import { homePathFor } from './home'
 import Layout from './Layout'
 import NotPermittedPage from './NotPermittedPage'
@@ -26,10 +27,10 @@ function AppRoutes() {
   const publicRoutes = routes.filter((route) => route.public)
   const privateRoutes = routes.filter((route) => !route.public)
 
-  // An account that may open nothing lands on the not-permitted page rather
-  // than being redirected in a circle.
+  // An account that may open nothing gets a welcome page at '/' rather than
+  // being redirected in a circle.
   const home = homePathFor(account)
-  const goHome = home ? <Navigate to={home} replace /> : <NotPermittedPage />
+  const goHome = home ? <Navigate to={home} replace /> : <HomePage />
 
   return (
     <Routes>

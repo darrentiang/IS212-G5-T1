@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
-import { STATUS } from '../../app/format'
+import { STATUS, statusBadgeClass } from '../../app/format'
 import { deleteDraft, getRequest, submitDraft, updateDraft } from './api'
 
 // SCRUM-27: show one request or the API refusal (banner), never invent data.
@@ -21,6 +21,10 @@ const EDIT_FIELDS = [
   { name: 'equipment_requirements', label: 'Equipment requirements', type: 'textarea' },
   { name: 'registration_needs', label: 'Registration needs', type: 'textarea' },
 ]
+
+// Short fields share a row of three from tablet up; every other field takes
+// the whole row (docs/design/visual-style.md, Form card).
+const SHORT = new Set(['date', 'start_time', 'end_time', 'attendance'])
 
 const editValuesFrom = (row) =>
   Object.fromEntries(EDIT_FIELDS.map((field) => [field.name, row[field.name] ?? '']))
@@ -119,122 +123,129 @@ export default function RequestDetailPage() {
   }
 
   return (
-    <div className="space-y-4">
-      <Link to="/requests" className="text-blue-700 hover:underline text-sm" data-testid="request-detail-back-link">
-        Back to Requests
-      </Link>
-
-      <h1 className="text-xl font-semibold text-gray-900" data-testid="request-detail-title">
-        Request
-      </h1>
+    <div className="space-y-8">
+      <div className="space-y-2">
+        <Link to="/requests" className="back-link" data-testid="request-detail-back-link">
+          Back to Requests
+        </Link>
+        <div className="page-header">
+          <h1 className="page-title" data-testid="request-detail-title">
+            Request
+          </h1>
+        </div>
+      </div>
 
       {banner && (
-        <p role="alert" className="border border-red-300 bg-red-50 text-red-800 rounded px-3 py-2 text-sm" data-testid="request-detail-banner">
+        <p role="alert" className="banner-error" data-testid="request-detail-banner">
           {banner}
         </p>
       )}
       {!banner && successBanner && (
-        <p role="status" className="border border-green-300 bg-green-50 text-green-800 rounded px-3 py-2 text-sm" data-testid="request-detail-banner">
+        <p role="status" className="banner-success" data-testid="request-detail-banner">
           {successBanner}
         </p>
       )}
 
       {loading || banner || !row ? null : (
-        <dl className="space-y-2 text-sm" data-testid="request-detail-fields">
-          <div>
-            <dt className="font-medium text-gray-700">Name</dt>
-            <dd data-testid="request-detail-name">{row.name}</dd>
-          </div>
-          <div>
-            <dt className="font-medium text-gray-700">Status</dt>
-            <dd data-testid="request-detail-status">{row.status}</dd>
-          </div>
-          <div>
-            <dt className="font-medium text-gray-700">Created by</dt>
-            <dd data-testid="request-detail-created-by">{row.created_by}</dd>
-          </div>
-          {'coordinator_notes' in row && row.coordinator_notes != null && (
+        <div className="card space-y-6">
+          <dl className="detail-list" data-testid="request-detail-fields">
             <div>
-              <dt className="font-medium text-gray-700">Coordinator notes</dt>
-              <dd data-testid="request-detail-coordinator-notes">{row.coordinator_notes}</dd>
+              <dt>Name</dt>
+              <dd data-testid="request-detail-name">{row.name}</dd>
+            </div>
+            <div>
+              <dt>Status</dt>
+              <dd data-testid="request-detail-status">
+                <span className={statusBadgeClass(row.status)}>{row.status}</span>
+              </dd>
+            </div>
+            <div>
+              <dt>Created by</dt>
+              <dd data-testid="request-detail-created-by">{row.created_by}</dd>
+            </div>
+            {'coordinator_notes' in row && row.coordinator_notes != null && (
+              <div>
+                <dt>Coordinator notes</dt>
+                <dd data-testid="request-detail-coordinator-notes">{row.coordinator_notes}</dd>
+              </div>
+            )}
+          </dl>
+
+          {row.status === STATUS.REQUEST.DRAFT && (
+            <div className="flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={() => setOpenAction('delete')}
+                className="btn btn-danger"
+                data-testid="request-detail-delete-button"
+              >
+                Delete
+              </button>
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={openEdit}
+                className="btn btn-secondary"
+                data-testid="request-detail-edit-button"
+              >
+                Edit
+              </button>
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={handleSubmitDraft}
+                className="btn btn-primary"
+                data-testid="request-detail-submit-button"
+              >
+                Submit
+              </button>
             </div>
           )}
-        </dl>
-      )}
-
-      {!loading && !banner && row && row.status === STATUS.REQUEST.DRAFT && (
-        <div className="flex justify-end gap-2">
-          <button
-            type="button"
-            disabled={submitting}
-            onClick={() => setOpenAction('delete')}
-            className="rounded border border-red-300 px-4 py-2 text-sm font-medium text-red-700 disabled:opacity-50"
-            data-testid="request-detail-delete-button"
-          >
-            Delete
-          </button>
-          <button
-            type="button"
-            disabled={submitting}
-            onClick={openEdit}
-            className="rounded border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 disabled:opacity-50"
-            data-testid="request-detail-edit-button"
-          >
-            Edit
-          </button>
-          <button
-            type="button"
-            disabled={submitting}
-            onClick={handleSubmitDraft}
-            className="rounded bg-blue-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-            data-testid="request-detail-submit-button"
-          >
-            Submit
-          </button>
         </div>
       )}
 
       {openAction === 'edit' && editValues && (
-        <div className="space-y-4 border border-gray-200 rounded p-4" data-testid="request-detail-edit-form">
-          {EDIT_FIELDS.map((field) => (
-            <div key={field.name}>
-              <label
-                htmlFor={`request-detail-edit-${field.name}`}
-                className="block text-sm font-medium text-gray-700"
-              >
-                {field.label}
-              </label>
-              {field.type === 'textarea' ? (
-                <textarea
-                  id={`request-detail-edit-${field.name}`}
-                  className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 text-sm"
-                  value={editValues[field.name]}
-                  onChange={(event) => setEditValue(field.name, event.target.value)}
-                  data-testid={`request-detail-edit-${field.name.replaceAll('_', '-')}-input`}
-                />
-              ) : (
-                <input
-                  id={`request-detail-edit-${field.name}`}
-                  type={field.type}
-                  className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 text-sm"
-                  value={editValues[field.name]}
-                  onChange={(event) => setEditValue(field.name, event.target.value)}
-                  data-testid={`request-detail-edit-${field.name.replaceAll('_', '-')}-input`}
-                />
-              )}
-              {field.name === 'name' && editError && (
-                <p className="mt-1 text-sm text-red-700" data-testid="request-detail-edit-name-error">
-                  {editError}
-                </p>
-              )}
-            </div>
-          ))}
-          <div className="flex justify-end gap-2">
+        <div className="card form-card space-y-4" data-testid="request-detail-edit-form">
+          <h2 className="section-title">Edit draft</h2>
+          <div className="grid gap-4 md:grid-cols-3">
+            {EDIT_FIELDS.map((field) => (
+              <div key={field.name} className={SHORT.has(field.name) ? undefined : 'md:col-span-3'}>
+                <label htmlFor={`request-detail-edit-${field.name}`} className="label">
+                  {field.label}
+                </label>
+                {field.type === 'textarea' ? (
+                  <textarea
+                    id={`request-detail-edit-${field.name}`}
+                    className="input"
+                    value={editValues[field.name]}
+                    onChange={(event) => setEditValue(field.name, event.target.value)}
+                    data-testid={`request-detail-edit-${field.name.replaceAll('_', '-')}-input`}
+                  />
+                ) : (
+                  <input
+                    id={`request-detail-edit-${field.name}`}
+                    type={field.type}
+                    className="input"
+                    value={editValues[field.name]}
+                    onChange={(event) => setEditValue(field.name, event.target.value)}
+                    data-testid={`request-detail-edit-${field.name.replaceAll('_', '-')}-input`}
+                  />
+                )}
+                {field.name === 'name' && editError && (
+                  <p className="field-error" data-testid="request-detail-edit-name-error">
+                    {editError}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+          <div className="flex flex-wrap justify-end gap-2">
             <button
               type="button"
               disabled={submitting}
               onClick={() => setOpenAction(null)}
-              className="rounded border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 disabled:opacity-50"
+              className="btn btn-secondary"
               data-testid="request-detail-edit-cancel-button"
             >
               Cancel
@@ -243,7 +254,7 @@ export default function RequestDetailPage() {
               type="button"
               disabled={submitting}
               onClick={handleEditConfirm}
-              className="rounded bg-blue-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+              className="btn btn-primary"
               data-testid="request-detail-edit-confirm-button"
             >
               Save
@@ -253,14 +264,15 @@ export default function RequestDetailPage() {
       )}
 
       {openAction === 'delete' && (
-        <div className="space-y-4 border border-gray-200 rounded p-4" data-testid="request-detail-delete-form">
-          <p className="text-sm text-gray-700">Delete this draft permanently? This cannot be undone.</p>
-          <div className="flex justify-end gap-2">
+        <div className="card space-y-4" data-testid="request-detail-delete-form">
+          <h2 className="section-title">Delete draft</h2>
+          <p>Delete this draft permanently? This cannot be undone.</p>
+          <div className="flex flex-wrap justify-end gap-2">
             <button
               type="button"
               disabled={submitting}
               onClick={() => setOpenAction(null)}
-              className="rounded border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 disabled:opacity-50"
+              className="btn btn-secondary"
               data-testid="request-detail-delete-cancel-button"
             >
               Cancel
@@ -269,7 +281,7 @@ export default function RequestDetailPage() {
               type="button"
               disabled={submitting}
               onClick={handleDeleteConfirm}
-              className="rounded bg-red-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+              className="btn btn-danger"
               data-testid="request-detail-delete-confirm-button"
             >
               Delete

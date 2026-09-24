@@ -71,3 +71,22 @@ export const STATUS = Object.freeze({
   UNIT: group(['In Service', 'Out of Service']),
   REGISTRATION: group(['Registered', 'Withdrawn']),
 })
+
+// Status -> badge class (docs/design/ui-guidelines.md, Look). Keyed by the
+// STATUS constants, never typed words. Colour accompanies the status text; it
+// never replaces it. A status without a colour of its own is neutral.
+const BADGE = Object.freeze({
+  [STATUS.REQUEST.DRAFT]: 'badge-neutral',
+  [STATUS.REQUEST.SUBMITTED]: 'badge-info',
+  [STATUS.REQUEST.APPROVED]: 'badge-success',
+  [STATUS.REQUEST.PLANNING]: 'badge-warning',
+  [STATUS.REQUEST.CONFIRMED]: 'badge-success',
+  [STATUS.REQUEST.REJECTED]: 'badge-danger',
+  [STATUS.REQUEST.CANCELLED]: 'badge-danger',
+  [STATUS.REQUEST.COMPLETED]: 'badge-neutral',
+})
+
+// 'Submitted' -> 'badge badge-info'
+export function statusBadgeClass(status) {
+  return `badge ${BADGE[status] ?? 'badge-neutral'}`
+}

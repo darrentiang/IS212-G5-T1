@@ -7,14 +7,14 @@ import { Link } from 'react-router'
 // route list.
 export default function NotPermittedPage() {
   return (
-    <div className="space-y-4">
-      <p className="text-gray-900" data-testid="not-permitted-message">
-        You do not have permission to open this page.
-      </p>
+    <div className="card">
+      <div className="empty-state space-y-4">
+        <p data-testid="not-permitted-message">You do not have permission to open this page.</p>
 
-      <Link to="/" className="text-blue-700 underline" data-testid="not-permitted-home-link">
-        Go to your home page
-      </Link>
+        <Link to="/" className="btn btn-secondary" data-testid="not-permitted-home-link">
+          Go to your home page
+        </Link>
+      </div>
     </div>
   )
 }

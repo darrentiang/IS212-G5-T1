@@ -1,1 +1,341 @@
 @import "tailwindcss";
+
+/* The only CSS file (docs/design/frontend.md §9). Every value is a token from
+   docs/design/visual-style.md; pages use the component classes below for every
+   pattern they cover and Tailwind utilities only for layout. */
+
+@theme {
+  --color-text: #1d1d1f;
+  --color-text-secondary: #6e6e73;
+  --color-bg: #fafafa;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f5f5f7;
+  --color-border: #e5e5ea;
+  --color-divider: #f0f0f2;
+  --color-accent: #0071e3;
+  --color-info: #0071e3;
+  --color-success: #1f9d55;
+  --color-warning: #c77700;
+  --color-danger: #d70015;
+  --color-neutral: #6e6e73;
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", system-ui, sans-serif;
+
+  --radius-control: 8px;
+  --radius-card: 12px;
+  --radius-pill: 999px;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.04), 0 6px 16px rgba(0, 0, 0, 0.08);
+}
+
+@layer base {
+  body {
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-sans);
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Keyboard focus only, on every interactive element. */
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  /* Top bar */
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: rgb(255 255 255 / 0.8);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--color-border);
+  }
+  .topbar-brand {
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--color-text);
+  }
+  .topbar-account {
+    font-size: 13px;
+    color: var(--color-text-secondary);
+  }
+  .nav-link {
+    display: inline-block;
+    padding: 6px 10px;
+    border-radius: var(--radius-control);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+    white-space: nowrap;
+    transition: color 150ms, background-color 150ms;
+  }
+  .nav-link:hover {
+    color: var(--color-text);
+  }
+  .nav-link.active {
+    color: var(--color-accent);
+    background-color: color-mix(in srgb, var(--color-accent) 6%, transparent);
+  }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border: 1px solid transparent;
+    border-radius: var(--radius-control);
+    font-size: 15px;
+    font-weight: 500;
+    line-height: 1.4;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: color 150ms, background-color 150ms, border-color 150ms, box-shadow 150ms, transform 150ms;
+  }
+  .btn:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .btn-primary {
+    background-color: var(--color-text);
+    color: #ffffff;
+  }
+  .btn-primary:hover:not(:disabled) {
+    background-color: #3a3a3c;
+    box-shadow: var(--shadow-md);
+  }
+  .btn-secondary {
+    background-color: var(--color-surface);
+    border-color: var(--color-border);
+    color: var(--color-text-secondary);
+  }
+  .btn-secondary:hover:not(:disabled) {
+    background-color: var(--color-surface-muted);
+    color: var(--color-text);
+  }
+  .btn-danger {
+    background-color: color-mix(in srgb, var(--color-danger) 6%, transparent);
+    border-color: var(--color-danger);
+    color: var(--color-danger);
+  }
+  .btn-danger:hover:not(:disabled) {
+    background-color: var(--color-danger);
+    color: #ffffff;
+  }
+
+  /* Forms */
+  .label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+  }
+  .input {
+    display: block;
+    width: 100%;
+    padding: 10px 12px;
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-control);
+    font-size: 15px;
+    line-height: 1.4;
+    color: var(--color-text);
+    transition: border-color 150ms, box-shadow 150ms;
+  }
+  textarea.input {
+    min-height: 88px;
+    resize: vertical;
+  }
+  /* The input's own ring is its focus indicator, for mouse and keyboard alike. */
+  .input:focus {
+    outline: none;
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 15%, transparent);
+  }
+  .field-error {
+    margin-top: 6px;
+    font-size: 13px;
+    color: var(--color-danger);
+  }
+
+  /* Surfaces and headings */
+  .card {
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-sm);
+    padding: 24px;
+  }
+  /* A form's card: left-aligned under the page header, never full width. */
+  .form-card {
+    width: 100%;
+    max-width: 720px;
+  }
+  .page-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .page-title {
+    font-size: 28px;
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+  }
+  .login-title {
+    font-size: 24px;
+  }
+  .subtitle {
+    font-size: 15px;
+    color: var(--color-text-secondary);
+  }
+  .section-title {
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .back-link {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+    transition: color 150ms;
+  }
+  .back-link:hover {
+    color: var(--color-accent);
+  }
+
+  /* Table: sits inside a card, no outer border of its own. */
+  .table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 15px;
+    text-align: left;
+  }
+  .table th {
+    padding: 12px 16px;
+    background-color: var(--color-surface-muted);
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-secondary);
+    white-space: nowrap;
+  }
+  .table td {
+    padding: 12px 16px;
+    border-top: 1px solid var(--color-divider);
+  }
+  .table tbody tr {
+    transition: background-color 150ms;
+  }
+  .table tbody tr:hover {
+    background-color: rgba(0, 0, 0, 0.02);
+  }
+  .table td a {
+    font-weight: 500;
+    color: var(--color-text);
+    transition: color 150ms;
+  }
+  .table td a:hover {
+    color: var(--color-accent);
+  }
+
+  /* Badge: the status colour as text on a 10% tint of itself. */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 10px;
+    border-radius: var(--radius-pill);
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.5;
+    white-space: nowrap;
+    color: var(--badge-color);
+    background-color: color-mix(in srgb, var(--badge-color) 10%, transparent);
+  }
+  .badge-info {
+    --badge-color: var(--color-info);
+  }
+  .badge-success {
+    --badge-color: var(--color-success);
+  }
+  .badge-warning {
+    --badge-color: var(--color-warning);
+  }
+  .badge-danger {
+    --badge-color: var(--color-danger);
+  }
+  .badge-neutral {
+    --badge-color: var(--color-neutral);
+  }
+
+  /* Banners */
+  .banner-error,
+  .banner-success {
+    padding: 12px 16px;
+    border-radius: var(--radius-card);
+    border-left: 3px solid;
+    font-size: 14px;
+    color: var(--color-text);
+  }
+  .banner-error {
+    border-left-color: var(--color-danger);
+    background-color: color-mix(in srgb, var(--color-danger) 8%, transparent);
+  }
+  .banner-success {
+    border-left-color: var(--color-success);
+    background-color: color-mix(in srgb, var(--color-success) 8%, transparent);
+  }
+
+  .empty-state {
+    padding: 48px 0;
+    text-align: center;
+    font-size: 15px;
+    color: var(--color-text-secondary);
+  }
+
+  /* Label/value pairs: stacked on phones, two columns from tablet up. Each
+     pair is a <div> holding a <dt> and a <dd>. */
+  .detail-list > div {
+    display: grid;
+    gap: 2px;
+    padding: 12px 0;
+    border-top: 1px solid var(--color-divider);
+  }
+  .detail-list > div:first-child {
+    border-top: 0;
+    padding-top: 0;
+  }
+  .detail-list > div:last-child {
+    padding-bottom: 0;
+  }
+  .detail-list dt {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+  }
+  .detail-list dd {
+    overflow-wrap: anywhere;
+  }
+  @media (min-width: 48rem) {
+    .detail-list > div {
+      grid-template-columns: 220px 1fr;
+      gap: 16px;
+      align-items: baseline;
+    }
+  }
+}
