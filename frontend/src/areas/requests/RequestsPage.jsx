@@ -7,7 +7,7 @@ import { listRequests } from './api'
 // SCRUM-28: the New request button for an account that may submit one.
 // SCRUM-30: the success banner carried from RequestDetailPage's navigate() after deleting a draft.
 export default function RequestsPage() {
-  const { can } = useAuth() ?? {}
+  const { can } = useAuth()
   const location = useLocation()
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
@@ -15,23 +15,13 @@ export default function RequestsPage() {
   const [successBanner, setSuccessBanner] = useState(location.state?.banner ?? null)
 
   useEffect(() => {
-    let active = true
     listRequests()
-      .then((data) => {
-        if (active) setRows(data)
-      })
+      .then((data) => setRows(data))
       .catch((error) => {
-        if (active) {
-          setBanner(error.message)
-          setSuccessBanner(null)
-        }
+        setBanner(error.message)
+        setSuccessBanner(null)
       })
-      .finally(() => {
-        if (active) setLoading(false)
-      })
-    return () => {
-      active = false
-    }
+      .finally(() => setLoading(false))
   }, [])
 
   return (
@@ -40,7 +30,7 @@ export default function RequestsPage() {
         <h1 className="text-xl font-semibold text-gray-900" data-testid="requests-title">
           Requests
         </h1>
-        {can?.('requests.edit') && (
+        {can('requests.edit') && (
           <Link
             to="/requests/new"
             className="rounded bg-blue-700 px-4 py-2 text-sm font-medium text-white"

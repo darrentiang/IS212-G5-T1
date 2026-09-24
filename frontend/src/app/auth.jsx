@@ -10,22 +10,14 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    let active = true
     me()
-      .then((data) => {
-        if (active) setAccount(data)
-      })
+      .then((data) => setAccount(data))
       .catch(() => {
         // 401 means no account. Any other failure also leaves us without one,
         // and routing sends the user to /login.
-        if (active) setAccount(null)
+        setAccount(null)
       })
-      .finally(() => {
-        if (active) setLoading(false)
-      })
-    return () => {
-      active = false
-    }
+      .finally(() => setLoading(false))
   }, [])
 
   const value = useMemo(

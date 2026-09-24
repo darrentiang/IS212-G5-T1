@@ -4,6 +4,7 @@ What coverage the team aims for, what is excluded and why, and what a reviewer c
 
 | Version | Date | Change | Reason |
 |---|---|---|---|
+| 1.2 | 24-09-2026 | Reviewer check 4: an unreachable branch questions the code first | Stale-response guards in fetch-once effects created branches only tests that asserted nothing could reach; the guards were removed instead |
 | 1.1 | 16-09-2026 | `routes.jsx` excluded | The UI shell tests mock the combined route list, which left the per-area lists unexecuted |
 | 1.0 | 16-09-2026 | Initial policy | The rubric asks for 100 % coverage or a stated reason; the measured numbers include entry points nothing can unit-test, so the exclusions and the target needed writing down |
 
@@ -36,6 +37,7 @@ Adding an exclusion means adding a row here, with its reason, in the same pull r
 1. The coverage summary on the pull request, for the files this story touched — not the repository total.
 2. Any shortfall is stated in the description with a reason, and the reason is about the code, not about time.
 3. A new exclusion has a row in the table above.
+4. A branch no unit test can reach is a question about the code before it is a gap in the tests. Unreachable usually means unnecessary: remove the branch rather than write a test that runs it and asserts nothing.
 
 ## No CI threshold yet
 

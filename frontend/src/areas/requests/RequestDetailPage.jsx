@@ -39,6 +39,9 @@ export default function RequestDetailPage() {
   const [editValues, setEditValues] = useState(null)
   const [editError, setEditError] = useState(null)
 
+  // Keyed to id: a reply for the request the user has left can
+  // arrive after the current one, so a stale reply is ignored
+  // (docs/design/frontend.md section 7).
   useEffect(() => {
     let active = true
     getRequest(id)

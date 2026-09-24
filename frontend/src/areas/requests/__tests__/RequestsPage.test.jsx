@@ -69,42 +69,6 @@ describe('RequestsPage', () => {
     })
   })
 
-  // @story: SCRUM-27
-  // @ac: 1
-  it('ignores the API result after unmount', async () => {
-    let resolveList
-    api.listRequests.mockReturnValue(
-      new Promise((resolve) => {
-        resolveList = resolve
-      }),
-    )
-    const { unmount } = render(
-      <MemoryRouter>
-        <RequestsPage />
-      </MemoryRouter>,
-    )
-    unmount()
-    resolveList([])
-  })
-
-  // @story: SCRUM-27
-  // @ac: 8
-  it('ignores the API error after unmount', async () => {
-    let rejectList
-    api.listRequests.mockReturnValue(
-      new Promise((resolve, reject) => {
-        rejectList = reject
-      }),
-    )
-    const { unmount } = render(
-      <MemoryRouter>
-        <RequestsPage />
-      </MemoryRouter>,
-    )
-    unmount()
-    rejectList(new Error('gone'))
-  })
-
   // @story: SCRUM-28
   // @ac: 1
   it('offers New request to an account that may submit one', async () => {
