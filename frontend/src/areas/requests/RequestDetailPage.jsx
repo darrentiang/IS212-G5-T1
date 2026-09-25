@@ -226,7 +226,7 @@ const openDecision = (action) => {
         </p>
       )}
 
-      {loading || banner || !row ? null : (
+      {loading || !row ? null : (
         <div className="card space-y-6">
           <dl className="detail-list" data-testid="request-detail-fields">
             {/* Keeping HEAD's dynamic FIELDS map but using main's clean styles */}
@@ -422,7 +422,7 @@ const openDecision = (action) => {
       )}
 
       {/* HEAD's Decision Action Buttons (styled with main's classes) */}
-      {!loading && canDecide && !['approve', 'reject'].includes(openAction) && (
+      {!loading && canDecide && (
         <div className="flex justify-end gap-2">
           <button
             type="button"
