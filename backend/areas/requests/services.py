@@ -222,6 +222,10 @@ def _record_decision(event_request, account, decision, reason):
     event_request.decision_reason = reason
     event_request.decided_at = datetime.now(timezone.utc)
     event_request.decided_by_id = account.id
+    
+    db.session.commit()
+    return event_request
+
 def save_new_draft(account, data):
     """Save a new Draft (state-model.md: '— -> Draft').
 
@@ -262,6 +266,7 @@ def reject_request(account, request_id, data):
     if not reason:
         raise ApiRefusal(400, "A reason is required to reject.")
     return _record_decision(event_request, account, "Rejected", reason)
+
 def update_draft(account, request_id, data):
     """Edit any field of an own Draft, including the name (AC3)."""
     _require_organiser(account)
