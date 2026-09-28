@@ -49,6 +49,13 @@ def parse_time(value):
     return datetime.strptime(value, "%H:%M").time()
 
 
+def parse_datetime(value):
+    """ISO datetime from the seed file, or None when it is absent."""
+    if value is None:
+        return None
+    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+
 def seed_database(db, data_path=DEFAULT_DATA_PATH):
     """Create the tables, insert the seed data and record the schema version.
 
@@ -103,6 +110,7 @@ def seed_database(db, data_path=DEFAULT_DATA_PATH):
                     created_by=owner,
                     registration_enabled=bool(entry.get("registration_enabled", False)),
                     coordinator_notes=entry.get("coordinator_notes"),
+                    submitted_at=parse_datetime(entry.get("submitted_at")),
                     **{k: v for k, v in optional_fields.items() if k not in ("name", "purpose")},
                 )
             )

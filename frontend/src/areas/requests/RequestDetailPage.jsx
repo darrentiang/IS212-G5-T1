@@ -1,11 +1,40 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
-import { STATUS, statusBadgeClass } from '../../app/format'
-import { deleteDraft, getRequest, submitDraft, updateDraft } from './api'
+import { useAuth } from '../../app/auth'
+import { STATUS, formatDate, formatDateTime, formatTime, statusBadgeClass } from '../../app/format'
+import { approveRequest, deleteDraft, getRequest, rejectRequest, submitDraft, updateDraft } from './api'
 
 // SCRUM-27: show one request or the API refusal (banner), never invent data.
 // SCRUM-28: show the success banner carried from RequestNewPage's navigate(),
 // and let the Draft's owner submit it (state-model.md: 'Draft -> Submitted').
+// SCRUM-29: every submitted field, the submission date and organiser, and the
+// decision; an Event Coordinator approves or rejects a Submitted request
+// through an inline reason form (ui-guidelines.md §7).
+
+// Same order and labels as RequestNewPage's form (ui-guidelines.md §7).
+const FIELDS = [
+  { name: 'name', label: 'Event name' },
+  { name: 'purpose', label: 'Purpose' },
+  { name: 'description', label: 'Description' },
+  { name: 'date', label: 'Date', format: formatDate },
+  { name: 'start_time', label: 'Start time', format: formatTime },
+  { name: 'end_time', label: 'End time', format: formatTime },
+  { name: 'attendance', label: 'Expected attendance' },
+  { name: 'venue_requirements', label: 'Venue requirements' },
+  { name: 'accessibility_needs', label: 'Accessibility needs' },
+  { name: 'equipment_requirements', label: 'Equipment requirements' },
+  { name: 'registration_needs', label: 'Registration needs' },
+]
+
+const DECISIONS = {
+  approve: { label: 'Approve', send: approveRequest, banner: 'Request approved', reasonRequired: false },
+  reject: { label: 'Reject', send: rejectRequest, banner: 'Request rejected', reasonRequired: true },
+}
+
+const testId = (name) => `request-detail-${name.replaceAll('_', '-')}`
+
+// A Draft may be saved with fields still empty, so format only what is there.
+const show = (value, format) => (value == null || value === '' ? '' : format ? format(value) : value)
 // SCRUM-30: the Draft's owner may also edit any field (including the name)
 // or permanently delete it.
 const EDIT_FIELDS = [
@@ -32,6 +61,7 @@ const editValuesFrom = (row) =>
 export default function RequestDetailPage() {
   const { id } = useParams()
   const location = useLocation()
+  const { can } = useAuth() ?? {}
   const navigate = useNavigate()
   const [row, setRow] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -40,6 +70,8 @@ export default function RequestDetailPage() {
   const [submitting, setSubmitting] = useState(false)
   // Only one inline form open at a time (ui-guidelines.md §7).
   const [openAction, setOpenAction] = useState(null)
+  const [reason, setReason] = useState('')
+  const [reasonError, setReasonError] = useState(null)
   const [editValues, setEditValues] = useState(null)
   const [editError, setEditError] = useState(null)
 
@@ -80,6 +112,54 @@ export default function RequestDetailPage() {
       setSubmitting(false)
     }
   }
+
+const openDecision = (action) => {
+    setOpenAction(action)
+    setReason('')
+    setReasonError(null)
+    setBanner(null)
+    setSuccessBanner(null)
+  }
+
+  const closeDecision = () => {
+    setOpenAction(null)
+    setReason('')
+    setReasonError(null)
+  }
+
+  const handleConfirmDecision = async (event) => {
+    event.preventDefault()
+    const decision = DECISIONS[openAction]
+    if (decision.reasonRequired && reason.trim() === '') {
+      setReasonError('Reason is required.')
+      return
+    }
+    setReasonError(null)
+
+    setSubmitting(true)
+    try {
+      const updated = await decision.send(id, reason)
+      setRow(updated)
+      setBanner(null)
+      setSuccessBanner(decision.banner)
+      closeDecision()
+    } catch (error) {
+      setBanner(error.message)
+      setSuccessBanner(null)
+      closeDecision()
+      // The refusal may mean someone else decided first (AC7): show the
+      // request as it now stands, the existing decision and its date included.
+      try {
+        setRow(await getRequest(id))
+      } catch (reloadError) {
+        setBanner(reloadError.message)
+      }
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const canDecide = Boolean(can?.('requests.decide')) && row?.status === STATUS.REQUEST.SUBMITTED
 
   const openEdit = () => {
     setEditValues(editValuesFrom(row))
@@ -146,13 +226,25 @@ export default function RequestDetailPage() {
         </p>
       )}
 
-      {loading || banner || !row ? null : (
+      {loading || !row ? null : (
         <div className="card space-y-6">
           <dl className="detail-list" data-testid="request-detail-fields">
-            <div>
-              <dt>Name</dt>
-              <dd data-testid="request-detail-name">{row.name}</dd>
-            </div>
+            {/* Keeping HEAD's dynamic FIELDS map but using main's clean styles */}
+            {typeof FIELDS !== 'undefined' && FIELDS.map((field) => (
+              <div key={field.name}>
+                <dt>{field.label}</dt>
+                <dd className="whitespace-pre-wrap" data-testid={testId(field.name)}>
+                  {show(row[field.name], field.format)}
+                </dd>
+              </div>
+            ))}
+            {/* Fallback Name field just in case FIELDS array was removed in main */}
+            {typeof FIELDS === 'undefined' && (
+              <div>
+                <dt>Name</dt>
+                <dd data-testid="request-detail-name">{row.name}</dd>
+              </div>
+            )}
             <div>
               <dt>Status</dt>
               <dd data-testid="request-detail-status">
@@ -163,6 +255,42 @@ export default function RequestDetailPage() {
               <dt>Created by</dt>
               <dd data-testid="request-detail-created-by">{row.created_by}</dd>
             </div>
+            
+            {/* HEAD's Decision Tracking Fields */}
+            {row.submitted_at && (
+              <div>
+                <dt>Submitted on</dt>
+                <dd data-testid="request-detail-submitted-at">{formatDateTime(row.submitted_at)}</dd>
+              </div>
+            )}
+            {row.decision && (
+              <>
+                <div>
+                  <dt>Decision</dt>
+                  <dd data-testid="request-detail-decision">{row.decision}</dd>
+                </div>
+                {row.decision_reason && (
+                  <div>
+                    <dt>Reason</dt>
+                    <dd className="whitespace-pre-wrap" data-testid="request-detail-decision-reason">
+                      {row.decision_reason}
+                    </dd>
+                  </div>
+                )}
+                {row.decided_at && (
+                  <div>
+                    <dt>Decided on</dt>
+                    <dd data-testid="request-detail-decided-at">{formatDateTime(row.decided_at)}</dd>
+                  </div>
+                )}
+                <div>
+                  <dt>Decided by</dt>
+                  <dd data-testid="request-detail-decided-by">{row.decided_by}</dd>
+                </div>
+              </>
+            )}
+
+            {/* Main's coordinator notes safely checked */}
             {'coordinator_notes' in row && row.coordinator_notes != null && (
               <div>
                 <dt>Coordinator notes</dt>
@@ -171,6 +299,7 @@ export default function RequestDetailPage() {
             )}
           </dl>
 
+          {/* Main's Draft buttons */}
           {row.status === STATUS.REQUEST.DRAFT && (
             <div className="flex flex-wrap justify-end gap-2">
               <button
@@ -205,6 +334,7 @@ export default function RequestDetailPage() {
         </div>
       )}
 
+      {/* Main's Edit form */}
       {openAction === 'edit' && editValues && (
         <div className="card form-card space-y-4" data-testid="request-detail-edit-form">
           <h2 className="section-title">Edit draft</h2>
@@ -263,6 +393,7 @@ export default function RequestDetailPage() {
         </div>
       )}
 
+      {/* Main's Delete form */}
       {openAction === 'delete' && (
         <div className="card space-y-4" data-testid="request-detail-delete-form">
           <h2 className="section-title">Delete draft</h2>
@@ -288,6 +419,74 @@ export default function RequestDetailPage() {
             </button>
           </div>
         </div>
+      )}
+
+      {/* HEAD's Decision Action Buttons (styled with main's classes) */}
+      {!loading && canDecide && (
+        <div className="flex justify-end gap-2">
+          <button
+            type="button"
+            disabled={submitting}
+            onClick={() => openDecision('reject')}
+            className="btn btn-secondary"
+            data-testid="request-detail-reject-button"
+          >
+            Reject
+          </button>
+          <button
+            type="button"
+            disabled={submitting}
+            onClick={() => openDecision('approve')}
+            className="btn btn-primary"
+            data-testid="request-detail-approve-button"
+          >
+            Approve
+          </button>
+        </div>
+      )}
+
+      {/* HEAD's Decision Form (styled with main's classes) */}
+      {canDecide && ['approve', 'reject'].includes(openAction) && (
+        <form onSubmit={handleConfirmDecision} noValidate className="card form-card space-y-4">
+          <h2 className="section-title">{DECISIONS[openAction].label} Request</h2>
+          <div>
+            <label htmlFor={`${openAction}-reason`} className="label">
+              {DECISIONS[openAction].reasonRequired ? 'Reason *' : 'Reason'}
+            </label>
+            <textarea
+              id={`${openAction}-reason`}
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+              aria-required={DECISIONS[openAction].reasonRequired ? 'true' : undefined}
+              className="input"
+              data-testid={`request-detail-${openAction}-reason-input`}
+            />
+            {reasonError && (
+              <p className="field-error" data-testid={`request-detail-${openAction}-reason-error`}>
+                {reasonError}
+              </p>
+            )}
+          </div>
+          <div className="flex flex-wrap justify-end gap-2">
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={closeDecision}
+              className="btn btn-secondary"
+              data-testid={`request-detail-${openAction}-cancel-button`}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="btn btn-primary"
+              data-testid={`request-detail-${openAction}-confirm-button`}
+            >
+              Confirm
+            </button>
+          </div>
+        </form>
       )}
     </div>
   )

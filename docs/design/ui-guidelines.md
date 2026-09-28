@@ -8,6 +8,7 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | 1.1 | 16-09-2026 | Landing page by permission; page anatomy; loading; inline action forms, no modals; dates, times and status constants; notifications count | The first pages are about to be built by four Developers; these are the choices that would otherwise be made four ways |
 | 1.2 | 22-09-2026 | `/venues/new` and `/venues/:id` in §1; a checkbox group for several choices from a fixed list in §5 | SCRUM-31 adds the two pages, and picks facilities and accessibility features from seeded lists rather than free text |
 | 1.3 | 24-09-2026 | §12 Look: the visual style and the status-to-colour table; §1 a welcome home page for an account that may open no page | UI refresh: one shared look in `visual-style.md`; Technical Support Staff have no page yet and were landing on the not-permitted page |
+ 1.4 | 25-09-2026 | A moment in time (`03 Oct 2026, 14:30`) in §9, formatted with `formatDateTime` | SCRUM-29 shows when a request was submitted and decided; the API sends those as ISO date-times in UTC |
 
 ## 1. Pages
 
@@ -123,7 +124,7 @@ While the page is waiting for the API it renders the title row and nothing below
 
 ## 9. Dates, times and status text
 
-- Dates are shown as `03 Oct 2026`; times as `14:30` (24-hour). Date and time together: `03 Oct 2026, 14:30–16:00`. The API sends ISO values; pages format them with `formatDate`, `formatTime` and `formatPeriod` from `app/format.js` (`frontend.md` §7) and never by hand.
+- Dates are shown as `03 Oct 2026`; times as `14:30` (24-hour). Date and time together: `03 Oct 2026, 14:30–16:00`. A moment something happened (submitted, decided): `03 Oct 2026, 14:30`, in UTC as the API sends it. The API sends ISO values; pages format them with `formatDate`, `formatTime`, `formatPeriod` and `formatDateTime` from `app/format.js` (`frontend.md` §7) and never by hand.
 - Status text is the `STATUS` constant from `app/format.js`, whose values are the exact words in `state-model.md`. Pages never type a status string.
 
 ## 10. Test ids, summary

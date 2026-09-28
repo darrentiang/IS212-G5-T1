@@ -47,6 +47,18 @@ export function formatPeriod(iso, start, end) {
   return `${formatDate(iso)}, ${formatTime(start)}–${formatTime(end)}`
 }
 
+// '2026-09-23T14:05:00' -> '23 Sep 2026, 14:05'. The API stores and sends
+// UTC; the time is shown as sent, with no conversion to the browser's zone.
+const ISO_DATE_TIME = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/
+
+export function formatDateTime(iso) {
+  const parts = ISO_DATE_TIME.exec(String(iso))
+  if (!parts) {
+    throw new Error(`Not an ISO date and time (YYYY-MM-DDTHH:MM): ${iso}`)
+  }
+  return `${formatDate(parts[1])}, ${formatTime(parts[2])}`
+}
+
 // Upper snake case of the value: 'Out of Service' -> OUT_OF_SERVICE.
 const group = (values) =>
   Object.freeze(

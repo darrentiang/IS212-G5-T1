@@ -2,6 +2,7 @@ import { request } from '../../app/http'
 
 // GET /api/requests
 // 200:     [ { id, status, created_by, registration_enabled, submitted_at,
+//              decision, decision_reason, decided_at, decided_by,
 //              name, purpose, description, date, start_time, end_time, attendance,
 //              venue_requirements, accessibility_needs, equipment_requirements,
 //              registration_needs } ]
@@ -26,6 +27,17 @@ export const submitRequest = (data) => request('POST', '/api/requests', data)
 // 400/403/404: { message }
 export const submitDraft = (id) => request('POST', `/api/requests/${id}/submit`)
 
+// POST /api/requests/:id/approve   (SCRUM-29)
+// body:    { reason }   optional
+// 200:     the request, now Approved, with decision, decision_reason, decided_at, decided_by
+// 400/403/404/409: { message }   409 when the request is not Submitted or already decided
+export const approveRequest = (id, reason) => request('POST', `/api/requests/${id}/approve`, { reason })
+
+// POST /api/requests/:id/reject   (SCRUM-29)
+// body:    { reason }   required
+// 200:     the request, now Rejected, with decision, decision_reason, decided_at, decided_by
+// 400/403/404/409: { message }   400 when the reason is empty
+export const rejectRequest = (id, reason) => request('POST', `/api/requests/${id}/reject`, { reason })
 // POST /api/requests/draft
 // body:    { name, purpose, description, date, start_time, end_time, attendance,
 //            venue_requirements, accessibility_needs, equipment_requirements,

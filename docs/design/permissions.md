@@ -9,6 +9,7 @@ Kept current by every story that adds an action: the row is added or changed in 
 | View event requests | Own only | All except Draft | No | No | No |
 | Edit an event during Planning | No | Assigned coordinator only | No | No | No |
 | Approve or reject an event request; request clarification | No | Yes | No | No | No |
+| View event request resulting status and any reason | Own only | Yes | No | No | No |
 | Reassign an event | No | Assigned coordinator initiates; new coordinator accepts | No | No | No |
 | Confirm, cancel, mark completed | No | Assigned coordinator | No | No | No |
 | View venues and venue booking requests | No | Yes | Yes | No | No |
@@ -36,6 +37,7 @@ Keys used in `backend/permissions.py` and on API routes / `features` from `/api/
 |---|---|---|---|---|---|
 | requests.view | Yes | Yes | No | No | No |
 | requests.edit | Yes | Yes | No | No | No |
+| requests.decide | No | Yes | No | No | No |
 | venues.view | No | Yes | Yes | No | No |
 | venues.edit | No | No | Yes | No | No |
 | equipment.view | No | No | No | Yes | No |
@@ -51,3 +53,4 @@ Keys used in `backend/permissions.py` and on API routes / `features` from `/api/
 | 1.3 | 22-09-2026 | `venues.edit` feature key, Venue Staff only | SCRUM-31: adding a venue needs a key of its own; `venues.view` is held by Event Coordinators, who may see venues but not maintain them |
 | 1.4 | 23-09-2026 | Named "delete (while Draft)" on the Event Organiser row | SCRUM-30: deleting a draft is a new action, not implied by "edit" |
 | 1.5 | 23-09-2026 | Rule: 403 for an object-level refusal on a read, 404 on a write | SCRUM-30 review: the split already existed in code (SCRUM-27/28) but was undocumented and read as an accident |
+| 1.6| 24-09-2026 | `requests.decide` for Event Coordinators; Organiser may see the request-level approve/reject reason | SCRUM-29: Organisers already hold `requests.edit`, so decide needs its own key; AC6 makes that decision public on the request |

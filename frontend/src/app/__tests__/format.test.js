@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { STATUS, formatDate, formatPeriod, formatTime, statusBadgeClass } from '../format'
+import { STATUS, formatDate, formatDateTime, formatPeriod, formatTime, statusBadgeClass } from '../format'
 
 describe('formatDate', () => {
   // @story: setup
@@ -41,6 +41,22 @@ describe('formatPeriod', () => {
   // @ac: ui-shell
   it('joins the date and the two times with an en dash', () => {
     expect(formatPeriod('2026-10-03', '14:30', '16:00')).toBe('03 Oct 2026, 14:30–16:00')
+  })
+})
+
+describe('formatDateTime', () => {
+  // @story: SCRUM-29
+  // @ac: 2, 7
+  it('shows an ISO date and time as the date, a comma and the 24-hour time', () => {
+    expect(formatDateTime('2026-09-23T14:05:00')).toBe('23 Sep 2026, 14:05')
+    expect(formatDateTime('2026-09-01T09:30:12.123456+00:00')).toBe('01 Sep 2026, 09:30')
+  })
+
+  // @story: SCRUM-29
+  // @ac: 2, 7
+  it('throws on a value that is not an ISO date and time', () => {
+    expect(() => formatDateTime('2026-09-23')).toThrow(/Not an ISO date and time/)
+    expect(() => formatDateTime(null)).toThrow(/Not an ISO date and time/)
   })
 })
 

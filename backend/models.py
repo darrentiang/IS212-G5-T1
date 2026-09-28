@@ -13,8 +13,8 @@ from db import db
 # Bumped by any story that changes the shape of the database. app.py refuses to
 # start when the stored version differs; seed.py --reset rebuilds the database.
 # SCRUM-28 added event request columns; SCRUM-31 added venues and the two
-# fixed lists they choose from.
-SCHEMA_VERSION = 4
+# fixed lists they choose from. SCRUM-29 added the approve/reject decision.
+SCHEMA_VERSION = 5
 
 
 account_roles = db.Table(
@@ -70,8 +70,8 @@ class EventRequest(db.Model):
 
     SCRUM-27 added read-only access with role rules (own only / all except
     Draft, internal notes gating). SCRUM-28 added creation and the
-    Draft -> Submitted transition. Later stories add columns and transitions
-    in their own pull requests.
+    Draft -> Submitted transition. SCRUM-29 added approve/reject. 
+    Later stories add columns and transitions in their own pull requests.
     """
 
     __tablename__ = "event_requests"
@@ -115,7 +115,13 @@ class EventRequest(db.Model):
     coordinator_notes = db.Column(db.Text, nullable=True)
     submitted_at = db.Column(db.DateTime, nullable=True)
 
-    created_by = db.relationship("Account", backref="event_requests")
+    decision = db.Column(db.String(32), nullable=True)
+    decision_reason = db.Column(db.Text, nullable=True)
+    decided_at = db.Column(db.DateTime, nullable=True)
+    decided_by_id = db.Column(db.Integer, db.ForeignKey("accounts.id"), nullable=True)
+
+    created_by = db.relationship("Account", foreign_keys=[created_by_id], backref="event_requests")
+    decided_by = db.relationship("Account", foreign_keys=[decided_by_id])
 
     def missing_fields(self):
         """Names of required fields that are unset or blank, in REQUIRED_FIELDS order."""
@@ -133,6 +139,10 @@ class EventRequest(db.Model):
             "created_by": self.created_by.username if self.created_by else None,
             "registration_enabled": bool(self.registration_enabled),
             "submitted_at": self.submitted_at.isoformat() if self.submitted_at else None,
+            "decision": self.decision,
+            "decision_reason": self.decision_reason,
+            "decided_at": self.decided_at.isoformat() if self.decided_at else None,
+            "decided_by": self.decided_by.username if self.decided_by else None,
             **{field: getattr(self, field) for field in self.REQUIRED_FIELDS},
         }
 

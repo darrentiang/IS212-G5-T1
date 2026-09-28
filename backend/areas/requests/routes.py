@@ -2,13 +2,14 @@
 
 SCRUM-27: read-only list and detail with role rules.
 SCRUM-28: create a request and submit it (direct or from Draft).
+SCRUM-29: approve or reject a Submitted request.
 SCRUM-30: save, edit and delete a Draft.
 """
 
 from flask import Blueprint, g, jsonify, request as flask_request
 
 from areas.requests import services
-from permissions import REQUESTS_EDIT, REQUESTS_VIEW, require
+from permissions import REQUESTS_DECIDE, REQUESTS_EDIT, REQUESTS_VIEW, require
 
 bp = Blueprint("requests", __name__, url_prefix="/api")
 
@@ -48,6 +49,24 @@ def submit_draft_request(request_id):
     return jsonify(services.request_to_dict(submitted)), 200
 
 
+@bp.post("/requests/<int:request_id>/approve")
+@require(REQUESTS_DECIDE)
+def approve_request(request_id):
+    """SCRUM-29: Submitted -> Approved; reason optional."""
+    account = g.account
+    data = flask_request.get_json(silent=True) or {}
+    updated = services.approve_request(account, request_id, data)
+    return jsonify(services.request_detail_dict(updated, account)), 200
+
+
+@bp.post("/requests/<int:request_id>/reject")
+@require(REQUESTS_DECIDE)
+def reject_request(request_id):
+    """SCRUM-29: Submitted -> Rejected; reason required."""
+    account = g.account
+    data = flask_request.get_json(silent=True) or {}
+    updated = services.reject_request(account, request_id, data)
+    return jsonify(services.request_detail_dict(updated, account)), 200
 @bp.post("/requests/draft")
 @require(REQUESTS_EDIT)
 def save_draft_request():
