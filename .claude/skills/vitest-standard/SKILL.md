@@ -33,11 +33,19 @@ No `@tc` line. TC IDs belong to functional rows in the sheet.
 - Behaviour not worth a browser test (formatting, disabled states)
 - A page test asserts status text through `STATUS` from `src/app/format.js`, never a literal: if `state-model.md` renames a status, the test follows the constant instead of going green on stale wording.
 
+## Writing a test that can fail for the right reason
+
+- Expected text and states come from the acceptance criteria and `docs/design/ui-guidelines.md`, never from what the page currently renders.
+- Assert exact things: the element by its `data-testid` or role, the text through `STATUS` or the criterion's wording. Avoid `toBeTruthy()` or "renders without crashing" as the only check.
+- One behaviour per test; the name states the requirement (`hides the decide buttons from an Event Organiser`, not `renders 2`).
+- Ask of each test: what wrong implementation would make it fail? If none, strengthen it or delete it.
+
 ## Mocking rules
 
 - Pages call their area's `api.js`, never `fetch` (`docs/design/frontend.md`). From the area's `__tests__/`, mock it with `vi.mock('../api')` — never mock `global.fetch`.
   - Exception: `app/__tests__/http.test.js` stubs `global.fetch`, because `app/http.js` is the one file that calls it.
 - Render pages that use the router inside `MemoryRouter` from `react-router`.
+- The mocked `api.js` is a stub: `mockResolvedValue` / `mockRejectedValue` supply what the page receives. Assert what the page shows as a result. Assert a call (`toHaveBeenCalledWith`) only when the call is the requirement, e.g. the form sends exactly the values entered.
 - Call `vi.restoreAllMocks()` in `afterEach` to prevent cross-test contamination
 - If importing JSON fixture data, use `structuredClone(data)` to avoid mutation leaking between tests
 
@@ -149,3 +157,4 @@ npx vitest run src/areas/auth/__tests__/LoginPage.test.jsx  # one file
 - [ ] Only behaviour the functional tests do not cover
 - [ ] Tests pass locally: `npm run test` is green
 - [ ] A human can explain what each test verifies
+- [ ] Each test names a wrong implementation that would make it fail

@@ -61,19 +61,56 @@ def test_login_returns_all_roles_of_the_account(client):
     assert set(resp.get_json()["roles"]) == {"Event Coordinator", "Venue Staff"}
 ```
 
-## What to test
+## The expected value (the oracle)
 
-- API endpoint responses (status codes, response body)
-- Validation logic (missing fields, invalid data)
-- Business rules (state transitions, conflict detection, capacity limits)
-- Role-based access (wrong role gets 403; an account with several roles may do what any of them allows)
+A test is evidence that the code does what the story asked. The green bar only proves the tests agree with the code: if the same author or agent wrote both, they can share a misunderstanding.
+
+- Work out every expected value from the acceptance criterion, `state-model.md` or `permissions.md`, by hand. Never run the code and paste its output into an assertion; a value copied from the implementation can only confirm what it already does.
+- When a test written from the criterion fails, re-read the criterion before touching the number. If the criterion is ambiguous, stop: the Product Owner decides (`AGENTS.md` §3).
+- Show a non-obvious derivation in a comment: `# 14:00 start minus 30 min setup = occupied from 13:30`.
+
+## Choosing what to test
+
+For every input, ask: would a plausible fault give a different answer here? If not, the test is decoration.
+
+| Rule | Write | Fault it catches |
+|---|---|---|
+| Status transition | The allowed from-status succeeds **and** the stored status is the to-status; one test per other status the rule refuses (group statuses only where the criterion treats them alike) | Missing guard; wrong set of allowed statuses |
+| Permission | Each role allowed against each refused; the multi-role account `multi1`; another user's or organisation's record (object rule: read answers 403, write answers 404, `permissions.md`) | Wrong role check; object rule missing |
+| Validation | Smallest invalid and smallest valid; missing, blank, whitespace-only, wrong type | Guard too loose or too strict |
+| Limit or window | Just below, exactly at, just above — including derived values: a date against today, start against end, attendance against capacity, a booking's occupied period once setup and turnaround are added, periods that touch against periods that overlap, an expiry time | `<` against `<=`; wrong constant |
+| Refusal | The status code and message, **and** that nothing changed: re-fetch the record, or check no row was created | Partial write before the refusal |
+| Success | The response **and** what was stored (re-fetch: status, who, when) | Response says yes, nothing persisted |
+| Rule combinations | Data that switches every rule on: non-zero setup time, a second booking, a non-default role; never only the neutral path | A rule skipped under some condition; a zero that hides the rule |
+| Sequences | Two operations in a row on the same record (decide twice, withdraw then approve) | One-off logic firing twice; overwrite instead of refuse |
+
+Use `@pytest.mark.parametrize` for a table of cases; each case is reported separately.
+
+## Assertions and naming
+
+- Assert exact values: status code, the specific fields, `resp.get_json()["message"]`. The API's message is what the page shows, so asserting it is fine.
+- Never `assert resp`, `> 0` or `is not None` as the only check: they survive almost every fault.
+- One behaviour per test, Arrange–Act–Assert visible. Several asserts are fine when they check one behaviour's outputs (response plus stored state).
+- Name the requirement, not the endpoint: `test_booking_touching_previous_turnaround_is_allowed`, not `test_booking_3`. A failing name should read as the broken requirement in the CI log.
+- Tests pass alone and in any order: never depend on another test's records.
+
+## Test doubles
+
+- The database is already a fake: each test gets a fresh, seeded, in-memory SQLite database from `conftest.py`. Do not mock SQLAlchemy, services or routes; test through the endpoint.
+- Time: a date-level rule ("not before today") can be computed relative to `date.today()` in the test, as `test_requests.py` does. A rule at the minute or second (an expiry time) needs a controllable clock: read the time through one function the test can `monkeypatch`, never by sleeping.
+- Mock an interaction only when the interaction is the requirement. A notification is a database row (ADR-003): assert the row, not a call.
+- If you must mock, use `create_autospec` or `Mock(spec=...)` so a call to a method that does not exist fails.
 
 ## What NOT to test
 
 - Framework internals (Flask routing, ORM plumbing)
-- Private helper methods directly — test through public endpoints
-- External services (mock them)
+- Private helper functions directly — test through public endpoints
 - User journeys through the browser (that's Playwright)
+- Behaviour the criteria do not define: you would be guessing the expected value. Raise it with the Product Owner instead.
+
+## Coverage is a diagnostic, not a target
+
+Read the missed lines, not the percentage. 100% coverage proves every line ran, not that anything was checked: weak assertions reach 100% and catch nothing. Low coverage reliably shows untested code. The target and exclusions are in `docs/test-cases/COVERAGE.md`.
 
 ## Running tests
 
@@ -91,3 +128,12 @@ python -m pytest tests/test_events.py::test_create_event_success -v  # one test
 - [ ] Tests derive from ACs and design documents, not from implementation code
 - [ ] Tests pass locally: `pytest tests/ -v` is green
 - [ ] A human can explain what each test verifies
+- [ ] Every expected value is derived from the criterion or a design document, not copied from the code's output
+- [ ] Every limit has below / at / above tests; every refusal also asserts that nothing changed
+
+### Five questions the reviewer asks of each test
+1. Which acceptance criterion does it cover?
+2. What wrong implementation would make it fail? If none, strengthen it or delete it.
+3. Can you explain the setup, the action and the expected result?
+4. Can the expected value be justified without looking at the code?
+5. Is it deterministic and does it assert something real?
