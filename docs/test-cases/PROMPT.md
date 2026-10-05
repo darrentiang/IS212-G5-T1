@@ -7,9 +7,10 @@ Use this to draft functional test cases for ONE story, before any code for that 
 | 1.0 | 15-09-2026 | Initial prompt | Test cases drafted with AI, curated by the team |
 | 1.1 | 16-09-2026 | `ui-guidelines.md` and neighbouring stories as inputs; story-boundary rule; one Happy row per path, not per role; expected result capped at three clauses | First real run (SCRUM-26) drafted six near-identical Happy rows asserting another story's behaviour, with paragraph-long expected results |
 | 1.2 | 22-09-2026 | Seeded venues and the facility and accessibility lists added to the seeded-data sections | SCRUM-31 seeds venues; rows for a venue story must name the seeded records and the fixed list values rather than invent them |
+| 1.3 | 05-10-2026 | Stories come from the workbook Backlog, not Jira; `backend/seed/data.json` is the authority for seeded data; curation moved to `CURATION.md` | The backlog moved from Jira to the team scrum workbook (S1 Retro action S1-A3); curation was the weakest step and needed its own checklist |
 
 ## Inputs (stop and ask if any is missing)
-1. The story from Jira: key (SCRUM-nn), title, user story sentence, numbered acceptance criteria. Use the Jira text verbatim; never paraphrase or invent criteria.
+1. The story from the Backlog tab of the team scrum workbook (SharePoint): key (SCRUM-nn), title, user story sentence, numbered acceptance criteria, and its Links and notes. Use the text verbatim; never paraphrase or invent criteria.
 2. `docs/design/state-model.md` — the only status names you may use.
 3. `docs/design/permissions.md` — which roles may do what.
 4. `docs/design/ui-guidelines.md` — what every page shows and what it is called. Use its page names ("the Requests page", "the login page") and its words for what the user sees (banner, message under the field, header). Do not invent screens or elements it does not describe.
@@ -18,6 +19,8 @@ Use this to draft functional test cases for ONE story, before any code for that 
 Do not invent statuses, roles, fields, limits, messages or timings that are not in these inputs. Where you must guess, say so (see Assumptions).
 
 ## Seeded accounts (use these names in preconditions and test data)
+The lists in this and the next two sections were current when written. `backend/seed/data.json` is the authority: if it holds accounts or records not listed here, use them by their seeded names.
+
 `org1`, `org2` (Event Organisers, different client organisations) · `coord1`, `coord2` (Event Coordinators) · `venue1` (Venue Staff) · `tech1` (Technical Support Staff) · `att1` (Attendee) · `multi1` (Event Coordinator and Venue Staff, the one two-role account). Password for all: `Passw0rd!`.
 
 ## Seeded event requests (SCRUM-27 access data; loaded from `backend/seed/data.json`)
@@ -49,7 +52,7 @@ Editing a venue is SCRUM-75, retiring one SCRUM-76 and room layouts SCRUM-32; th
 ```
 Story	TC ID	AC #	Step	Scenario	Preconditions	Steps	Test data	Expected result	Drafted with AI by	Curated by	Reviewed by
 ```
-- Story: the Jira key, e.g. `SCRUM-26`.
+- Story: the story key, e.g. `SCRUM-26`.
 - TC ID: `TC-SCRUM-<n>-<nn>`, e.g. `TC-SCRUM-26-01`, numbered in output order. If rows for this story already exist in the sheet, continue the numbering.
 - AC #: the criterion number(s) the row is evidence for, e.g. `3` or `1, 2`. Every criterion appears at least once.
 - Step: `2 Happy`, `3 Cross`, `4 Negative` or `5 Boundary`.
@@ -76,4 +79,4 @@ Cells must not contain tab or newline characters; separate numbered steps with s
 - Fewer, sharper rows: a story typically needs 5–12.
 
 ## Curation (developer, before the rows go into the sheet)
-Check every row against the Jira acceptance criteria, resolve every Assumption, delete or reword CHECK rows, decide each Not covered item, fill "Curated by". Paste the rows into the Test cases tab. A second developer reads them and fills "Reviewed by". Only then are the Playwright tests written (see `AUTOMATION.md`).
+Follow `CURATION.md`: check every row against the Backlog acceptance criteria, resolve every Assumption, delete or reword CHECK rows, decide each Not covered item, fill "Curated by". Paste the rows into the Test cases tab. A second developer reads them and fills "Reviewed by". Only then are the Playwright tests written (see `AUTOMATION.md`).

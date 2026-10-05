@@ -41,32 +41,32 @@ cd functional && npm run test        # Playwright; starts Flask and Vite itself,
 
 One story, one branch, one pull request. The full rule set is `AGENTS.md`; this is the walk-through.
 
-1. **Pull the story from Jira.** `SCRUM-nn` is the only identifier. Branch `feature/SCRUM-nn-short-slug` from `main`. Its `area-nn` label decides which folder the code goes in (`docs/design/frontend.md` §2, same table for backend and frontend).
-2. **Draft the test cases before any code.** Open Claude Code in the repository and paste this, filling in the Jira text word for word:
+1. **Take the story from the Backlog tab of the team scrum workbook (SharePoint).** `SCRUM-nn` is the only identifier. Branch `feature/SCRUM-nn-short-slug` from `main`. Its Area column decides which folder the code goes in (`docs/design/frontend.md` §2, same table for backend and frontend).
+2. **Draft the test cases before any code.** Open Claude Code in the repository and paste this, filling in the story's Backlog text word for word:
 
    ```
    Draft test cases for this story with docs/test-cases/PROMPT.md.
 
    Key: SCRUM-nn
    Title: <title>
-   Area label: area-nn
+   Area: nn
 
    User story:
-   <paste from Jira>
+   <paste from the Backlog>
 
    Acceptance criteria:
    1. <paste AC 1 exactly>
    2. ...
 
-   Working rules / decisions in the story:
-   <paste any "Working rule" or "D-nn" lines, or "none">
+   Links and notes from the Backlog:
+   <paste the story's Links and notes, or "none">
 
    Neighbouring stories in this sprint: <keys and titles>
 
    Rows already in the sheet for this story: none
    ```
 
-   Curate the rows against the acceptance criteria (resolve every Assumption, decide every Not covered item), fill "Curated by", paste them into the Test cases tab of the team test sheet. A second Developer reads them and fills "Reviewed by". `docs/test-cases/PROMPT.md` says how; the rows are the specification the tests prove.
+   Curate the rows with `docs/test-cases/CURATION.md` (resolve every Assumption, decide every Not covered item), fill "Curated by", paste them into the Test cases tab of the team test sheet. A second Developer reads them and fills "Reviewed by". `docs/test-cases/PROMPT.md` says how; the rows are the specification the tests prove.
 3. **Build.** Backend rules first (`backend/areas/<area>/`, unit tests as you go), then the route, then the page (`frontend/src/areas/<area>/`). Whether you type it or an AI does, the same documents apply, and `AGENTS.md` names them in reading order. If you use Claude Code, the prompt is the same story block as in step 2 plus the curated rows copied from the sheet (they paste as tab-separated text), and nothing else; the documents do the rest.
 4. **Tests.** One Playwright `test()` per curated row in `functional/tests/SCRUM-nn.spec.js`; unit tests for the rules the story adds (`docs/test-cases/AUTOMATION.md`). Coverage target is 100 % of the files the story touches (`docs/test-cases/COVERAGE.md`). Run all three suites. If you built by hand and want AI to write the tests, the prompt is:
 
@@ -133,4 +133,4 @@ Every pull request runs Pytest, Vitest and Functional in parallel; all three mus
 
 ## 7. Team artefacts outside the repository
 
-Jira `SCRUM` project (backlog, sprints, board) · Teams Files / SharePoint (sprint records, decision log, Working Agreement, Definition of Done, setup document) · the team test sheet (Test cases, Executions, Traceability tabs).
+Team scrum workbook on SharePoint (Product Backlog, sprint planning, reviews, retrospectives, Definition of Done) · Teams Files / SharePoint (Working Agreement, setup document) · the team test sheet (Test cases, Executions, Traceability tabs).

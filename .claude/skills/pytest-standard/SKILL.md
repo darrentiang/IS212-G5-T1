@@ -31,7 +31,7 @@ def test_example(client):
 
 | Field | Required | Format |
 |---|---|---|
-| `@story` | Yes | Jira key, e.g. `SCRUM-26` |
+| `@story` | Yes | Story key, e.g. `SCRUM-26` |
 | `@ac` | Yes | Which AC(s) this test covers, e.g. `1` or `1, 3` |
 
 No `@tc` line. TC IDs belong to functional rows in the sheet; a unit test does not prove a sheet row.
@@ -39,7 +39,7 @@ No `@tc` line. TC IDs belong to functional rows in the sheet; a unit test does n
 ## What unit tests derive from
 
 - The rules the story adds: state transitions (`docs/design/state-model.md`), permissions (`docs/design/permissions.md`), validation, conflict detection.
-- The story's acceptance criteria as written in Jira.
+- The story's acceptance criteria as written in the Backlog tab of the team scrum workbook.
 - A unit test that contradicts a design document is wrong, not the document.
 
 ## Test structure
