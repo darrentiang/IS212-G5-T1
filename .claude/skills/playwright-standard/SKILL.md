@@ -13,7 +13,7 @@ Functional tests verify one user story's flow through the real stack: browser â†
 
 ## Location
 
-All functional tests go in `functional/tests/`. File naming: `<jira-key>.spec.js` (e.g. `SCRUM-26.spec.js`).
+All functional tests go in `functional/tests/`. File naming: `<story-key>.spec.js` (e.g. `SCRUM-26.spec.js`).
 
 ## @tc link header (REQUIRED)
 

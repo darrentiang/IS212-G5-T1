@@ -12,7 +12,7 @@ description: How the CI/CD pipeline works for this project — branch model, wha
 ```
 
 - One story per branch. Branch naming: `<type>/SCRUM-<n>-<short-slug>`, type ∈ `feature`, `fix`, `docs`, `chore`. Example: `feature/SCRUM-26-login`.
-- Commit messages and PR titles start with the Jira key: `SCRUM-26: add password hashing`.
+- Commit messages and PR titles start with the story key: `SCRUM-26: add password hashing`.
 - `main` is always green. Only merge after CI passes. GitHub enforces this: `.github/rulesets/main.json` (imported under Settings → Rules) blocks direct pushes and requires Pytest, Vitest and Functional to pass; approval is requested on every PR but not enforced by GitHub, the Working Agreement enforces it.
 - Push freely to story branches. CI only runs on PRs to main.
 

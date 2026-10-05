@@ -42,9 +42,9 @@ No `components/` folder. `Layout` is the only shared component and `app/format.j
 
 ## 2. Which area a story belongs to
 
-The story's Jira `area-nn` label decides the folder.
+The story's Area column in the Backlog decides the folder.
 
-| Folder | Jira areas | Record it is about |
+| Folder | Areas | Record it is about |
 |---|---|---|
 | `auth` | 01 | Account, session |
 | `requests` | 02, 03, 04, 05, 06, 07 | Event request and its status |
@@ -56,7 +56,7 @@ The story's Jira `area-nn` label decides the folder.
 | `notifications` | 20 | Notification |
 
 - **Tie-break:** a story that touches two records belongs to the area of the record it creates or changes. Example: SCRUM-36 Request Venue Booking starts from an event but creates a booking, so its page is in `bookings/`; the only edit in `requests/` is a link to it.
-- If the label and the record disagree, the Product Owner settles it at refinement and corrects the label in Jira. This table stays the only rule.
+- If the Area and the record disagree, the Product Owner settles it at refinement and corrects the Area in the Backlog. This table stays the only rule.
 - The scaffold creates all eight folders, so no story adds an area. A new area (future release) is one row here and one import in `areas.js`, in the same pull request.
 
 ## 3. Dependencies between folders
@@ -159,7 +159,7 @@ Some stories share a page (SCRUM-28 Submit and SCRUM-30 Save Draft both change `
 ## 10. Review checks (per pull request that touches `frontend/src/`)
 
 1. `fetch` appears only in `app/http.js`.
-2. The story's files are in the area its Jira label maps to (§2); `app/` untouched unless the pull request says why.
+2. The story's files are in the area its Backlog Area maps to (§2); `app/` untouched unless the pull request says why.
 3. No import from another area.
 4. New endpoint functions carry the contract comment.
 5. Controls and nav hidden with `can()`, never by role name.
