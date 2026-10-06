@@ -1,18 +1,21 @@
-"""Venue rules — SCRUM-31 (Add a Venue).
+"""Venue rules — SCRUM-31 (Add a Venue), SCRUM-40 (Block a Venue).
 
 Every rule the acceptance criteria state lives here, next to the query, and
 refuses by raising ApiRefusal; the route never decides (ADR-002). Editing a
 venue is SCRUM-75, retiring one SCRUM-76 and room layouts SCRUM-32, so nothing
-here changes or removes a venue.
+here changes or removes a venue. Ending or removing a block is SCRUM-79.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from db import db
 from errors import ApiRefusal
-from models import AccessibilityFeature, Facility, Venue
+from models import AccessibilityFeature, Facility, Venue, VenueBlock
 
+DATE_FORMAT = "%Y-%m-%d"
 TIME_FORMAT = "%H:%M"
+# A block's start and end on the wire: '2026-10-20T09:00', naive local time.
+DATE_TIME_FORMAT = f"{DATE_FORMAT}T{TIME_FORMAT}"
 
 
 def list_venues():
@@ -128,4 +131,75 @@ def venue_to_dict(venue):
         "closing_time": venue.closing_time.strftime(TIME_FORMAT) if venue.closing_time else None,
         "facilities": [row.name for row in venue.facilities],
         "accessibility_features": [row.name for row in venue.accessibility_features],
+    }
+
+
+def list_blocks(venue_id):
+    """The venue's blocks, earliest start first, or refuse 404 for an unknown venue."""
+    venue = get_venue(venue_id)
+    return (
+        db.session.query(VenueBlock)
+        .filter_by(venue_id=venue.id)
+        .order_by(VenueBlock.starts_at, VenueBlock.id)
+        .all()
+    )
+
+
+def create_block(venue_id, body, account):
+    """Block a venue for a period with a reason (SCRUM-40 AC1), or refuse.
+
+    Unknown venue → 404. Start date, start time, end date, end time and reason
+    are all required → 400 naming the field; the start must be before the end
+    → 400. Every check runs before anything is written, so a refusal records
+    nothing.
+    """
+    venue = get_venue(venue_id)
+    start_date = _required_text(body, "start_date", "Start date")
+    start_time = _required_text(body, "start_time", "Start time")
+    end_date = _required_text(body, "end_date", "End date")
+    end_time = _required_text(body, "end_time", "End time")
+    reason = _required_text(body, "reason", "Reason")
+
+    start = _date_time(start_date, start_time, "Start")
+    end = _date_time(end_date, end_time, "End")
+    # Equal is refused too: "the start must be before the end".
+    if end <= start:
+        raise ApiRefusal(400, "End must be after the start.")
+
+    block = VenueBlock(
+        venue=venue,
+        starts_at=start,
+        ends_at=end,
+        reason=reason,
+        created_by=account,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.session.add(block)
+    db.session.commit()
+    return block
+
+
+def _date_time(date_text, time_text, label):
+    """One end of a block as a naive local date-time; the date first, then the time."""
+    try:
+        day = datetime.strptime(date_text, DATE_FORMAT).date()
+    except ValueError:
+        raise ApiRefusal(400, f"{label} date must be a valid date.") from None
+    try:
+        moment = datetime.strptime(time_text, TIME_FORMAT).time()
+    except ValueError:
+        raise ApiRefusal(400, f"{label} time must be a 24-hour time, for example 09:00.") from None
+    return datetime.combine(day, moment)
+
+
+def block_to_dict(block):
+    """Public JSON for a block: its period and reason, and who recorded it when."""
+    return {
+        "id": block.id,
+        "venue_id": block.venue_id,
+        "start": block.starts_at.strftime(DATE_TIME_FORMAT),
+        "end": block.ends_at.strftime(DATE_TIME_FORMAT),
+        "reason": block.reason,
+        "created_by": block.created_by.username,
+        "created_at": block.created_at.isoformat(),
     }

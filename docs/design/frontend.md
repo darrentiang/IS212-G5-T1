@@ -8,6 +8,7 @@ How the React front end is built: folders, routing and the permission guard, the
 | 1.1 | 16-09-2026 | Home is the first permitted nav entry; `app/format.js` for dates, times and status text | `ui-guidelines.md` v1.1 |
 | 1.2 | 24-09-2026 | `index.css` holds the tokens and shared classes (§9, §10 check 10); `statusBadgeClass` in `app/format.js`; `app/HomePage.jsx` for an account that may open no page | UI refresh per `visual-style.md`; `ui-guidelines.md` v1.3 |
 | 1.3 | 25-09-2026 | `formatDateTime` in `app/format.js` | `ui-guidelines.md` v1.3 (SCRUM-29) |
+| 1.4 | 06-10-2026 | `formatDateTimePeriod` in `app/format.js` | `ui-guidelines.md` v1.5 (SCRUM-40) |
 
 ## 1. Folders
 
@@ -26,7 +27,7 @@ frontend/src/
     auth.jsx             account context from /api/me
     http.js              the only fetch: request() and ApiError
     home.js              homePathFor(account); imported by App.jsx only
-    format.js            formatDate, formatTime, formatPeriod, formatDateTime, STATUS, statusBadgeClass; the only shared functions
+    format.js            formatDate, formatTime, formatPeriod, formatDateTime, formatDateTimePeriod, STATUS, statusBadgeClass; the only shared functions
     HomePage.jsx         welcome page for an account that may open no page
     NotPermittedPage.jsx
     __tests__/
@@ -139,7 +140,7 @@ The story author commits this first and opens a draft pull request, so a Develop
 - Every `catch` puts the error on screen (banner or field). No empty `catch`, no `console.log` as error handling.
 - Success that moves to another page: `navigate(path, { state: { banner: 'Request submitted' } })`; the landing page shows `location.state?.banner` as its success banner.
 - Labels linked to inputs with `htmlFor` / `id`.
-- Dates, times and status words come from `app/format.js`: `formatDate(iso)` → `03 Oct 2026`, `formatTime('14:30')` → `14:30`, `formatPeriod(date, start, end)` → `03 Oct 2026, 14:30–16:00`, `formatDateTime('2026-10-03T14:30:00')` → `03 Oct 2026, 14:30`; `STATUS.SUBMITTED === 'Submitted'` and so on for every status in `state-model.md`, grouped per record (`STATUS.REQUEST`, `STATUS.BOOKING`, `STATUS.RESERVATION`, `STATUS.UNIT`, `STATUS.REGISTRATION`). A page never formats a date or types a status string itself.
+- Dates, times and status words come from `app/format.js`: `formatDate(iso)` → `03 Oct 2026`, `formatTime('14:30')` → `14:30`, `formatPeriod(date, start, end)` → `03 Oct 2026, 14:30–16:00`, `formatDateTime('2026-10-03T14:30:00')` → `03 Oct 2026, 14:30`, `formatDateTimePeriod('2026-10-20T09:00', '2026-10-21T18:00')` → `20 Oct 2026, 09:00 to 21 Oct 2026, 18:00`; `STATUS.SUBMITTED === 'Submitted'` and so on for every status in `state-model.md`, grouped per record (`STATUS.REQUEST`, `STATUS.BOOKING`, `STATUS.RESERVATION`, `STATUS.UNIT`, `STATUS.REGISTRATION`). A page never formats a date or types a status string itself.
 - While loading, a page renders its title row only (`ui-guidelines.md` §3): keep a `loading` state, initially true, cleared in `finally`.
 - An effect with no dependencies (`[]`) fetches once and needs no stale-response guard: there is no second fetch to race, and React ignores a state update on an unmounted component. An effect keyed to a route parameter (`[id]`) does need one (`let active = true`, `if (active)` in each callback, `active = false` in the cleanup), because a reply for the record the user has left can arrive after the current one. The guard is proved by a test that changes the id and resolves the first reply last.
 - A page reads the account with `const { can } = useAuth()`, with no fallback such as `?? {}` or `can?.()`: `App.jsx` always wraps the pages in `AuthProvider`. A test that renders a page reading the account stubs `useAuth`.

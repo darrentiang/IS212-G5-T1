@@ -8,7 +8,8 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | 1.1 | 16-09-2026 | Landing page by permission; page anatomy; loading; inline action forms, no modals; dates, times and status constants; notifications count | The first pages are about to be built by four Developers; these are the choices that would otherwise be made four ways |
 | 1.2 | 22-09-2026 | `/venues/new` and `/venues/:id` in §1; a checkbox group for several choices from a fixed list in §5 | SCRUM-31 adds the two pages, and picks facilities and accessibility features from seeded lists rather than free text |
 | 1.3 | 24-09-2026 | §12 Look: the visual style and the status-to-colour table; §1 a welcome home page for an account that may open no page | UI refresh: one shared look in `visual-style.md`; Technical Support Staff have no page yet and were landing on the not-permitted page |
- 1.4 | 25-09-2026 | A moment in time (`03 Oct 2026, 14:30`) in §9, formatted with `formatDateTime` | SCRUM-29 shows when a request was submitted and decided; the API sends those as ISO date-times in UTC |
+| 1.4 | 25-09-2026 | A moment in time (`03 Oct 2026, 14:30`) in §9, formatted with `formatDateTime` | SCRUM-29 shows when a request was submitted and decided; the API sends those as ISO date-times in UTC |
+| 1.5 | 06-10-2026 | §7 a list of related records on a detail page, and the venue page's Blocks section and inline block form test ids; §9 a period across two dates (`20 Oct 2026, 09:00 to 21 Oct 2026, 18:00`), formatted with `formatDateTimePeriod` | SCRUM-40 lists a venue's blocks on its page and lets Venue Staff block it for a period that may span days |
 
 ## 1. Pages
 
@@ -117,6 +118,21 @@ While the page is waiting for the API it renders the title row and nothing below
 | Status | `<page>-status` | `request-detail-status` |
 | Flag | `<page>-<flag>-flag` | `request-detail-clarification-flag` |
 
+**A list of related records on a detail page** (a venue's blocks) is a section under the fields with an `h2` and a table per §6. Its ids carry the record's name in place of the page's own list ids, so they cannot clash with the page's fields: `<page>-<record>-row-<id>`, one cell `<page>-<record>-<field>-<id>`, and `<page>-<records>-empty` when there are none.
+
+The venue page (`venue-detail`), SCRUM-40:
+
+| Element | `data-testid` |
+|---|---|
+| Block row | `venue-detail-block-row-<id>` |
+| Block period | `venue-detail-block-period-<id>` |
+| Block reason | `venue-detail-block-reason-<id>` |
+| No blocks | `venue-detail-blocks-empty` |
+| Block venue button (only with `venues.edit`) | `venue-detail-block-button` |
+| Inline form inputs | `venue-detail-block-start-date-input`, `venue-detail-block-start-time-input`, `venue-detail-block-end-date-input`, `venue-detail-block-end-time-input`, `venue-detail-block-reason-input` |
+| Message under an empty field | `venue-detail-block-<field>-error` (e.g. `venue-detail-block-reason-error`) |
+| Block (confirm) and Cancel buttons | `venue-detail-block-confirm-button`, `venue-detail-block-cancel-button` |
+
 ## 8. Not-permitted page
 
 - One sentence saying the account cannot open this page, and a link home (§1).
@@ -124,7 +140,7 @@ While the page is waiting for the API it renders the title row and nothing below
 
 ## 9. Dates, times and status text
 
-- Dates are shown as `03 Oct 2026`; times as `14:30` (24-hour). Date and time together: `03 Oct 2026, 14:30–16:00`. A moment something happened (submitted, decided): `03 Oct 2026, 14:30`, in UTC as the API sends it. The API sends ISO values; pages format them with `formatDate`, `formatTime`, `formatPeriod` and `formatDateTime` from `app/format.js` (`frontend.md` §7) and never by hand.
+- Dates are shown as `03 Oct 2026`; times as `14:30` (24-hour). Date and time together: `03 Oct 2026, 14:30–16:00`. A moment something happened (submitted, decided): `03 Oct 2026, 14:30`, in UTC as the API sends it. A period that may span days (a venue block): `20 Oct 2026, 09:00 to 21 Oct 2026, 18:00`, both ends in full even on the same day, in local time as entered. The API sends ISO values; pages format them with `formatDate`, `formatTime`, `formatPeriod`, `formatDateTime` and `formatDateTimePeriod` from `app/format.js` (`frontend.md` §7) and never by hand.
 - Status text is the `STATUS` constant from `app/format.js`, whose values are the exact words in `state-model.md`. Pages never type a status string.
 
 ## 10. Test ids, summary

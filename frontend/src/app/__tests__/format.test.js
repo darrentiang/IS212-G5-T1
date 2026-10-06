@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest'
-import { STATUS, formatDate, formatDateTime, formatPeriod, formatTime, statusBadgeClass } from '../format'
+import {
+  STATUS,
+  formatDate,
+  formatDateTime,
+  formatDateTimePeriod,
+  formatPeriod,
+  formatTime,
+  statusBadgeClass,
+} from '../format'
 
 describe('formatDate', () => {
   // @story: setup
@@ -57,6 +65,31 @@ describe('formatDateTime', () => {
   it('throws on a value that is not an ISO date and time', () => {
     expect(() => formatDateTime('2026-09-23')).toThrow(/Not an ISO date and time/)
     expect(() => formatDateTime(null)).toThrow(/Not an ISO date and time/)
+  })
+})
+
+describe('formatDateTimePeriod', () => {
+  // @story: SCRUM-40
+  // @ac: 2
+  it('shows a period across two dates as two date-times joined by "to"', () => {
+    expect(formatDateTimePeriod('2026-10-20T09:00', '2026-10-21T18:00')).toBe(
+      '20 Oct 2026, 09:00 to 21 Oct 2026, 18:00',
+    )
+  })
+
+  // @story: SCRUM-40
+  // @ac: 2
+  it('repeats the date when both ends fall on the same day', () => {
+    expect(formatDateTimePeriod('2026-10-20T10:00', '2026-10-20T10:01')).toBe(
+      '20 Oct 2026, 10:00 to 20 Oct 2026, 10:01',
+    )
+  })
+
+  // @story: SCRUM-40
+  // @ac: 2
+  it('throws when either end is not an ISO date and time', () => {
+    expect(() => formatDateTimePeriod('2026-10-20T09:00', '2026-10-21')).toThrow(/Not an ISO date and time/)
+    expect(() => formatDateTimePeriod('2026-10-20', '2026-10-21T18:00')).toThrow(/Not an ISO date and time/)
   })
 })
 
