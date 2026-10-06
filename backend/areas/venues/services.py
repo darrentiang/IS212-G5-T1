@@ -1,13 +1,16 @@
-"""Venue rules — SCRUM-31 (Add a Venue), SCRUM-40 (Block a Venue).
+"""Venue rules — SCRUM-31 (Add a Venue), SCRUM-40 (Block a Venue),
+SCRUM-79 (End or Remove a Venue Block).
 
 Every rule the acceptance criteria state lives here, next to the query, and
 refuses by raising ApiRefusal; the route never decides (ADR-002). Editing a
 venue is SCRUM-75, retiring one SCRUM-76 and room layouts SCRUM-32, so nothing
-here changes or removes a venue. Ending or removing a block is SCRUM-79.
+here changes or removes a venue. A block's own timing rules read the time only
+through clock.now_local().
 """
 
 from datetime import datetime, timezone
 
+import clock
 from db import db
 from errors import ApiRefusal
 from models import AccessibilityFeature, Facility, Venue, VenueBlock
@@ -16,6 +19,11 @@ DATE_FORMAT = "%Y-%m-%d"
 TIME_FORMAT = "%H:%M"
 # A block's start and end on the wire: '2026-10-20T09:00', naive local time.
 DATE_TIME_FORMAT = f"{DATE_FORMAT}T{TIME_FORMAT}"
+
+# A block's phase on the wire (SCRUM-79): derived from the time, never stored.
+PHASE_UPCOMING = "upcoming"
+PHASE_IN_PROGRESS = "in_progress"
+PHASE_ENDED = "ended"
 
 
 def list_venues():
@@ -192,8 +200,84 @@ def _date_time(date_text, time_text, label):
     return datetime.combine(day, moment)
 
 
+def get_block(venue_id, block_id):
+    """One block of the venue, or refuse 404 for an unknown venue or block.
+
+    A block that belongs to another venue is not found either: the address
+    names both, and they must agree.
+    """
+    venue = get_venue(venue_id)
+    block = db.session.get(VenueBlock, block_id)
+    if block is None or block.venue_id != venue.id:
+        raise ApiRefusal(404, "Block not found.")
+    return block
+
+
+def block_phase(block, now):
+    """Where now falls against the block's period (SCRUM-79).
+
+    Derived, never stored, and not a state-model status: the page uses it only
+    to decide which action to offer. The start is inside the block and the end
+    is not, so a block is in progress from its start up to, not including, its end.
+    """
+    if now < block.starts_at:
+        return PHASE_UPCOMING
+    if now < block.ends_at:
+        return PHASE_IN_PROGRESS
+    return PHASE_ENDED
+
+
+def remove_block(venue_id, block_id):
+    """Remove a block that has not started (SCRUM-79 AC1, AC3), or refuse.
+
+    Removing is a hard delete: release 1 keeps no action history (D-17).
+    """
+    block = get_block(venue_id, block_id)
+    phase = block_phase(block, clock.now_local())
+    if phase == PHASE_IN_PROGRESS:
+        raise ApiRefusal(400, "A block that has started cannot be removed; end it early instead.")
+    if phase == PHASE_ENDED:
+        raise ApiRefusal(400, "A block that has already ended cannot be removed.")
+    db.session.delete(block)
+    db.session.commit()
+
+
+def end_block(venue_id, block_id, body):
+    """End a block in progress at a new end time (SCRUM-79 AC2, AC3), or refuse.
+
+    The new end must be no earlier than now, after the start and before the
+    current end. Every check runs before anything is written, so a refusal
+    leaves the block unchanged. The time is read once, so the phase and the
+    "not earlier than now" rule agree.
+    """
+    block = get_block(venue_id, block_id)
+    now = clock.now_local()
+    phase = block_phase(block, now)
+    if phase == PHASE_UPCOMING:
+        raise ApiRefusal(400, "A block that has not started cannot be ended early; remove it instead.")
+    if phase == PHASE_ENDED:
+        raise ApiRefusal(400, "A block that has already ended cannot be ended.")
+
+    end_date = _required_text(body, "end_date", "New end date")
+    end_time = _required_text(body, "end_time", "New end time")
+    new_end = _date_time(end_date, end_time, "New end")
+    # Equal to now is allowed: "no earlier than the current time".
+    if new_end < now:
+        raise ApiRefusal(400, "New end cannot be earlier than the current time.")
+    if new_end <= block.starts_at:
+        raise ApiRefusal(400, "New end must be after the block's start.")
+    # Equal to the current end is refused: "before its original end".
+    if new_end >= block.ends_at:
+        raise ApiRefusal(400, "New end must be before the block's current end.")
+
+    block.ends_at = new_end
+    db.session.commit()
+    return block
+
+
 def block_to_dict(block):
-    """Public JSON for a block: its period and reason, and who recorded it when."""
+    """Public JSON for a block: its period and reason, who recorded it when,
+    and its phase now (SCRUM-79)."""
     return {
         "id": block.id,
         "venue_id": block.venue_id,
@@ -202,4 +286,5 @@ def block_to_dict(block):
         "reason": block.reason,
         "created_by": block.created_by.username,
         "created_at": block.created_at.isoformat(),
+        "phase": block_phase(block, clock.now_local()),
     }

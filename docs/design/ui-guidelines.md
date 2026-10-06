@@ -10,6 +10,7 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | 1.3 | 24-09-2026 | §12 Look: the visual style and the status-to-colour table; §1 a welcome home page for an account that may open no page | UI refresh: one shared look in `visual-style.md`; Technical Support Staff have no page yet and were landing on the not-permitted page |
 | 1.4 | 25-09-2026 | A moment in time (`03 Oct 2026, 14:30`) in §9, formatted with `formatDateTime` | SCRUM-29 shows when a request was submitted and decided; the API sends those as ISO date-times in UTC |
 | 1.5 | 06-10-2026 | §7 a list of related records on a detail page, and the venue page's Blocks section and inline block form test ids; §9 a period across two dates (`20 Oct 2026, 09:00 to 21 Oct 2026, 18:00`), formatted with `formatDateTimePeriod` | SCRUM-40 lists a venue's blocks on its page and lets Venue Staff block it for a period that may span days |
+| 1.6 | 06-10-2026 | §7 the venue page's per-block Remove and End early buttons and the inline end-block form's test ids | SCRUM-79 lets Venue Staff remove a block that has not started or end one in progress early |
 
 ## 1. Pages
 
@@ -132,6 +133,16 @@ The venue page (`venue-detail`), SCRUM-40:
 | Inline form inputs | `venue-detail-block-start-date-input`, `venue-detail-block-start-time-input`, `venue-detail-block-end-date-input`, `venue-detail-block-end-time-input`, `venue-detail-block-reason-input` |
 | Message under an empty field | `venue-detail-block-<field>-error` (e.g. `venue-detail-block-reason-error`) |
 | Block (confirm) and Cancel buttons | `venue-detail-block-confirm-button`, `venue-detail-block-cancel-button` |
+
+SCRUM-79 adds an action cell to each block row, only with `venues.edit`. Which action a block offers follows its `phase` from the API (not a status, so no badge): a block that has not started offers Remove, which acts at once; a block in progress offers End early, which opens an inline end-block form below the Blocks table (new end date and time, End and Cancel); a block that has ended offers neither. The end-block form and the block form are inline forms, so only one of them is open at a time.
+
+| Element | `data-testid` |
+|---|---|
+| Remove button (upcoming block, only with `venues.edit`) | `venue-detail-block-remove-button-<id>` |
+| End early button (block in progress, only with `venues.edit`) | `venue-detail-block-end-button-<id>` |
+| End-block form inputs | `venue-detail-end-block-end-date-input`, `venue-detail-end-block-end-time-input` |
+| Message under an empty field | `venue-detail-end-block-<field>-error` (e.g. `venue-detail-end-block-end-time-error`) |
+| End (confirm) and Cancel buttons | `venue-detail-end-block-confirm-button`, `venue-detail-end-block-cancel-button` |
 
 ## 8. Not-permitted page
 

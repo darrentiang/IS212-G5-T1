@@ -231,8 +231,9 @@ class VenueBlock(db.Model):
 
     starts_at and ends_at are naive local date-times, the same convention as an
     event request's date and times; created_at is UTC, like submitted_at. The
-    API keeps calling them "start" and "end". Ending or removing a block is
-    SCRUM-79, so nothing here changes one.
+    API keeps calling them "start" and "end". SCRUM-79 ends a block early by
+    overwriting ends_at, and removes one by deleting the row; no history is
+    kept (D-17).
     """
 
     __tablename__ = "venue_blocks"
