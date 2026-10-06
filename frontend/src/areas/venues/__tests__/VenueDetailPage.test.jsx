@@ -787,3 +787,305 @@ describe('VenueDetailPage blocks', () => {
     expect(screen.getByTestId('venue-detail-block-start-date-input')).toBeVisible()
   })
 })
+
+// SCRUM-79: one block in each phase, as the API derives it.
+const UPCOMING_BLOCK = {
+  ...BLOCK,
+  id: 11,
+  start: '2026-10-20T09:00',
+  end: '2026-10-20T18:00',
+  reason: 'Deep clean',
+  phase: 'upcoming',
+}
+const IN_PROGRESS_BLOCK = {
+  ...BLOCK,
+  id: 12,
+  start: '2026-10-06T09:00',
+  end: '2026-10-07T18:00',
+  reason: 'Lift repair',
+  phase: 'in_progress',
+}
+const ENDED_BLOCK = {
+  ...BLOCK,
+  id: 13,
+  start: '2026-10-05T09:00',
+  end: '2026-10-05T18:00',
+  reason: 'Inspection',
+  phase: 'ended',
+}
+
+async function openEndForm(blockId = 12) {
+  await userEvent.click(await screen.findByTestId(`venue-detail-block-end-button-${blockId}`))
+}
+
+async function fillEndForm(values) {
+  for (const [field, value] of Object.entries(values)) {
+    const input = screen.getByTestId(`venue-detail-end-block-${field.replaceAll('_', '-')}-input`)
+    await userEvent.clear(input)
+    if (value !== '') await userEvent.type(input, value)
+  }
+}
+
+describe('VenueDetailPage ending or removing a block', () => {
+  beforeEach(() => {
+    api.getVenue.mockResolvedValue(HALL_A)
+    api.listVenueBlocks.mockResolvedValue([ENDED_BLOCK, IN_PROGRESS_BLOCK, UPCOMING_BLOCK])
+  })
+
+  // @story: SCRUM-79
+  // @ac: 1, 2, 3
+  it('offers Remove only on an upcoming block, End early only on one in progress, and nothing on an ended one', async () => {
+    renderPage()
+
+    expect(await screen.findByTestId('venue-detail-block-remove-button-11')).toHaveTextContent('Remove')
+    expect(screen.queryByTestId('venue-detail-block-end-button-11')).not.toBeInTheDocument()
+    expect(screen.getByTestId('venue-detail-block-end-button-12')).toHaveTextContent('End early')
+    expect(screen.queryByTestId('venue-detail-block-remove-button-12')).not.toBeInTheDocument()
+    expect(screen.getByTestId('venue-detail-block-row-13')).toBeInTheDocument()
+    expect(screen.queryByTestId('venue-detail-block-remove-button-13')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('venue-detail-block-end-button-13')).not.toBeInTheDocument()
+  })
+
+  // @story: SCRUM-79
+  // @ac: 5
+  it('lists every block but offers neither action, nor an Actions column, without venues.edit', async () => {
+    signInWith(['venues.view'])
+
+    renderPage()
+
+    expect(await screen.findByTestId('venue-detail-block-row-11')).toBeInTheDocument()
+    expect(screen.getByTestId('venue-detail-block-row-12')).toBeInTheDocument()
+    expect(screen.queryByTestId(/^venue-detail-block-(remove|end)-button-/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('columnheader', { name: 'Actions' })).not.toBeInTheDocument()
+  })
+
+  // @story: SCRUM-79
+  // @ac: 1, 4
+  it('removes the block at once, drops its row and says Block removed', async () => {
+    api.removeVenueBlock.mockResolvedValue(null)
+    renderPage()
+
+    await userEvent.click(await screen.findByTestId('venue-detail-block-remove-button-11'))
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('venue-detail-block-row-11')).not.toBeInTheDocument()
+    })
+    expect(api.removeVenueBlock).toHaveBeenCalledWith('3', 11)
+    expect(screen.getByTestId('venue-detail-banner')).toHaveTextContent('Block removed')
+    expect(screen.getByTestId('venue-detail-banner')).toHaveAttribute('role', 'status')
+    expect(screen.getByTestId('venue-detail-block-row-12')).toBeInTheDocument()
+    expect(screen.getByTestId('venue-detail-block-row-13')).toBeInTheDocument()
+  })
+
+  // @story: SCRUM-79
+  // @ac: 3
+  it('shows the API refusal to remove in the banner and keeps the block listed', async () => {
+    const message = 'A block that has started cannot be removed; end it early instead.'
+    api.removeVenueBlock.mockRejectedValue(Object.assign(new Error(message), { status: 400 }))
+    renderPage()
+
+    await userEvent.click(await screen.findByTestId('venue-detail-block-remove-button-11'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('venue-detail-banner')).toHaveTextContent(message)
+    })
+    expect(screen.getByTestId('venue-detail-banner')).toHaveAttribute('role', 'alert')
+    expect(screen.getByTestId('venue-detail-block-row-11')).toBeInTheDocument()
+    expect(screen.getByTestId('venue-detail-block-remove-button-11')).toBeEnabled()
+  })
+
+  // @story: SCRUM-79
+  // @ac: 1
+  it('disables the actions while a removal is being sent', async () => {
+    api.removeVenueBlock.mockReturnValue(new Promise(() => {}))
+    renderPage()
+
+    await userEvent.click(await screen.findByTestId('venue-detail-block-remove-button-11'))
+
+    expect(screen.getByTestId('venue-detail-block-remove-button-11')).toBeDisabled()
+    expect(screen.getByTestId('venue-detail-block-end-button-12')).toBeDisabled()
+    expect(screen.getByTestId('venue-detail-block-button')).toBeDisabled()
+  })
+
+  // @story: SCRUM-79
+  // @ac: 2
+  it('opens an inline form for the block with a new end date and new end time, both required', async () => {
+    renderPage()
+
+    await openEndForm()
+
+    for (const [field, type, label] of [
+      ['end-date', 'date', 'New end date *'],
+      ['end-time', 'time', 'New end time *'],
+    ]) {
+      const input = screen.getByTestId(`venue-detail-end-block-${field}-input`)
+      expect(input).toHaveAttribute('type', type)
+      expect(input).toHaveAttribute('aria-required', 'true')
+      expect(input).toHaveValue('')
+      expect(screen.getByLabelText(label)).toBe(input)
+    }
+    // The form names the block being ended, its period per ui-guidelines.md §9.
+    expect(screen.getByText('06 Oct 2026, 09:00 to 07 Oct 2026, 18:00: Lift repair')).toBeInTheDocument()
+    expect(screen.getByTestId('venue-detail-end-block-confirm-button')).toHaveTextContent('End')
+    expect(screen.getByTestId('venue-detail-end-block-cancel-button')).toHaveTextContent('Cancel')
+  })
+
+  // @story: SCRUM-79
+  // @ac: 3
+  it('shows a message under each empty or blank field and sends nothing', async () => {
+    renderPage()
+    await openEndForm()
+
+    await fillEndForm({ end_time: '   ' })
+    await userEvent.click(screen.getByTestId('venue-detail-end-block-confirm-button'))
+
+    expect(screen.getByTestId('venue-detail-end-block-end-date-error')).toHaveTextContent('New end date is required')
+    expect(screen.getByTestId('venue-detail-end-block-end-time-error')).toHaveTextContent('New end time is required')
+    expect(api.endVenueBlock).not.toHaveBeenCalled()
+    expect(screen.queryByTestId('venue-detail-banner')).not.toBeInTheDocument()
+  })
+
+  // @story: SCRUM-79
+  // @ac: 3
+  it('shows a message only under the field left empty', async () => {
+    renderPage()
+    await openEndForm()
+
+    await fillEndForm({ end_date: '2026-10-07' })
+    await userEvent.click(screen.getByTestId('venue-detail-end-block-confirm-button'))
+
+    expect(screen.getByTestId('venue-detail-end-block-end-time-error')).toBeInTheDocument()
+    expect(screen.queryByTestId('venue-detail-end-block-end-date-error')).not.toBeInTheDocument()
+    expect(api.endVenueBlock).not.toHaveBeenCalled()
+  })
+
+  // @story: SCRUM-79
+  // @ac: 2
+  it('closes the form on Cancel without sending, and reopens it empty', async () => {
+    renderPage()
+    await openEndForm()
+    await fillEndForm({ end_date: '2026-10-07' })
+    await userEvent.click(screen.getByTestId('venue-detail-end-block-confirm-button'))
+
+    await userEvent.click(screen.getByTestId('venue-detail-end-block-cancel-button'))
+
+    expect(screen.queryByTestId('venue-detail-end-block-end-date-input')).not.toBeInTheDocument()
+    expect(api.endVenueBlock).not.toHaveBeenCalled()
+    await openEndForm()
+    expect(screen.getByTestId('venue-detail-end-block-end-date-input')).toHaveValue('')
+    expect(screen.queryByTestId('venue-detail-end-block-end-time-error')).not.toBeInTheDocument()
+  })
+
+  // @story: SCRUM-79
+  // @ac: 2, 4
+  it('sends the new end entered, shows the shortened block in its place and says Block ended', async () => {
+    api.endVenueBlock.mockResolvedValue({ ...IN_PROGRESS_BLOCK, end: '2026-10-06T17:30' })
+    renderPage()
+    await openEndForm()
+
+    await fillEndForm({ end_date: '2026-10-06', end_time: '17:30' })
+    await userEvent.click(screen.getByTestId('venue-detail-end-block-confirm-button'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('venue-detail-block-period-12')).toHaveTextContent(
+        '06 Oct 2026, 09:00 to 06 Oct 2026, 17:30',
+      )
+    })
+    expect(api.endVenueBlock).toHaveBeenCalledWith('3', 12, { end_date: '2026-10-06', end_time: '17:30' })
+    expect(screen.getByTestId('venue-detail-banner')).toHaveTextContent('Block ended')
+    expect(screen.getByTestId('venue-detail-banner')).toHaveAttribute('role', 'status')
+    expect(screen.queryByTestId('venue-detail-end-block-confirm-button')).not.toBeInTheDocument()
+    const order = screen
+      .getAllByTestId(/^venue-detail-block-row-/)
+      .map((row) => row.getAttribute('data-testid'))
+    expect(order).toEqual(['venue-detail-block-row-13', 'venue-detail-block-row-12', 'venue-detail-block-row-11'])
+  })
+
+  // @story: SCRUM-79
+  // @ac: 3
+  it('shows the API refusal to end in the banner, keeps the form open and the block unchanged', async () => {
+    const message = "New end must be before the block's current end."
+    api.endVenueBlock.mockRejectedValue(Object.assign(new Error(message), { status: 400 }))
+    renderPage()
+    await openEndForm()
+
+    await fillEndForm({ end_date: '2026-10-07', end_time: '18:00' })
+    await userEvent.click(screen.getByTestId('venue-detail-end-block-confirm-button'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('venue-detail-banner')).toHaveTextContent(message)
+    })
+    expect(screen.getByTestId('venue-detail-banner')).toHaveAttribute('role', 'alert')
+    expect(screen.getByTestId('venue-detail-end-block-confirm-button')).toBeEnabled()
+    expect(screen.getByTestId('venue-detail-block-period-12')).toHaveTextContent(
+      '06 Oct 2026, 09:00 to 07 Oct 2026, 18:00',
+    )
+  })
+
+  // @story: SCRUM-79
+  // @ac: 2
+  it('disables the form buttons while the new end is being sent', async () => {
+    api.endVenueBlock.mockReturnValue(new Promise(() => {}))
+    renderPage()
+    await openEndForm()
+
+    await fillEndForm({ end_date: '2026-10-06', end_time: '17:30' })
+    await userEvent.click(screen.getByTestId('venue-detail-end-block-confirm-button'))
+
+    expect(screen.getByTestId('venue-detail-end-block-confirm-button')).toBeDisabled()
+    expect(screen.getByTestId('venue-detail-end-block-cancel-button')).toBeDisabled()
+    expect(screen.getByTestId('venue-detail-block-remove-button-11')).toBeDisabled()
+  })
+
+  // @story: SCRUM-79
+  // @ac: 2
+  it('keeps one inline form open at a time: End early closes Block venue, and Block venue closes End early', async () => {
+    renderPage()
+
+    await openBlockForm()
+    await openEndForm()
+
+    expect(screen.getByTestId('venue-detail-end-block-end-date-input')).toBeInTheDocument()
+    expect(screen.queryByTestId('venue-detail-block-reason-input')).not.toBeInTheDocument()
+
+    await openBlockForm()
+
+    expect(screen.getByTestId('venue-detail-block-reason-input')).toBeInTheDocument()
+    expect(screen.queryByTestId('venue-detail-end-block-end-date-input')).not.toBeInTheDocument()
+  })
+
+  // @story: SCRUM-79
+  // @ac: 2
+  it('keeps one of the three inline forms open: opening Update venue, Block venue or End early closes the other two', async () => {
+    // One input that only each form has, and the button that opens it.
+    const FORMS = {
+      update: { input: 'venue-detail-update-name-input', open: () => userEvent.click(screen.getByTestId('venue-detail-update-button')) },
+      block: { input: 'venue-detail-block-reason-input', open: () => openBlockForm() },
+      end: { input: 'venue-detail-end-block-end-date-input', open: () => openEndForm() },
+    }
+    const openForms = () =>
+      Object.entries(FORMS)
+        .filter(([, form]) => screen.queryByTestId(form.input))
+        .map(([name]) => name)
+    renderPage()
+    await screen.findByTestId('venue-detail-block-end-button-12')
+
+    // Every ordered pair once: update→block, block→end, end→update,
+    // update→end, end→block, block→update.
+    for (const name of ['update', 'block', 'end', 'update', 'end', 'block', 'update']) {
+      await FORMS[name].open()
+      expect(openForms()).toEqual([name])
+    }
+  })
+
+  // @story: SCRUM-79
+  // @ac: 2
+  it('clears the banner when the End early form is opened', async () => {
+    renderPage({ banner: 'Venue added' })
+    expect(await screen.findByTestId('venue-detail-banner')).toHaveTextContent('Venue added')
+
+    await openEndForm()
+
+    expect(screen.queryByTestId('venue-detail-banner')).not.toBeInTheDocument()
+  })
+})

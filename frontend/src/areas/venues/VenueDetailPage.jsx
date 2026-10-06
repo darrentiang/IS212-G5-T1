@@ -2,7 +2,15 @@ import { useEffect, useState } from 'react'
 import { Link, useLocation, useParams } from 'react-router'
 import { useAuth } from '../../app/auth'
 import { formatDateTimePeriod, formatTime } from '../../app/format'
-import { blockVenue, getVenue, getVenueOptions, listVenueBlocks, updateVenue } from './api'
+import {
+  blockVenue,
+  endVenueBlock,
+  getVenue,
+  getVenueOptions,
+  listVenueBlocks,
+  removeVenueBlock,
+  updateVenue,
+} from './api'
 
 // Operating hours are two values, each through formatTime: format.js has no
 // function for a time range without a date (docs/design/ui-guidelines.md §9).
@@ -21,6 +29,19 @@ const BLOCK_FIELDS = [
 
 const EMPTY_BLOCK = Object.fromEntries(BLOCK_FIELDS.map((field) => [field.name, '']))
 
+// SCRUM-79: the end-early form's fields; test ids venue-detail-end-block-<field>-input.
+const END_FIELDS = [
+  { name: 'end_date', label: 'New end date', type: 'date' },
+  { name: 'end_time', label: 'New end time', type: 'time' },
+]
+
+const EMPTY_END = Object.fromEntries(END_FIELDS.map((field) => [field.name, '']))
+
+// The block's phase as the API sends it (api.js). Not a status: it only
+// decides which action a row offers.
+const UPCOMING = 'upcoming'
+const IN_PROGRESS = 'in_progress'
+
 const kebab = (name) => name.replaceAll('_', '-')
 const optionKebab = (value) => value.toLowerCase().replaceAll(' ', '-')
 
@@ -32,6 +53,8 @@ const byStartThenId = (a, b) => a.start.localeCompare(b.start) || a.id - b.id
 // SCRUM-40: the venue's blocks, and for Venue Staff an inline form to block
 // it for a period with a reason (ui-guidelines.md §7).
 // SCRUM-75: an inline form for Venue Staff to update the venue's details.
+// SCRUM-79: for Venue Staff, Remove on a block that has not started and End
+// early, an inline form for a new end, on a block in progress.
 export default function VenueDetailPage() {
   const { id } = useParams()
   const routerLocation = useLocation()
@@ -43,10 +66,12 @@ export default function VenueDetailPage() {
   // The success banner shows on the page the user lands on after saving
   // (docs/design/ui-guidelines.md §4), and after blocking or updating the venue here.
   const [success, setSuccess] = useState(routerLocation.state?.banner ?? null)
-  const [blockOpen, setBlockOpen] = useState(false)
+  // The inline form that is open: 'update', 'block', 'end' (End early on the
+  // block endingId) or null. One value, so opening any one of the three closes
+  // the other two (ui-guidelines.md §7).
+  const [openForm, setOpenForm] = useState(null)
   const [blockValues, setBlockValues] = useState(EMPTY_BLOCK)
   const [blockErrors, setBlockErrors] = useState({})
-  const [updateOpen, setUpdateOpen] = useState(false)
   const [updateValues, setUpdateValues] = useState({
     name: '',
     location: '',
@@ -58,6 +83,9 @@ export default function VenueDetailPage() {
   })
   const [updateErrors, setUpdateErrors] = useState({})
   const [options, setOptions] = useState({ facilities: [], accessibility_features: [] })
+  const [endingId, setEndingId] = useState(null)
+  const [endValues, setEndValues] = useState(EMPTY_END)
+  const [endErrors, setEndErrors] = useState({})
   const [submitting, setSubmitting] = useState(false)
 
   const canBlock = can('venues.edit')
@@ -105,8 +133,7 @@ export default function VenueDetailPage() {
   }, [canBlock])
 
   const openBlock = () => {
-    setBlockOpen(true)
-    setUpdateOpen(false)
+    setOpenForm('block')
     setBlockValues(EMPTY_BLOCK)
     setBlockErrors({})
     setBanner(null)
@@ -114,13 +141,12 @@ export default function VenueDetailPage() {
   }
 
   const closeBlock = () => {
-    setBlockOpen(false)
+    setOpenForm(null)
     setBlockErrors({})
   }
 
   const openUpdate = () => {
-    setUpdateOpen(true)
-    setBlockOpen(false)
+    setOpenForm('update')
     setUpdateValues({
       name: row.name,
       location: row.location,
@@ -136,7 +162,7 @@ export default function VenueDetailPage() {
   }
 
   const closeUpdate = () => {
-    setUpdateOpen(false)
+    setOpenForm(null)
     setUpdateErrors({})
   }
 
@@ -163,7 +189,7 @@ export default function VenueDetailPage() {
         accessibility_features: updateValues.accessibility_features,
       })
       setRow(updated)
-      setUpdateOpen(false)
+      setOpenForm(null)
       setSuccess('Venue updated')
     } catch (error) {
       setBanner(error.message)
@@ -171,6 +197,68 @@ export default function VenueDetailPage() {
       setSubmitting(false)
     }
   }
+
+  const openEnd = (block) => {
+    setOpenForm('end')
+    setEndingId(block.id)
+    setEndValues(EMPTY_END)
+    setEndErrors({})
+    setBanner(null)
+    setSuccess(null)
+  }
+
+  const closeEnd = () => {
+    setOpenForm(null)
+    setEndErrors({})
+  }
+
+  // Remove acts at once: the criteria ask for no confirmation. Whether the
+  // block may still be removed is the API's rule; a refusal shows in the banner.
+  const handleRemove = async (block) => {
+    setBanner(null)
+    setSuccess(null)
+    setSubmitting(true)
+    try {
+      await removeVenueBlock(id, block.id)
+      setBlocks((current) => current.filter((other) => other.id !== block.id))
+      setSuccess('Block removed')
+    } catch (error) {
+      setBanner(error.message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  // As for the block form, the page checks only that the fields are filled;
+  // the time rules are the API's (ui-guidelines.md §5).
+  const handleEnd = async (event) => {
+    event.preventDefault()
+    setBanner(null)
+    setSuccess(null)
+    const errors = {}
+    for (const field of END_FIELDS) {
+      if (!endValues[field.name].trim()) errors[field.name] = `${field.label} is required`
+    }
+    setEndErrors(errors)
+    if (Object.keys(errors).length > 0) return
+
+    setSubmitting(true)
+    try {
+      const updated = await endVenueBlock(id, endingId, endValues)
+      // The start is unchanged, so the row keeps its place; sorting keeps the API's order regardless.
+      setBlocks((current) =>
+        current.map((other) => (other.id === updated.id ? updated : other)).sort(byStartThenId),
+      )
+      setOpenForm(null)
+      setSuccess('Block ended')
+    } catch (error) {
+      setBanner(error.message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const ending = openForm === 'end' ? blocks.find((block) => block.id === endingId) : undefined
 
   // The page checks only that each field is filled; every other rule is the
   // API's and shows in the banner (ui-guidelines.md §5).
@@ -190,7 +278,7 @@ export default function VenueDetailPage() {
       const created = await blockVenue(id, blockValues)
       // Inserted in the API's order, so the new row does not move on reload.
       setBlocks((current) => [...current, created].sort(byStartThenId))
-      setBlockOpen(false)
+      setOpenForm(null)
       setSuccess('Venue blocked')
     } catch (error) {
       setBanner(error.message)
@@ -282,7 +370,7 @@ export default function VenueDetailPage() {
             </div>
           )}
 
-          {updateOpen && (
+          {openForm === 'update' && (
             <form onSubmit={handleUpdate} noValidate className="card form-card space-y-4">
               <h2 className="section-title">Update venue</h2>
               <div className="grid gap-4 md:grid-cols-2">
@@ -451,7 +539,7 @@ export default function VenueDetailPage() {
             </form>
           )}
 
-          {blockOpen && (
+          {openForm === 'block' && (
             <form onSubmit={handleBlock} noValidate className="card form-card space-y-4">
               <h2 className="section-title">Block venue</h2>
               <div className="grid gap-4 md:grid-cols-2">
@@ -523,6 +611,7 @@ export default function VenueDetailPage() {
                       <tr>
                         <th>Period</th>
                         <th>Reason</th>
+                        {canBlock && <th>Actions</th>}
                       </tr>
                     </thead>
                     <tbody>
@@ -534,12 +623,94 @@ export default function VenueDetailPage() {
                           <td className="whitespace-pre-wrap" data-testid={`venue-detail-block-reason-${block.id}`}>
                             {block.reason}
                           </td>
+                          {canBlock && (
+                            <td>
+                              {block.phase === UPCOMING && (
+                                <button
+                                  type="button"
+                                  disabled={submitting}
+                                  onClick={() => handleRemove(block)}
+                                  className="btn btn-secondary"
+                                  data-testid={`venue-detail-block-remove-button-${block.id}`}
+                                >
+                                  Remove
+                                </button>
+                              )}
+                              {block.phase === IN_PROGRESS && (
+                                <button
+                                  type="button"
+                                  disabled={submitting}
+                                  onClick={() => openEnd(block)}
+                                  className="btn btn-secondary"
+                                  data-testid={`venue-detail-block-end-button-${block.id}`}
+                                >
+                                  End early
+                                </button>
+                              )}
+                            </td>
+                          )}
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
               </div>
+            )}
+
+            {ending && (
+              <form onSubmit={handleEnd} noValidate className="card form-card space-y-4">
+                <h2 className="section-title">End block early</h2>
+                <p className="subtitle">
+                  {formatDateTimePeriod(ending.start, ending.end)}: {ending.reason}
+                </p>
+                <div className="grid gap-4 md:grid-cols-2">
+                  {END_FIELDS.map((field) => {
+                    const inputId = `venue-detail-end-block-${kebab(field.name)}`
+                    return (
+                      <div key={field.name}>
+                        <label htmlFor={inputId} className="label">
+                          {field.label} *
+                        </label>
+                        <input
+                          type={field.type}
+                          id={inputId}
+                          value={endValues[field.name]}
+                          onChange={(changed) =>
+                            setEndValues((current) => ({ ...current, [field.name]: changed.target.value }))
+                          }
+                          aria-required="true"
+                          className="input"
+                          data-testid={`${inputId}-input`}
+                        />
+                        {endErrors[field.name] && (
+                          <p className="field-error" data-testid={`${inputId}-error`}>
+                            {endErrors[field.name]}
+                          </p>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+                <div className="flex flex-wrap justify-end gap-2">
+                  <button
+                    type="button"
+                    disabled={submitting}
+                    onClick={closeEnd}
+                    className="btn btn-secondary"
+                    data-testid="venue-detail-end-block-cancel-button"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="btn btn-primary"
+                    data-testid="venue-detail-end-block-confirm-button"
+                  >
+                    End
+                  </button>
+                </div>
+              </form>
             )}
           </section>
         </>
