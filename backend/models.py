@@ -2,8 +2,8 @@
 
 SCRUM-26: accounts and roles. SCRUM-27: event requests for role-based
 read access. SCRUM-28: event request creation and submission. SCRUM-31:
-venues with their facilities and accessibility features. No permission
-logic here — see backend/permissions.py.
+venues with their facilities and accessibility features. SCRUM-40: venue
+blocks. No permission logic here — see backend/permissions.py.
 """
 
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -14,7 +14,8 @@ from db import db
 # start when the stored version differs; seed.py --reset rebuilds the database.
 # SCRUM-28 added event request columns; SCRUM-31 added venues and the two
 # fixed lists they choose from. SCRUM-29 added the approve/reject decision.
-SCHEMA_VERSION = 5
+# SCRUM-40 added venue blocks.
+SCHEMA_VERSION = 6
 
 
 account_roles = db.Table(
@@ -223,6 +224,31 @@ class Venue(db.Model):
 
     def __repr__(self):
         return f"<Venue {self.id} {self.name}>"
+
+
+class VenueBlock(db.Model):
+    """A period Venue Staff have blocked a venue for an operational reason (SCRUM-40).
+
+    start and end are naive local date-times, the same convention as an event
+    request's date and times; created_at is UTC, like submitted_at. Ending or
+    removing a block is SCRUM-79, so nothing here changes one.
+    """
+
+    __tablename__ = "venue_blocks"
+
+    id = db.Column(db.Integer, primary_key=True)
+    venue_id = db.Column(db.Integer, db.ForeignKey("venues.id"), nullable=False)
+    start = db.Column(db.DateTime, nullable=False)
+    end = db.Column(db.DateTime, nullable=False)
+    reason = db.Column(db.Text, nullable=False)
+    created_by_id = db.Column(db.Integer, db.ForeignKey("accounts.id"), nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False)
+
+    venue = db.relationship("Venue", backref="blocks")
+    created_by = db.relationship("Account")
+
+    def __repr__(self):
+        return f"<VenueBlock {self.id} venue {self.venue_id}>"
 
 
 class SchemaMeta(db.Model):

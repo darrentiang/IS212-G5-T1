@@ -59,6 +59,13 @@ export function formatDateTime(iso) {
   return `${formatDate(parts[1])}, ${formatTime(parts[2])}`
 }
 
+// '2026-10-20T09:00', '2026-10-21T18:00' -> '20 Oct 2026, 09:00 to 21 Oct 2026, 18:00'.
+// A period that may span days (a venue block). Both ends are shown in full,
+// even on the same day, and as sent, with no time zone conversion.
+export function formatDateTimePeriod(start, end) {
+  return `${formatDateTime(start)} to ${formatDateTime(end)}`
+}
+
 // Upper snake case of the value: 'Out of Service' -> OUT_OF_SERVICE.
 const group = (values) =>
   Object.freeze(
