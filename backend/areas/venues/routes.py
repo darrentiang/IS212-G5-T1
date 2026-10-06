@@ -2,12 +2,12 @@
 
 SCRUM-31: list, detail, the two fixed lists the form offers, and add a venue.
 SCRUM-40: list a venue's blocks and block a venue.
+SCRUM-75: update a venue.
 SCRUM-79: remove a block that has not started, or end one in progress early.
 Seeing venues and their blocks is venues.view (Event Coordinator and Venue
-Staff); adding a venue, blocking one, and ending or removing a block is
-venues.edit (Venue Staff only) —
-docs/design/permissions.md. Rules are in
-services.py; the contract is frontend/src/areas/venues/api.js.
+Staff); adding a venue, updating one, blocking one, and ending or removing a
+block is venues.edit (Venue Staff only) — docs/design/permissions.md. Rules are
+in services.py; the contract is frontend/src/areas/venues/api.js.
 """
 
 from flask import Blueprint, g, jsonify, request
@@ -42,6 +42,14 @@ def create_venue():
     body = request.get_json(silent=True) or {}
     venue = services.create_venue(body)
     return jsonify(services.venue_to_dict(venue)), 201
+
+
+@bp.put("/venues/<int:venue_id>")
+@require(VENUES_EDIT)
+def update_venue(venue_id):
+    body = request.get_json(silent=True) or {}
+    venue = services.update_venue(venue_id, body)
+    return jsonify(services.venue_to_dict(venue)), 200
 
 
 @bp.get("/venues/<int:venue_id>/blocks")

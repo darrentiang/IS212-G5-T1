@@ -21,6 +21,12 @@ export const getVenueOptions = () => request('GET', '/api/venue-options')
 // 400/403: { message }
 export const createVenue = (data) => request('POST', '/api/venues', data)
 
+// PUT /api/venues/:id
+// body:    { name, location, max_capacity, opening_time, closing_time, facilities, accessibility_features }
+// 200:     the updated venue
+// 400/403/404: { message }
+export const updateVenue = (id, data) => request('PUT', `/api/venues/${id}`, data)
+
 // GET /api/venues/:id/blocks
 // 200:     [ { id, venue_id, start, end, reason, created_by, created_at, phase } ]   start/end '2026-10-20T09:00', local time
 //          phase: 'upcoming' | 'in_progress' | 'ended', derived by the API from the current Singapore time

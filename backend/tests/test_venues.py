@@ -1,12 +1,13 @@
-"""Venue rules — SCRUM-31 (Add a Venue).
+"""Venue rules — SCRUM-31 (Add a Venue), SCRUM-75 (Update a Venue).
 
-The acceptance criteria as rules at the API: who may add a venue, which fields
-are required, and that the maximum capacity is a positive whole number. The
-browser journeys are the Playwright spec's (functional/tests/SCRUM-31.spec.js).
+The acceptance criteria as rules at the API: who may add or update a venue,
+which fields are required, and that the maximum capacity is a positive whole
+number. The browser journeys are the Playwright specs.
 """
 
 from datetime import time
 
+import pytest
 from db import db
 from models import AccessibilityFeature, Account, Facility, Venue
 from permissions import VENUES_EDIT, VENUES_VIEW, can
@@ -341,3 +342,289 @@ def test_the_two_fixed_lists_name_themselves_in_a_log_line(app):
 
     assert repr(facility) == "<Facility Projector>"
     assert repr(feature) == "<AccessibilityFeature Hearing loop>"
+
+
+def put_venue(client, venue_id=1, **overrides):
+    body = dict(VALID)
+    body.update(overrides)
+    return client.put(f"/api/venues/{venue_id}", json=body)
+
+
+# @story: SCRUM-75
+# @ac: 1, 3, 5
+def test_venue_staff_update_every_field(client):
+    login(client, "venue1")
+    resp = put_venue(
+        client,
+        venue_id=1,
+        name="Updated Name",
+        location="Block Z Level 9",
+        max_capacity=500,
+        opening_time="07:00",
+        closing_time="23:00",
+        facilities=["Sound system", "Wi-Fi"],
+        accessibility_features=["Lift access", "Accessible toilet"],
+    )
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert body["name"] == "Updated Name"
+    assert body["location"] == "Block Z Level 9"
+    assert body["max_capacity"] == 500
+    assert body["opening_time"] == "07:00"
+    assert body["closing_time"] == "23:00"
+    assert sorted(body["facilities"]) == ["Sound system", "Wi-Fi"]
+    assert sorted(body["accessibility_features"]) == ["Accessible toilet", "Lift access"]
+
+
+# @story: SCRUM-75
+# @ac: 1, 5
+def test_updated_venue_persists_in_database(app, client):
+    login(client, "venue1")
+    put_venue(
+        client,
+        venue_id=1,
+        name="Persisted Venue",
+        location="Block X",
+        max_capacity=150,
+        opening_time="06:30",
+        closing_time="21:30",
+        facilities=["Wi-Fi"],
+        accessibility_features=["Step-free access"],
+    )
+    with app.app_context():
+        venue = db.session.get(Venue, 1)
+        assert venue.name == "Persisted Venue"
+        assert venue.location == "Block X"
+        assert venue.max_capacity == 150
+        assert venue.opening_time == time(6, 30)
+        assert venue.closing_time == time(21, 30)
+        assert [f.name for f in venue.facilities] == ["Wi-Fi"]
+        assert [a.name for a in venue.accessibility_features] == ["Step-free access"]
+
+
+# @story: SCRUM-75
+# @ac: 1, 2, 5
+def test_optional_hours_and_lists_can_be_cleared(app, client):
+    login(client, "venue1")
+    resp = put_venue(
+        client,
+        venue_id=1,
+        name="Cleared Venue",
+        location="Block A",
+        max_capacity=100,
+        opening_time="",
+        closing_time=None,
+        facilities=[],
+        accessibility_features=[],
+    )
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert body["opening_time"] is None
+    assert body["closing_time"] is None
+    assert body["facilities"] == []
+    assert body["accessibility_features"] == []
+
+    with app.app_context():
+        venue = db.session.get(Venue, 1)
+        assert venue.opening_time is None
+        assert venue.closing_time is None
+        assert venue.facilities == []
+        assert venue.accessibility_features == []
+
+
+# @story: SCRUM-75
+# @ac: 1, 5
+def test_updating_one_field_preserves_other_supplied_values(client):
+    login(client, "venue1")
+    resp = put_venue(
+        client,
+        venue_id=1,
+        name="Renamed Only",
+        location="Block B Level 3",
+        max_capacity=250,
+        opening_time="08:00",
+        closing_time="22:00",
+        facilities=["Projector", "Stage lighting"],
+        accessibility_features=["Step-free access", "Hearing loop"],
+    )
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert body["name"] == "Renamed Only"
+    assert body["location"] == "Block B Level 3"
+    assert body["max_capacity"] == 250
+    assert body["opening_time"] == "08:00"
+    assert body["closing_time"] == "22:00"
+    assert body["facilities"] == ["Projector", "Stage lighting"]
+    assert body["accessibility_features"] == ["Step-free access", "Hearing loop"]
+
+
+# @story: SCRUM-75
+# @ac: 2, 3, 4
+@pytest.mark.parametrize(
+    "field,value,message",
+    [
+        ("name", "", "Name is required."),
+        ("name", "   ", "Name is required."),
+        ("name", None, "Name is required."),
+        ("location", "", "Location is required."),
+        ("location", "   ", "Location is required."),
+        ("location", None, "Location is required."),
+        ("max_capacity", "", "Maximum capacity is required."),
+        ("max_capacity", "   ", "Maximum capacity is required."),
+        ("max_capacity", None, "Maximum capacity is required."),
+    ],
+)
+def test_required_fields_cannot_be_blank_or_whitespace_on_update(client, field, value, message):
+    login(client, "venue1")
+    resp = put_venue(client, venue_id=1, **{field: value})
+    assert resp.status_code == 400
+    assert resp.get_json()["message"] == message
+
+
+# @story: SCRUM-75
+# @ac: 3, 4
+@pytest.mark.parametrize(
+    "invalid_capacity",
+    [0, -1, -50, 50.5, "50.5", "0", "-5", "fifty", "abc"],
+)
+def test_invalid_max_capacity_is_refused_on_update(client, invalid_capacity):
+    login(client, "venue1")
+    resp = put_venue(client, venue_id=1, max_capacity=invalid_capacity)
+    assert resp.status_code == 400
+    assert resp.get_json()["message"] == "Maximum capacity must be a positive whole number."
+
+
+# @story: SCRUM-75
+# @ac: 3, 5
+@pytest.mark.parametrize("valid_capacity", [1, 2])
+def test_boundary_capacities_accepted_on_update(client, valid_capacity):
+    login(client, "venue1")
+    resp = put_venue(client, venue_id=1, max_capacity=valid_capacity)
+    assert resp.status_code == 200
+    assert resp.get_json()["max_capacity"] == valid_capacity
+
+
+# @story: SCRUM-75
+# @ac: 3, 4
+@pytest.mark.parametrize(
+    "field,invalid_time,label",
+    [
+        ("opening_time", "24:00", "Opening time"),
+        ("opening_time", "09:60", "Opening time"),
+        ("opening_time", "morning", "Opening time"),
+        ("closing_time", "25:00", "Closing time"),
+        ("closing_time", "18:61", "Closing time"),
+        ("closing_time", "night", "Closing time"),
+    ],
+)
+def test_malformed_time_is_refused_on_update(client, field, invalid_time, label):
+    login(client, "venue1")
+    resp = put_venue(client, venue_id=1, **{field: invalid_time})
+    assert resp.status_code == 400
+    assert resp.get_json()["message"] == f"{label} must be a 24-hour time, for example 08:00."
+
+
+# @story: SCRUM-75
+# @ac: 3, 4
+def test_unknown_facility_or_accessibility_is_refused_on_update(client):
+    login(client, "venue1")
+    resp = put_venue(client, venue_id=1, facilities=["Nonexistent Facility"])
+    assert resp.status_code == 400
+    assert resp.get_json()["message"] == "Choose each facility from the list."
+
+    resp = put_venue(client, venue_id=1, accessibility_features=["Nonexistent Feature"])
+    assert resp.status_code == 400
+    assert resp.get_json()["message"] == "Choose each accessibility feature from the list."
+
+
+# @story: SCRUM-75
+# @ac: 4
+def test_failed_update_is_atomic_and_leaves_database_unchanged(app, client):
+    login(client, "venue1")
+    orig_name = "Seminar Room 1"
+    orig_cap = 60
+
+    resp = put_venue(client, venue_id=1, name="New Name", max_capacity=0)
+    assert resp.status_code == 400
+
+    with app.app_context():
+        venue = db.session.get(Venue, 1)
+        assert venue.name == orig_name
+        assert venue.max_capacity == orig_cap
+
+
+# @story: SCRUM-75
+# @ac: 6
+def test_unauthorised_account_receives_403_and_cannot_update(app, client):
+    login(client, "coord1")
+    resp = put_venue(client, venue_id=1, name="Hacked Name")
+    assert resp.status_code == 403
+    assert resp.get_json()["message"] == "You do not have permission to perform this action."
+
+    with app.app_context():
+        venue = db.session.get(Venue, 1)
+        assert venue.name == "Seminar Room 1"
+
+
+# @story: SCRUM-75
+# @ac: 6
+def test_multi_role_account_with_venue_staff_can_update(client):
+    login(client, "multi1")
+    resp = put_venue(client, venue_id=1, name="Multi1 Updated")
+    assert resp.status_code == 200
+    assert resp.get_json()["name"] == "Multi1 Updated"
+
+
+# @story: SCRUM-75
+# @ac: 4
+def test_update_nonexistent_venue_returns_404(client):
+    login(client, "venue1")
+    resp = put_venue(client, venue_id=99999)
+    assert resp.status_code == 404
+    assert resp.get_json()["message"] == "Venue not found."
+
+
+# @story: SCRUM-75
+# @ac: 1, 5
+def test_existing_venue_blocks_remain_intact_after_update(app, client):
+    login(client, "venue1")
+    block_resp = client.post(
+        "/api/venues/1/blocks",
+        json={
+            "start_date": "2026-11-01",
+            "start_time": "09:00",
+            "end_date": "2026-11-01",
+            "end_time": "12:00",
+            "reason": "Maintenance",
+        },
+    )
+    assert block_resp.status_code == 201
+    block_id = block_resp.get_json()["id"]
+
+    update_resp = put_venue(client, venue_id=1, name="Venue With Block Updated")
+    assert update_resp.status_code == 200
+
+    blocks_resp = client.get("/api/venues/1/blocks")
+    assert blocks_resp.status_code == 200
+    blocks = blocks_resp.get_json()
+    assert any(b["id"] == block_id and b["reason"] == "Maintenance" for b in blocks)
+
+
+# @story: SCRUM-75
+# @ac: 5
+def test_subsequent_list_and_detail_reads_return_updated_information(client):
+    login(client, "venue1")
+    put_venue(client, venue_id=1, name="New Name In List", location="New Location In List")
+
+    detail_resp = client.get("/api/venues/1")
+    assert detail_resp.status_code == 200
+    assert detail_resp.get_json()["name"] == "New Name In List"
+    assert detail_resp.get_json()["location"] == "New Location In List"
+
+    list_resp = client.get("/api/venues")
+    assert list_resp.status_code == 200
+    venues = list_resp.get_json()
+    v1 = next(v for v in venues if v["id"] == 1)
+    assert v1["name"] == "New Name In List"
+    assert v1["location"] == "New Location In List"
+

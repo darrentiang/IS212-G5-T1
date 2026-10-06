@@ -154,6 +154,32 @@ def test_the_connection_string_falls_back_to_the_instance_file(monkeypatch):
 
 # @story: setup
 # @ac: sqlite-seed
+def test_create_app_uses_the_default_database_when_config_uri_is_empty(monkeypatch):
+    monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
+
+    configured = create_app({"TESTING": True, "SQLALCHEMY_DATABASE_URI": ""})
+
+    assert configured.config["SQLALCHEMY_DATABASE_URI"] == "sqlite:///:memory:"
+    with configured.app_context():
+        db.session.remove()
+        db.engine.dispose()
+
+
+# @story: setup
+# @ac: sqlite-seed
+def test_create_app_accepts_no_configuration_override(monkeypatch):
+    monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
+
+    configured = create_app()
+
+    assert configured.config["SQLALCHEMY_DATABASE_URI"] == "sqlite:///:memory:"
+    with configured.app_context():
+        db.session.remove()
+        db.engine.dispose()
+
+
+# @story: setup
+# @ac: sqlite-seed
 def test_create_app_starts_on_a_database_at_the_current_version(tmp_path):
     uri = f"sqlite:///{tmp_path / 'app.db'}"
 
