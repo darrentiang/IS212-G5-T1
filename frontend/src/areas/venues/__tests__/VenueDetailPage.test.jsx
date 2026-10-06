@@ -20,15 +20,22 @@ const HALL_A = {
   accessibility_features: ['Step-free access', 'Hearing loop'],
 }
 
+const OPTIONS = {
+  facilities: ['Projector', 'Stage lighting', 'Sound system', 'Whiteboard', 'Wi-Fi'],
+  accessibility_features: ['Step-free access', 'Hearing loop', 'Lift access'],
+}
+
 function signInWith(features) {
   vi.mocked(auth.useAuth).mockReturnValue({ can: (feature) => features.includes(feature) })
 }
 
 // SCRUM-40 made the page read the account and load the venue's blocks; the
 // SCRUM-31 tests below see a Venue Staff account and a venue with no blocks.
+// SCRUM-75 loads venue options for the update form.
 beforeEach(() => {
   signInWith(['venues.view', 'venues.edit'])
   api.listVenueBlocks.mockResolvedValue([])
+  api.getVenueOptions.mockResolvedValue(OPTIONS)
 })
 
 afterEach(() => {
@@ -447,5 +454,336 @@ describe('VenueDetailPage blocks', () => {
       .getAllByTestId(/^venue-detail-block-row-/)
       .map((row) => row.getAttribute('data-testid'))
     expect(order).toEqual(['venue-detail-block-row-9', 'venue-detail-block-row-7', 'venue-detail-block-row-8'])
+  })
+
+  // ---------------- SCRUM-75 Update Venue Details ----------------
+
+  async function openUpdateForm() {
+    await waitFor(() => {
+      expect(screen.getByTestId('venue-detail-update-button')).toBeVisible()
+    })
+    await userEvent.click(screen.getByTestId('venue-detail-update-button'))
+    expect(screen.getByTestId('venue-detail-update-name-input')).toBeVisible()
+  }
+
+  // @story: SCRUM-75
+  // @ac: 6
+  it('shows update button when venues.edit is held', async () => {
+    api.getVenue.mockResolvedValue(HALL_A)
+    signInWith(['venues.view', 'venues.edit'])
+    renderPage()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('venue-detail-update-button')).toBeVisible()
+    })
+  })
+
+  // @story: SCRUM-75
+  // @ac: 6
+  it('hides update button when only venues.view is held', async () => {
+    api.getVenue.mockResolvedValue(HALL_A)
+    signInWith(['venues.view'])
+    renderPage()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('venue-detail-name')).toHaveTextContent('Hall A')
+    })
+    expect(screen.queryByTestId('venue-detail-update-button')).not.toBeInTheDocument()
+  })
+
+  // @story: SCRUM-75
+  // @ac: 1
+  it('prepopulates all fields and selected options when opening the update form', async () => {
+    api.getVenue.mockResolvedValue(HALL_A)
+    renderPage()
+
+    await openUpdateForm()
+
+    expect(screen.getByTestId('venue-detail-update-name-input')).toHaveValue('Hall A')
+    expect(screen.getByTestId('venue-detail-update-location-input')).toHaveValue('Block B Level 3')
+    expect(screen.getByTestId('venue-detail-update-max-capacity-input')).toHaveValue(250)
+    expect(screen.getByTestId('venue-detail-update-opening-time-input')).toHaveValue('08:00')
+    expect(screen.getByTestId('venue-detail-update-closing-time-input')).toHaveValue('22:00')
+    expect(screen.getByTestId('venue-detail-update-facilities-projector-input')).toBeChecked()
+    expect(screen.getByTestId('venue-detail-update-facilities-stage-lighting-input')).toBeChecked()
+    expect(screen.getByTestId('venue-detail-update-facilities-sound-system-input')).not.toBeChecked()
+    expect(screen.getByTestId('venue-detail-update-accessibility-features-step-free-access-input')).toBeChecked()
+    expect(screen.getByTestId('venue-detail-update-accessibility-features-hearing-loop-input')).toBeChecked()
+    expect(screen.getByTestId('venue-detail-update-accessibility-features-lift-access-input')).not.toBeChecked()
+
+    await userEvent.click(screen.getByTestId('venue-detail-update-accessibility-features-lift-access-input'))
+    expect(screen.getByTestId('venue-detail-update-accessibility-features-lift-access-input')).toBeChecked()
+  })
+
+  // @story: SCRUM-75
+  // @ac: 1
+  it('handles missing optional venue values and option lists when opening the update form', async () => {
+    api.getVenue.mockResolvedValue({
+      ...HALL_A,
+      opening_time: undefined,
+      closing_time: undefined,
+      facilities: undefined,
+      accessibility_features: undefined,
+    })
+    api.getVenueOptions.mockResolvedValue({})
+    renderPage()
+
+    await openUpdateForm()
+
+    expect(screen.getByTestId('venue-detail-update-opening-time-input')).toHaveValue('')
+    expect(screen.getByTestId('venue-detail-update-closing-time-input')).toHaveValue('')
+    expect(screen.queryByTestId('venue-detail-update-facilities-projector-input')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('venue-detail-update-accessibility-features-step-free-access-input')).not.toBeInTheDocument()
+  })
+
+  // @story: SCRUM-75
+  // @ac: 1
+  it('leaves update options unchanged when the options API returns no data', async () => {
+    api.getVenue.mockResolvedValue(HALL_A)
+    api.getVenueOptions.mockResolvedValue(undefined)
+    renderPage()
+
+    await openUpdateForm()
+
+    expect(screen.queryByTestId('venue-detail-update-facilities-projector-input')).not.toBeInTheDocument()
+  })
+
+  // @story: SCRUM-75
+  // @ac: 1
+  it('keeps the update form usable when the options API refuses', async () => {
+    api.getVenue.mockResolvedValue(HALL_A)
+    api.getVenueOptions.mockRejectedValue(new Error('Options unavailable'))
+    renderPage()
+
+    await openUpdateForm()
+
+    expect(screen.getByTestId('venue-detail-update-name-input')).toHaveValue('Hall A')
+    expect(screen.queryByTestId('venue-detail-update-facilities-projector-input')).not.toBeInTheDocument()
+  })
+
+  // @story: SCRUM-75
+  // @ac: 1, 3, 5
+  it('sends complete payload to updateVenue and updates displayed details on success with banner', async () => {
+    api.getVenue.mockResolvedValue(HALL_A)
+    const updatedVenue = {
+      ...HALL_A,
+      name: 'Hall A Renovated',
+      location: 'Block C Level 4',
+      max_capacity: 300,
+      facilities: ['Projector', 'Sound system'],
+    }
+    api.updateVenue.mockResolvedValue(updatedVenue)
+    renderPage()
+
+    await openUpdateForm()
+
+    const nameInput = screen.getByTestId('venue-detail-update-name-input')
+    await userEvent.clear(nameInput)
+    await userEvent.type(nameInput, 'Hall A Renovated')
+
+    const locInput = screen.getByTestId('venue-detail-update-location-input')
+    await userEvent.clear(locInput)
+    await userEvent.type(locInput, 'Block C Level 4')
+
+    const capInput = screen.getByTestId('venue-detail-update-max-capacity-input')
+    await userEvent.clear(capInput)
+    await userEvent.type(capInput, '300')
+
+    await userEvent.click(screen.getByTestId('venue-detail-update-facilities-stage-lighting-input'))
+    await userEvent.click(screen.getByTestId('venue-detail-update-facilities-sound-system-input'))
+
+    await userEvent.click(screen.getByTestId('venue-detail-update-save-button'))
+
+    await waitFor(() => {
+      expect(api.updateVenue).toHaveBeenCalledWith(
+        '3',
+        expect.objectContaining({
+          name: 'Hall A Renovated',
+          location: 'Block C Level 4',
+          max_capacity: '300',
+          facilities: ['Projector', 'Sound system'],
+        }),
+      )
+    })
+
+    expect(await screen.findByTestId('venue-detail-banner')).toHaveTextContent('Venue updated')
+    expect(screen.getByTestId('venue-detail-name')).toHaveTextContent('Hall A Renovated')
+    expect(screen.getByTestId('venue-detail-location')).toHaveTextContent('Block C Level 4')
+    expect(screen.getByTestId('venue-detail-max-capacity')).toHaveTextContent('300')
+    expect(screen.queryByTestId('venue-detail-update-name-input')).not.toBeInTheDocument()
+  })
+
+  // @story: SCRUM-75
+  // @ac: 2, 4
+  it('shows client-side errors and prevents API call when required fields are empty', async () => {
+    api.getVenue.mockResolvedValue(HALL_A)
+    renderPage()
+
+    await openUpdateForm()
+
+    await userEvent.clear(screen.getByTestId('venue-detail-update-name-input'))
+    await userEvent.clear(screen.getByTestId('venue-detail-update-location-input'))
+    await userEvent.clear(screen.getByTestId('venue-detail-update-max-capacity-input'))
+
+    await userEvent.click(screen.getByTestId('venue-detail-update-save-button'))
+
+    expect(screen.getByTestId('venue-detail-update-name-error')).toHaveTextContent('Name is required')
+    expect(screen.getByTestId('venue-detail-update-location-error')).toHaveTextContent('Location is required')
+    expect(screen.getByTestId('venue-detail-update-max-capacity-error')).toHaveTextContent('Maximum capacity is required')
+    expect(api.updateVenue).not.toHaveBeenCalled()
+  })
+
+  // @story: SCRUM-75
+  // @ac: 2, 4
+  it('treats whitespace-only text as empty and displays client-side error', async () => {
+    api.getVenue.mockResolvedValue(HALL_A)
+    renderPage()
+
+    await openUpdateForm()
+
+    const nameInput = screen.getByTestId('venue-detail-update-name-input')
+    await userEvent.clear(nameInput)
+    await userEvent.type(nameInput, '   ')
+
+    const locInput = screen.getByTestId('venue-detail-update-location-input')
+    await userEvent.clear(locInput)
+    await userEvent.type(locInput, '   ')
+
+    await userEvent.click(screen.getByTestId('venue-detail-update-save-button'))
+
+    expect(screen.getByTestId('venue-detail-update-name-error')).toHaveTextContent('Name is required')
+    expect(screen.getByTestId('venue-detail-update-location-error')).toHaveTextContent('Location is required')
+    expect(api.updateVenue).not.toHaveBeenCalled()
+  })
+
+  // @story: SCRUM-75
+  // @ac: 1, 2, 5
+  it('sends blank times and empty lists when optional fields are cleared', async () => {
+    api.getVenue.mockResolvedValue(HALL_A)
+    const clearedVenue = {
+      ...HALL_A,
+      opening_time: null,
+      closing_time: null,
+      facilities: [],
+      accessibility_features: [],
+    }
+    api.updateVenue.mockResolvedValue(clearedVenue)
+    renderPage()
+
+    await openUpdateForm()
+
+    await userEvent.clear(screen.getByTestId('venue-detail-update-opening-time-input'))
+    await userEvent.clear(screen.getByTestId('venue-detail-update-closing-time-input'))
+
+    await userEvent.click(screen.getByTestId('venue-detail-update-facilities-projector-input'))
+    await userEvent.click(screen.getByTestId('venue-detail-update-facilities-stage-lighting-input'))
+    await userEvent.click(screen.getByTestId('venue-detail-update-accessibility-features-step-free-access-input'))
+    await userEvent.click(screen.getByTestId('venue-detail-update-accessibility-features-hearing-loop-input'))
+
+    await userEvent.click(screen.getByTestId('venue-detail-update-save-button'))
+
+    await waitFor(() => {
+      expect(api.updateVenue).toHaveBeenCalledWith(
+        '3',
+        expect.objectContaining({
+          opening_time: '',
+          closing_time: '',
+          facilities: [],
+          accessibility_features: [],
+        }),
+      )
+    })
+
+    expect(await screen.findByTestId('venue-detail-banner')).toHaveTextContent('Venue updated')
+    expect(screen.getByTestId('venue-detail-opening-time')).toHaveTextContent('None')
+    expect(screen.getByTestId('venue-detail-closing-time')).toHaveTextContent('None')
+    expect(screen.getByTestId('venue-detail-facilities')).toHaveTextContent('None')
+    expect(screen.getByTestId('venue-detail-accessibility-features')).toHaveTextContent('None')
+  })
+
+  // @story: SCRUM-75
+  // @ac: 4
+  it('displays error banner and leaves form open and stored details unchanged on API refusal', async () => {
+    api.getVenue.mockResolvedValue(HALL_A)
+    api.updateVenue.mockRejectedValue(new Error('Maximum capacity must be a positive whole number.'))
+    renderPage()
+
+    await openUpdateForm()
+
+    const capInput = screen.getByTestId('venue-detail-update-max-capacity-input')
+    await userEvent.clear(capInput)
+    await userEvent.type(capInput, '0')
+
+    await userEvent.click(screen.getByTestId('venue-detail-update-save-button'))
+
+    expect(await screen.findByTestId('venue-detail-banner')).toHaveTextContent('Maximum capacity must be a positive whole number.')
+    expect(screen.getByTestId('venue-detail-update-name-input')).toBeVisible()
+    expect(screen.getByTestId('venue-detail-max-capacity')).toHaveTextContent('250')
+  })
+
+  // @story: SCRUM-75
+  // @ac: 1
+  it('closes form without calling API on cancel and restores original values on reopen', async () => {
+    api.getVenue.mockResolvedValue(HALL_A)
+    renderPage()
+
+    await openUpdateForm()
+
+    const nameInput = screen.getByTestId('venue-detail-update-name-input')
+    await userEvent.clear(nameInput)
+    await userEvent.type(nameInput, 'Changed But Cancelled')
+
+    await userEvent.click(screen.getByTestId('venue-detail-update-cancel-button'))
+
+    expect(screen.queryByTestId('venue-detail-update-name-input')).not.toBeInTheDocument()
+    expect(api.updateVenue).not.toHaveBeenCalled()
+
+    await openUpdateForm()
+    expect(screen.getByTestId('venue-detail-update-name-input')).toHaveValue('Hall A')
+  })
+
+  // @story: SCRUM-75
+  // @ac: 1
+  it('disables update controls while saving is pending', async () => {
+    api.getVenue.mockResolvedValue(HALL_A)
+    let resolveUpdate
+    api.updateVenue.mockReturnValue(new Promise((resolve) => { resolveUpdate = resolve }))
+    renderPage()
+
+    await openUpdateForm()
+
+    await userEvent.click(screen.getByTestId('venue-detail-update-save-button'))
+
+    expect(screen.getByTestId('venue-detail-update-save-button')).toBeDisabled()
+    expect(screen.getByTestId('venue-detail-update-cancel-button')).toBeDisabled()
+    expect(screen.getByTestId('venue-detail-update-button')).toBeDisabled()
+    expect(screen.getByTestId('venue-detail-block-button')).toBeDisabled()
+
+    await act(async () => {
+      resolveUpdate(HALL_A)
+    })
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('venue-detail-update-save-button')).not.toBeInTheDocument()
+    })
+  })
+
+  // @story: SCRUM-75
+  // @ac: 1
+  it('keeps SCRUM-40 blocks rendered and usable alongside update form', async () => {
+    api.getVenue.mockResolvedValue(HALL_A)
+    api.listVenueBlocks.mockResolvedValue([BLOCK])
+    renderPage()
+
+    expect(await screen.findByTestId('venue-detail-block-row-7')).toBeVisible()
+
+    await openUpdateForm()
+
+    expect(screen.getByTestId('venue-detail-block-row-7')).toBeVisible()
+
+    // Opening block form closes update form
+    await userEvent.click(screen.getByTestId('venue-detail-block-button'))
+    expect(screen.queryByTestId('venue-detail-update-name-input')).not.toBeInTheDocument()
+    expect(screen.getByTestId('venue-detail-block-start-date-input')).toBeVisible()
   })
 })

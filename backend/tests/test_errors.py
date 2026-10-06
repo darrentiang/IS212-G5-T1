@@ -99,6 +99,19 @@ def test_the_session_cookie_is_configured(app):
 
 # @story: setup
 # @ac: backend-areas
+def test_non_api_requests_skip_session_account_loading(app):
+    @app.route("/healthcheck")
+    def healthcheck():
+        return "ok"
+
+    resp = app.test_client().get("/healthcheck")
+
+    assert resp.status_code == 200
+    assert resp.get_data(as_text=True) == "ok"
+
+
+# @story: setup
+# @ac: backend-areas
 def test_every_area_blueprint_is_registered(app):
     assert set(app.blueprints) == AREA_NAMES
     assert len(BLUEPRINTS) == len(AREA_NAMES)

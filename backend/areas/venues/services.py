@@ -1,9 +1,9 @@
-"""Venue rules — SCRUM-31 (Add a Venue), SCRUM-40 (Block a Venue).
+"""Venue rules — SCRUM-31 (Add a Venue), SCRUM-40 (Block a Venue), SCRUM-75 (Update a Venue).
 
 Every rule the acceptance criteria state lives here, next to the query, and
-refuses by raising ApiRefusal; the route never decides (ADR-002). Editing a
-venue is SCRUM-75, retiring one SCRUM-76 and room layouts SCRUM-32, so nothing
-here changes or removes a venue. Ending or removing a block is SCRUM-79.
+refuses by raising ApiRefusal; the route never decides (ADR-002). Retiring a
+venue is SCRUM-76 and room layouts SCRUM-32, so nothing here changes or
+removes a venue. Ending or removing a block is SCRUM-79.
 """
 
 from datetime import datetime, timezone
@@ -69,6 +69,41 @@ def create_venue(body):
         accessibility_features=accessibility_features,
     )
     db.session.add(venue)
+    db.session.commit()
+    return venue
+
+
+def update_venue(venue_id, body):
+    """Update a venue's recorded details (SCRUM-75).
+
+    Venue Staff can change any of a venue's recorded fields (AC1).
+    Name, location and maximum capacity are required; operating hours,
+    facilities and accessibility features are optional and may be cleared (AC2).
+    Name and location cannot be blank or contain only whitespace; maximum
+    capacity must be a positive whole number; times must be valid 24-hour times;
+    facilities and accessibility features must use recognised options (AC3).
+    If any check fails, it is refused and nothing changes (AC4).
+    """
+    venue = get_venue(venue_id)
+
+    name = _required_text(body, "name", "Name")
+    location = _required_text(body, "location", "Location")
+    max_capacity = _positive_whole_number(body.get("max_capacity"))
+    opening_time = _optional_time(body.get("opening_time"), "Opening time")
+    closing_time = _optional_time(body.get("closing_time"), "Closing time")
+    facilities = _chosen(body.get("facilities"), Facility, "facility")
+    accessibility_features = _chosen(
+        body.get("accessibility_features"), AccessibilityFeature, "accessibility feature"
+    )
+
+    venue.name = name
+    venue.location = location
+    venue.max_capacity = max_capacity
+    venue.opening_time = opening_time
+    venue.closing_time = closing_time
+    venue.facilities = facilities
+    venue.accessibility_features = accessibility_features
+
     db.session.commit()
     return venue
 

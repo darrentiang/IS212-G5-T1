@@ -238,13 +238,6 @@ const openDecision = (action) => {
                 </dd>
               </div>
             ))}
-            {/* Fallback Name field just in case FIELDS array was removed in main */}
-            {typeof FIELDS === 'undefined' && (
-              <div>
-                <dt>Name</dt>
-                <dd data-testid="request-detail-name">{row.name}</dd>
-              </div>
-            )}
             <div>
               <dt>Status</dt>
               <dd data-testid="request-detail-status">

@@ -10,6 +10,7 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | 1.3 | 24-09-2026 | §12 Look: the visual style and the status-to-colour table; §1 a welcome home page for an account that may open no page | UI refresh: one shared look in `visual-style.md`; Technical Support Staff have no page yet and were landing on the not-permitted page |
 | 1.4 | 25-09-2026 | A moment in time (`03 Oct 2026, 14:30`) in §9, formatted with `formatDateTime` | SCRUM-29 shows when a request was submitted and decided; the API sends those as ISO date-times in UTC |
 | 1.5 | 06-10-2026 | §7 a list of related records on a detail page, and the venue page's Blocks section and inline block form test ids; §9 a period across two dates (`20 Oct 2026, 09:00 to 21 Oct 2026, 18:00`), formatted with `formatDateTimePeriod` | SCRUM-40 lists a venue's blocks on its page and lets Venue Staff block it for a period that may span days |
+| 1.6 | 06-10-2026 | §7 inline update form on venue detail page, and update test ids | SCRUM-75 lets Venue Staff update recorded venue fields via an inline form |
 
 ## 1. Pages
 
@@ -120,7 +121,7 @@ While the page is waiting for the API it renders the title row and nothing below
 
 **A list of related records on a detail page** (a venue's blocks) is a section under the fields with an `h2` and a table per §6. Its ids carry the record's name in place of the page's own list ids, so they cannot clash with the page's fields: `<page>-<record>-row-<id>`, one cell `<page>-<record>-<field>-<id>`, and `<page>-<records>-empty` when there are none.
 
-The venue page (`venue-detail`), SCRUM-40:
+The venue page (`venue-detail`), SCRUM-40, SCRUM-75:
 
 | Element | `data-testid` |
 |---|---|
@@ -132,6 +133,10 @@ The venue page (`venue-detail`), SCRUM-40:
 | Inline form inputs | `venue-detail-block-start-date-input`, `venue-detail-block-start-time-input`, `venue-detail-block-end-date-input`, `venue-detail-block-end-time-input`, `venue-detail-block-reason-input` |
 | Message under an empty field | `venue-detail-block-<field>-error` (e.g. `venue-detail-block-reason-error`) |
 | Block (confirm) and Cancel buttons | `venue-detail-block-confirm-button`, `venue-detail-block-cancel-button` |
+| Update venue button (only with `venues.edit`) | `venue-detail-update-button` |
+| Inline update form inputs | `venue-detail-update-name-input`, `venue-detail-update-location-input`, `venue-detail-update-max-capacity-input`, `venue-detail-update-opening-time-input`, `venue-detail-update-closing-time-input`, `venue-detail-update-facilities-<kebab-option>-input`, `venue-detail-update-accessibility-features-<kebab-option>-input` |
+| Message under an empty field | `venue-detail-update-<field>-error` (e.g. `venue-detail-update-name-error`) |
+| Save and Cancel update buttons | `venue-detail-update-save-button`, `venue-detail-update-cancel-button` |
 
 ## 8. Not-permitted page
 
