@@ -70,3 +70,4 @@ Add one line each time curation catches something a draft keeps getting wrong.
 - Near-identical happy rows, one per role, where the roles follow the same steps (SCRUM-26).
 - Rows asserting another story's behaviour (SCRUM-26).
 - Paragraph-long expected results (SCRUM-26).
+- Preconditions that assume an empty shared functional database; tests check the records they created (SCRUM-40).

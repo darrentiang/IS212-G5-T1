@@ -58,7 +58,7 @@ async function submitBlock(page) {
   return resp
 }
 
-// Rows 04–07: the API refuses the values, the banner shows its message, and
+// Rows 05–07: the API refuses the values, the banner shows its message, and
 // after a reload the venue lists exactly the blocks it listed before.
 async function expectRefused(page, values, message) {
   await login(page, 'venue1')
@@ -173,11 +173,30 @@ test('Start, end and reason all left empty', async ({ page }) => {
 // @story: SCRUM-40
 // @ac: 1
 test('A reason of spaces only is refused', async ({ page }) => {
-  await expectRefused(
-    page,
-    { startDate: '2026-10-20', startTime: '09:00', endDate: '2026-10-20', endTime: '18:00', reason: '   ' },
-    'Reason is required.',
-  )
+  await login(page, 'venue1')
+  await openSeminarRoom1(page)
+  const before = await listedBlockIds(page)
+  const sent = []
+  page.on('request', (r) => {
+    if (r.url().endsWith('/blocks') && r.method() === 'POST') sent.push(r)
+  })
+
+  await page.getByTestId('venue-detail-block-button').click()
+  await fillBlock(page, {
+    startDate: '2026-10-20',
+    startTime: '09:00',
+    endDate: '2026-10-20',
+    endTime: '18:00',
+    reason: '   ',
+  })
+  await page.getByTestId('venue-detail-block-confirm-button').click()
+
+  await expect(page.getByTestId('venue-detail-block-reason-error')).toBeVisible()
+  await expect(page.getByTestId('venue-detail-banner')).toHaveCount(0)
+  expect(sent).toHaveLength(0)
+
+  await page.reload()
+  expect(await listedBlockIds(page)).toEqual(before)
 })
 
 // @tc: TC-SCRUM-40-05

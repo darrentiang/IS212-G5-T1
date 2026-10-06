@@ -83,8 +83,8 @@ def test_a_block_is_stored_with_its_local_period_who_and_when(client):
 
     block = db.session.get(VenueBlock, resp.get_json()["id"])
     # Naive local date-times exactly as entered: no time zone shift.
-    assert block.start == datetime(2026, 10, 20, 9, 0)
-    assert block.end == datetime(2026, 10, 21, 18, 0)
+    assert block.starts_at == datetime(2026, 10, 20, 9, 0)
+    assert block.ends_at == datetime(2026, 10, 21, 18, 0)
     assert block.reason == "Projector replacement"
     assert block.created_by.username == "venue1"
     # created_at is UTC (the same convention as submitted_at), taken at the request.

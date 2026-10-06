@@ -140,7 +140,7 @@ def list_blocks(venue_id):
     return (
         db.session.query(VenueBlock)
         .filter_by(venue_id=venue.id)
-        .order_by(VenueBlock.start, VenueBlock.id)
+        .order_by(VenueBlock.starts_at, VenueBlock.id)
         .all()
     )
 
@@ -168,8 +168,8 @@ def create_block(venue_id, body, account):
 
     block = VenueBlock(
         venue=venue,
-        start=start,
-        end=end,
+        starts_at=start,
+        ends_at=end,
         reason=reason,
         created_by=account,
         created_at=datetime.now(timezone.utc),
@@ -197,8 +197,8 @@ def block_to_dict(block):
     return {
         "id": block.id,
         "venue_id": block.venue_id,
-        "start": block.start.strftime(DATE_TIME_FORMAT),
-        "end": block.end.strftime(DATE_TIME_FORMAT),
+        "start": block.starts_at.strftime(DATE_TIME_FORMAT),
+        "end": block.ends_at.strftime(DATE_TIME_FORMAT),
         "reason": block.reason,
         "created_by": block.created_by.username,
         "created_at": block.created_at.isoformat(),

@@ -23,6 +23,10 @@ const EMPTY_BLOCK = Object.fromEntries(BLOCK_FIELDS.map((field) => [field.name, 
 
 const kebab = (name) => name.replaceAll('_', '-')
 
+// The API's order: earliest start first, then id. start is 'YYYY-MM-DDTHH:MM',
+// so comparing the strings compares the moments.
+const byStartThenId = (a, b) => a.start.localeCompare(b.start) || a.id - b.id
+
 // SCRUM-31: every field recorded for one venue, or the API refusal.
 // SCRUM-40: the venue's blocks, and for Venue Staff an inline form to block
 // it for a period with a reason (ui-guidelines.md §7).
@@ -96,7 +100,8 @@ export default function VenueDetailPage() {
     setSubmitting(true)
     try {
       const created = await blockVenue(id, blockValues)
-      setBlocks((current) => [...current, created])
+      // Inserted in the API's order, so the new row does not move on reload.
+      setBlocks((current) => [...current, created].sort(byStartThenId))
       setBlockOpen(false)
       setSuccess('Venue blocked')
     } catch (error) {

@@ -229,17 +229,18 @@ class Venue(db.Model):
 class VenueBlock(db.Model):
     """A period Venue Staff have blocked a venue for an operational reason (SCRUM-40).
 
-    start and end are naive local date-times, the same convention as an event
-    request's date and times; created_at is UTC, like submitted_at. Ending or
-    removing a block is SCRUM-79, so nothing here changes one.
+    starts_at and ends_at are naive local date-times, the same convention as an
+    event request's date and times; created_at is UTC, like submitted_at. The
+    API keeps calling them "start" and "end". Ending or removing a block is
+    SCRUM-79, so nothing here changes one.
     """
 
     __tablename__ = "venue_blocks"
 
     id = db.Column(db.Integer, primary_key=True)
     venue_id = db.Column(db.Integer, db.ForeignKey("venues.id"), nullable=False)
-    start = db.Column(db.DateTime, nullable=False)
-    end = db.Column(db.DateTime, nullable=False)
+    starts_at = db.Column(db.DateTime, nullable=False)
+    ends_at = db.Column(db.DateTime, nullable=False)
     reason = db.Column(db.Text, nullable=False)
     created_by_id = db.Column(db.Integer, db.ForeignKey("accounts.id"), nullable=False)
     created_at = db.Column(db.DateTime, nullable=False)

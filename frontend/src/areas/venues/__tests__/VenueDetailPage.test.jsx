@@ -422,4 +422,30 @@ describe('VenueDetailPage blocks', () => {
 
     expect(screen.queryByTestId('venue-detail-banner')).not.toBeInTheDocument()
   })
+
+  // @story: SCRUM-40
+  // @ac: 2
+  it('lists a new block that starts earlier before the existing ones, in start then id order', async () => {
+    api.getVenue.mockResolvedValue(HALL_A)
+    // Two existing blocks with the same start: the API orders them by id.
+    api.listVenueBlocks.mockResolvedValue([BLOCK, { ...BLOCK, id: 8, reason: 'Safety inspection' }])
+    api.blockVenue.mockResolvedValue({
+      ...BLOCK,
+      id: 9,
+      start: '2026-10-19T09:00',
+      end: '2026-10-19T18:00',
+      reason: 'Deep clean',
+    })
+    renderPage()
+    await openBlockForm()
+
+    await fillBlockForm({ ...ENTERED, start_date: '2026-10-19', end_date: '2026-10-19', reason: 'Deep clean' })
+    await userEvent.click(screen.getByTestId('venue-detail-block-confirm-button'))
+
+    await screen.findByTestId('venue-detail-block-row-9')
+    const order = screen
+      .getAllByTestId(/^venue-detail-block-row-/)
+      .map((row) => row.getAttribute('data-testid'))
+    expect(order).toEqual(['venue-detail-block-row-9', 'venue-detail-block-row-7', 'venue-detail-block-row-8'])
+  })
 })
