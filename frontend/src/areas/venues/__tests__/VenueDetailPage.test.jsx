@@ -46,7 +46,7 @@ afterEach(() => {
 })
 
 function renderPage(state) {
-  render(
+  return render(
     <MemoryRouter initialEntries={[{ pathname: '/venues/3', state }]}>
       <Routes>
         <Route path="/venues/:id" element={<VenueDetailPage />} />
@@ -132,6 +132,28 @@ describe('VenueDetailPage', () => {
     await waitFor(() => expect(screen.getByTestId('venue-detail-banner')).toHaveTextContent(message))
     expect(screen.getByTestId('venue-detail-layouts-value')).toHaveTextContent('Classroom')
     expect(screen.queryByTestId('venue-detail-layouts-button')).not.toBeInTheDocument()
+  })
+
+  // @story: SCRUM-32
+  // @ac: 6
+  it('ignores an options refusal that arrives after the page unmounts', async () => {
+    let rejectOptions
+    api.getVenue.mockResolvedValue(HALL_A)
+    api.getVenueOptions.mockReturnValue(
+      new Promise((resolve, reject) => {
+        rejectOptions = reject
+      }),
+    )
+
+    const { unmount } = renderPage()
+    await waitFor(() => expect(screen.getByTestId('venue-detail-name')).toHaveTextContent('Hall A'))
+    unmount()
+
+    await act(async () => {
+      rejectOptions(new Error('Late options refusal'))
+    })
+
+    expect(screen.queryByTestId('venue-detail-banner')).not.toBeInTheDocument()
   })
 
   // @story: SCRUM-32
