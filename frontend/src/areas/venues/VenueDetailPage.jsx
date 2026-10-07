@@ -85,7 +85,8 @@ export default function VenueDetailPage() {
     accessibility_features: [],
   })
   const [updateErrors, setUpdateErrors] = useState({})
-  const [options, setOptions] = useState({ facilities: [], accessibility_features: [] })
+  const [options, setOptions] = useState({ facilities: [], accessibility_features: [], layouts: [] })
+  const [layoutOptionsLoaded, setLayoutOptionsLoaded] = useState(false)
   const [layoutValues, setLayoutValues] = useState([])
   const [endingId, setEndingId] = useState(null)
   const [endValues, setEndValues] = useState(EMPTY_END)
@@ -129,9 +130,12 @@ export default function VenueDetailPage() {
               accessibility_features: data.accessibility_features ?? [],
               layouts: data.layouts ?? [],
             })
+            setLayoutOptionsLoaded(true)
           }
         })
-        .catch(() => {})
+        .catch((error) => {
+          if (active) setBanner(error.message)
+        })
     }
     return () => {
       active = false
@@ -389,7 +393,7 @@ export default function VenueDetailPage() {
           <section className="card space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="section-title">Supported layouts</h2>
-              {canBlock && (
+              {canBlock && layoutOptionsLoaded && (
                 <button
                   type="button"
                   disabled={submitting}

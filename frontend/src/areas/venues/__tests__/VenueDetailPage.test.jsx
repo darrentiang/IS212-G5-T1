@@ -121,6 +121,20 @@ describe('VenueDetailPage', () => {
   })
 
   // @story: SCRUM-32
+  // @ac: 1, 4, 6
+  it('shows the options refusal and keeps layout selection unavailable when options fail', async () => {
+    const message = 'Venue options unavailable.'
+    api.getVenue.mockResolvedValue(HALL_A)
+    api.getVenueOptions.mockRejectedValue(new Error(message))
+
+    renderPage()
+
+    await waitFor(() => expect(screen.getByTestId('venue-detail-banner')).toHaveTextContent(message))
+    expect(screen.getByTestId('venue-detail-layouts-value')).toHaveTextContent('Classroom')
+    expect(screen.queryByTestId('venue-detail-layouts-button')).not.toBeInTheDocument()
+  })
+
+  // @story: SCRUM-32
   // @ac: 6
   it('does not offer layout changes without venues.edit', async () => {
     signInWith(['venues.view'])
