@@ -17,22 +17,12 @@ export default function BookingNewPage() {
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
-    let active = true
     listVenues()
-      .then((data) => {
-        // A retired venue cannot be booked (AC10): hide it from the picker
-        // rather than let the user pick it only to be refused.
-        if (active) setVenues(data.filter((venue) => venue.is_active))
-      })
-      .catch((error) => {
-        if (active) setBanner(error.message)
-      })
-      .finally(() => {
-        if (active) setLoading(false)
-      })
-    return () => {
-      active = false
-    }
+      // A retired venue cannot be booked (AC10): hide it from the picker
+      // rather than let the user pick it only to be refused.
+      .then((data) => setVenues(data.filter((venue) => venue.is_active)))
+      .catch((error) => setBanner(error.message))
+      .finally(() => setLoading(false))
   }, [])
 
   const handleSubmit = async (event) => {
