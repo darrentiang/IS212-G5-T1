@@ -35,6 +35,7 @@ function signInWith(features) {
 beforeEach(() => {
   signInWith(['venues.view', 'venues.edit'])
   api.listVenueBlocks.mockResolvedValue([])
+  api.listVenueBookings.mockResolvedValue([])
   api.getVenueOptions.mockResolvedValue(OPTIONS)
 })
 
@@ -1087,5 +1088,46 @@ describe('VenueDetailPage ending or removing a block', () => {
     await openEndForm()
 
     expect(screen.queryByTestId('venue-detail-banner')).not.toBeInTheDocument()
+  })
+})
+
+describe('VenueDetailPage booking requests', () => {
+  // @story: SCRUM-36
+  // @ac: 4, 5
+  it('lists each booking request with its event, period and status', async () => {
+    api.getVenue.mockResolvedValue(HALL_A)
+    api.listVenueBookings.mockResolvedValue([
+      {
+        id: 12,
+        event_request_id: 1,
+        event_request_name: 'Tech Fair 2026',
+        status: 'Requested',
+        date: '2026-11-20',
+        start_time: '09:00',
+        end_time: '17:00',
+      },
+    ])
+
+    renderPage()
+
+    expect(await screen.findByTestId('venue-detail-booking-event-12')).toHaveTextContent('Tech Fair 2026')
+    expect(screen.getByTestId('venue-detail-booking-period-12')).toHaveTextContent(
+      '20 Nov 2026, 09:00–17:00',
+    )
+    expect(screen.getByTestId('venue-detail-booking-status-12')).toHaveTextContent('Requested')
+    expect(screen.queryByTestId('venue-detail-bookings-empty')).not.toBeInTheDocument()
+    expect(api.listVenueBookings).toHaveBeenCalledWith('3')
+  })
+
+  // @story: SCRUM-36
+  // @ac: 4
+  it('says so when the venue has no booking requests', async () => {
+    api.getVenue.mockResolvedValue(HALL_A)
+
+    renderPage()
+
+    expect(await screen.findByTestId('venue-detail-bookings-empty')).toHaveTextContent(
+      'This venue has no booking requests.',
+    )
   })
 })

@@ -103,6 +103,8 @@ const BADGE = Object.freeze({
   [STATUS.REQUEST.REJECTED]: 'badge-danger',
   [STATUS.REQUEST.CANCELLED]: 'badge-danger',
   [STATUS.REQUEST.COMPLETED]: 'badge-neutral',
+  [STATUS.BOOKING.REQUESTED]: 'badge-info',
+  [STATUS.BOOKING.WITHDRAWN]: 'badge-neutral',
 })
 
 // 'Submitted' -> 'badge badge-info'

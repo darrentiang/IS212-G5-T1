@@ -674,4 +674,65 @@ describe('RequestDetailPage', () => {
     expect(screen.queryByTestId('request-detail-edit-form')).not.toBeInTheDocument()
     expect(screen.getByTestId('request-detail-delete-form')).toBeInTheDocument()
   })
+
+  // @story: SCRUM-36
+  // @ac: 1
+  it.each(['Approved', 'Planning'])(
+    'offers Request venue booking on an %s event to an Event Coordinator',
+    async (status) => {
+      signInWith(['bookings.edit'])
+      api.getRequest.mockResolvedValue({
+        id: 1,
+        name: 'Tech Fair 2026',
+        status,
+        created_by: 'org1',
+        registration_enabled: false,
+      })
+
+      renderDetail()
+
+      await waitFor(() => {
+        expect(screen.getByTestId('request-detail-raise-booking-button')).toHaveAttribute(
+          'href',
+          '/requests/1/bookings/new',
+        )
+      })
+    },
+  )
+
+  // @story: SCRUM-36
+  // @ac: 8
+  it('hides Request venue booking without bookings.edit', async () => {
+    signInWith(['requests.view'])
+    api.getRequest.mockResolvedValue({
+      id: 1,
+      name: 'Tech Fair 2026',
+      status: 'Approved',
+      created_by: 'org1',
+      registration_enabled: false,
+    })
+
+    renderDetail()
+
+    await waitFor(() => screen.getByTestId('request-detail-name'))
+    expect(screen.queryByTestId('request-detail-raise-booking-button')).not.toBeInTheDocument()
+  })
+
+  // @story: SCRUM-36
+  // @ac: 2
+  it('hides Request venue booking once the event is Confirmed', async () => {
+    signInWith(['bookings.edit'])
+    api.getRequest.mockResolvedValue({
+      id: 1,
+      name: 'Tech Fair 2026',
+      status: 'Confirmed',
+      created_by: 'org1',
+      registration_enabled: false,
+    })
+
+    renderDetail()
+
+    await waitFor(() => screen.getByTestId('request-detail-name'))
+    expect(screen.queryByTestId('request-detail-raise-booking-button')).not.toBeInTheDocument()
+  })
 })

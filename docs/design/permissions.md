@@ -14,7 +14,7 @@ Kept current by every story that adds an action: the row is added or changed in 
 | Confirm, cancel, mark completed | No | Assigned coordinator | No | No | No |
 | View venues and venue booking requests | No | Yes | Yes | No | No |
 | Maintain venue records and layouts; block a venue | No | No | Yes | No | No |
-| Raise or withdraw a venue booking request | No | Assigned coordinator | No | No | No |
+| Raise or withdraw a venue booking request | No | Yes* | No | No | No |
 | Approve or reject a venue booking | No | No | Yes | No | No |
 | Record equipment requirements | No | Assigned coordinator | No | View | No |
 | Maintain equipment inventory; reserve or release; withdraw from service | No | No | No | Yes | No |
@@ -28,6 +28,8 @@ Kept current by every story that adds an action: the row is added or changed in 
 Rule: an action not listed as permitted for any of the account's roles is refused, a message is shown, and no data changes.
 
 Rule: when the refusal is object-level (the role is right but this particular record is not the account's to touch — "own only" above), a read (GET) answers 403: it may say a record exists that the account cannot open. A write (create, edit, submit, delete) instead answers 404: what another account is allowed to change never confirms that the record exists at all. Established by SCRUM-27 (reads) and SCRUM-28 (writes); kept by every story since. Not to be "corrected" into one status code for both.
+
+Rule: \* "Assigned coordinator" is not yet a real restriction anywhere in this table — no story has built coordinator assignment (the system auto-assigns one at Approved → Planning, state-model.md, but nothing records who). SCRUM-36 is the first story to need the rule enforced and could not build it without inventing the assignment mechanism itself, so for now any Event Coordinator may raise or withdraw a venue booking request for any Approved or Planning event (team decision, 07-10-2026). Narrow this back to the assigned coordinator once that story exists; every other "Assigned coordinator" row in this table is similarly unenforced today, for the same reason.
 
 ## Feature keys
 
@@ -44,6 +46,7 @@ Keys used in `backend/permissions.py` and on API routes / `features` from `/api/
 | registration.view | No | Yes | No | No | Yes |
 | internal_notes.view | No | Yes | No | No | No |
 | notifications.view | Yes | Yes | Yes | Yes | Yes |
+| bookings.edit | No | Yes | No | No | No |
 
 | Version | Date | Change | Reason |
 |---|---|---|---|
@@ -54,3 +57,4 @@ Keys used in `backend/permissions.py` and on API routes / `features` from `/api/
 | 1.4 | 23-09-2026 | Named "delete (while Draft)" on the Event Organiser row | SCRUM-30: deleting a draft is a new action, not implied by "edit" |
 | 1.5 | 23-09-2026 | Rule: 403 for an object-level refusal on a read, 404 on a write | SCRUM-30 review: the split already existed in code (SCRUM-27/28) but was undocumented and read as an accident |
 | 1.6| 24-09-2026 | `requests.decide` for Event Coordinators; Organiser may see the request-level approve/reject reason | SCRUM-29: Organisers already hold `requests.edit`, so decide needs its own key; AC6 makes that decision public on the request |
+| 1.7 | 07-10-2026 | `bookings.edit` for Event Coordinators; "Raise or withdraw a venue booking request" row marked \* (unenforced "assigned coordinator"), with a Rule explaining why | SCRUM-36: raising a booking needs a key of its own, and is the first story to hit the fact that coordinator assignment itself does not exist yet |
