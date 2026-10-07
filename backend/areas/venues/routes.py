@@ -52,6 +52,14 @@ def update_venue(venue_id):
     return jsonify(services.venue_to_dict(venue)), 200
 
 
+@bp.patch("/venues/<int:venue_id>/layouts")
+@require(VENUES_EDIT)
+def update_layouts(venue_id):
+    body = request.get_json(silent=True) or {}
+    venue = services.update_layouts(venue_id, body)
+    return jsonify(services.venue_to_dict(venue)), 200
+
+
 @bp.get("/venues/<int:venue_id>/blocks")
 @require(VENUES_VIEW)
 def list_blocks(venue_id):

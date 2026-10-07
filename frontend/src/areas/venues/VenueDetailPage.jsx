@@ -11,6 +11,7 @@ import {
   listVenueBookings,
   removeVenueBlock,
   updateVenue,
+  updateVenueLayouts,
 } from './api'
 
 // Operating hours are two values, each through formatTime: format.js has no
@@ -84,7 +85,9 @@ export default function VenueDetailPage() {
     accessibility_features: [],
   })
   const [updateErrors, setUpdateErrors] = useState({})
-  const [options, setOptions] = useState({ facilities: [], accessibility_features: [] })
+  const [options, setOptions] = useState({ facilities: [], accessibility_features: [], layouts: [] })
+  const [layoutOptionsLoaded, setLayoutOptionsLoaded] = useState(false)
+  const [layoutValues, setLayoutValues] = useState([])
   const [endingId, setEndingId] = useState(null)
   const [endValues, setEndValues] = useState(EMPTY_END)
   const [endErrors, setEndErrors] = useState({})
@@ -125,10 +128,14 @@ export default function VenueDetailPage() {
             setOptions({
               facilities: data.facilities ?? [],
               accessibility_features: data.accessibility_features ?? [],
+              layouts: data.layouts ?? [],
             })
+            setLayoutOptionsLoaded(true)
           }
         })
-        .catch(() => {})
+        .catch((error) => {
+          if (active) setBanner(error.message)
+        })
     }
     return () => {
       active = false
@@ -194,6 +201,35 @@ export default function VenueDetailPage() {
       setRow(updated)
       setOpenForm(null)
       setSuccess('Venue updated')
+    } catch (error) {
+      setBanner(error.message)
+    } finally {
+      setSubmitting(false)
+    }
+
+  }
+
+  const openLayouts = () => {
+    setOpenForm('layouts')
+    setLayoutValues(row.layouts ? [...row.layouts] : [])
+    setBanner(null)
+    setSuccess(null)
+  }
+
+  const closeLayouts = () => {
+    setOpenForm(null)
+  }
+
+  const handleLayouts = async (event) => {
+    event.preventDefault()
+    setBanner(null)
+    setSuccess(null)
+    setSubmitting(true)
+    try {
+      const updated = await updateVenueLayouts(id, { layouts: layoutValues })
+      setRow(updated)
+      setOpenForm(null)
+      setSuccess('Layouts updated')
     } catch (error) {
       setBanner(error.message)
     } finally {
@@ -347,8 +383,72 @@ export default function VenueDetailPage() {
                 <dt>Accessibility features</dt>
                 <dd data-testid="venue-detail-accessibility-features">{list(row.accessibility_features)}</dd>
               </div>
+              <div>
+                <dt>Supported layouts</dt>
+                <dd data-testid="venue-detail-layouts-value">{list(row.layouts)}</dd>
+              </div>
             </dl>
           </div>
+
+          <section className="card space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="section-title">Supported layouts</h2>
+              {canBlock && layoutOptionsLoaded && (
+                <button
+                  type="button"
+                  disabled={submitting}
+                  onClick={openLayouts}
+                  className="btn btn-secondary"
+                  data-testid="venue-detail-layouts-button"
+                >
+                  Select layouts
+                </button>
+              )}
+            </div>
+            {openForm === 'layouts' && (
+              <form onSubmit={handleLayouts} noValidate className="space-y-4">
+                <fieldset>
+                  <legend className="label">Supported layouts</legend>
+                  {options.layouts.map((option) => (
+                    <label key={option} className="flex items-center gap-2 py-1">
+                      <input
+                        type="checkbox"
+                        checked={layoutValues.includes(option)}
+                        onChange={() =>
+                          setLayoutValues((current) =>
+                            current.includes(option)
+                              ? current.filter((item) => item !== option)
+                              : [...current, option],
+                          )
+                        }
+                        data-testid={`venue-detail-layouts-${optionKebab(option)}-input`}
+                      />
+                      {option}
+                    </label>
+                  ))}
+                </fieldset>
+                <div className="flex flex-wrap justify-end gap-2">
+                  <button
+                    type="button"
+                    disabled={submitting}
+                    onClick={closeLayouts}
+                    className="btn btn-secondary"
+                    data-testid="venue-detail-layouts-cancel-button"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="btn btn-primary"
+                    data-testid="venue-detail-layouts-save-button"
+                  >
+                    Save
+                  </button>
+                </div>
+              </form>
+            )}
+          </section>
 
           {canBlock && (
             <div className="flex justify-end gap-2">

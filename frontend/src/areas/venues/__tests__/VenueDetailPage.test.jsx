@@ -18,11 +18,13 @@ const HALL_A = {
   closing_time: '22:00',
   facilities: ['Projector', 'Stage lighting'],
   accessibility_features: ['Step-free access', 'Hearing loop'],
+  layouts: ['Classroom'],
 }
 
 const OPTIONS = {
   facilities: ['Projector', 'Stage lighting', 'Sound system', 'Whiteboard', 'Wi-Fi'],
   accessibility_features: ['Step-free access', 'Hearing loop', 'Lift access'],
+  layouts: ['Classroom', 'Theatre', 'Boardroom', 'Banquet', 'Exhibition'],
 }
 
 function signInWith(features) {
@@ -43,17 +45,153 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-function renderPage(state) {
-  render(
+function venuePage(state) {
+  return (
     <MemoryRouter initialEntries={[{ pathname: '/venues/3', state }]}>
       <Routes>
         <Route path="/venues/:id" element={<VenueDetailPage />} />
       </Routes>
-    </MemoryRouter>,
+    </MemoryRouter>
   )
 }
 
+function renderPage(state) {
+  return render(venuePage(state))
+}
+
 describe('VenueDetailPage', () => {
+  // @story: SCRUM-32
+  // @ac: 4, 5
+  it('shows recorded layouts and an explicit empty state', async () => {
+    api.getVenue.mockResolvedValue({ ...HALL_A, layouts: [] })
+
+    renderPage()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('venue-detail-layouts-value')).toHaveTextContent('None')
+    })
+    expect(screen.getByTestId('venue-detail-layouts-button')).toBeVisible()
+  })
+
+  // @story: SCRUM-32
+  // @ac: 1, 4
+  it('saves the selected layouts and updates the displayed set', async () => {
+    api.getVenue.mockResolvedValue(HALL_A)
+    api.updateVenueLayouts.mockResolvedValue({ ...HALL_A, layouts: ['Classroom', 'Theatre'] })
+
+    renderPage()
+
+    await waitFor(() => expect(screen.getByTestId('venue-detail-layouts-value')).toHaveTextContent('Classroom'))
+    await userEvent.click(screen.getByTestId('venue-detail-layouts-button'))
+    await userEvent.click(screen.getByTestId('venue-detail-layouts-theatre-input'))
+    await userEvent.click(screen.getByTestId('venue-detail-layouts-save-button'))
+
+    await waitFor(() => expect(screen.getByTestId('venue-detail-layouts-value')).toHaveTextContent('Classroom, Theatre'))
+    expect(api.updateVenueLayouts).toHaveBeenCalledWith('3', { layouts: ['Classroom', 'Theatre'] })
+  })
+
+  // @story: SCRUM-32
+  // @ac: 1, 2
+  it('removes an existing layout and can cancel without saving', async () => {
+    api.getVenue.mockResolvedValue(HALL_A)
+    api.updateVenueLayouts.mockResolvedValue({ ...HALL_A, layouts: [] })
+
+    renderPage()
+
+    await userEvent.click(await screen.findByTestId('venue-detail-layouts-button'))
+    await userEvent.click(screen.getByTestId('venue-detail-layouts-classroom-input'))
+    await userEvent.click(screen.getByTestId('venue-detail-layouts-save-button'))
+
+    await waitFor(() => expect(screen.getByTestId('venue-detail-layouts-value')).toHaveTextContent('None'))
+    expect(api.updateVenueLayouts).toHaveBeenCalledWith('3', { layouts: [] })
+
+    await userEvent.click(screen.getByTestId('venue-detail-layouts-button'))
+    await userEvent.click(screen.getByTestId('venue-detail-layouts-cancel-button'))
+    expect(screen.queryByTestId('venue-detail-layouts-save-button')).not.toBeInTheDocument()
+    expect(api.updateVenueLayouts).toHaveBeenCalledTimes(1)
+  })
+
+  // @story: SCRUM-32
+  // @ac: 4, 5
+  it('opens an empty layout selection when the response omits layouts', async () => {
+    api.getVenue.mockResolvedValue({ ...HALL_A, layouts: undefined })
+
+    renderPage()
+
+    await userEvent.click(await screen.findByTestId('venue-detail-layouts-button'))
+
+    expect(screen.getByTestId('venue-detail-layouts-classroom-input')).not.toBeChecked()
+    await userEvent.click(screen.getByTestId('venue-detail-layouts-cancel-button'))
+  })
+
+  // @story: SCRUM-32
+  // @ac: 1, 4, 6
+  it('shows the options refusal and keeps layout selection unavailable when options fail', async () => {
+    const message = 'Venue options unavailable.'
+    api.getVenue.mockResolvedValue(HALL_A)
+    api.getVenueOptions.mockRejectedValue(new Error(message))
+
+    renderPage()
+
+    await waitFor(() => expect(screen.getByTestId('venue-detail-banner')).toHaveTextContent(message))
+    expect(screen.getByTestId('venue-detail-layouts-value')).toHaveTextContent('Classroom')
+    expect(screen.queryByTestId('venue-detail-layouts-button')).not.toBeInTheDocument()
+  })
+
+  // @story: SCRUM-32
+  // @ac: 6
+  it('ignores an options refusal after permissions make the page view-only', async () => {
+    let rejectOptions
+    api.getVenue.mockResolvedValue(HALL_A)
+    api.getVenueOptions.mockReturnValue(
+      new Promise((resolve, reject) => {
+        rejectOptions = reject
+      }),
+    )
+
+    const rendered = renderPage()
+    await waitFor(() => expect(screen.getByTestId('venue-detail-name')).toHaveTextContent('Hall A'))
+
+    signInWith(['venues.view'])
+    rendered.rerender(venuePage())
+
+    await act(async () => {
+      rejectOptions(new Error('Late options refusal'))
+    })
+
+    expect(screen.getByTestId('venue-detail-name')).toHaveTextContent('Hall A')
+    expect(screen.queryByTestId('venue-detail-banner')).not.toBeInTheDocument()
+  })
+
+  // @story: SCRUM-32
+  // @ac: 6
+  it('does not offer layout changes without venues.edit', async () => {
+    signInWith(['venues.view'])
+    api.getVenue.mockResolvedValue(HALL_A)
+
+    renderPage()
+
+    await waitFor(() => expect(screen.getByTestId('venue-detail-layouts-value')).toHaveTextContent('Classroom'))
+    expect(screen.queryByTestId('venue-detail-layouts-button')).not.toBeInTheDocument()
+  })
+
+  // @story: SCRUM-32
+  // @ac: 3, 6
+  it('keeps the layout form open and shows API refusals', async () => {
+    api.getVenue.mockResolvedValue(HALL_A)
+    api.updateVenueLayouts.mockRejectedValue(new Error('A layout cannot be selected more than once.'))
+
+    renderPage()
+
+    await userEvent.click(await screen.findByTestId('venue-detail-layouts-button'))
+    await userEvent.click(screen.getByTestId('venue-detail-layouts-theatre-input'))
+    await userEvent.click(screen.getByTestId('venue-detail-layouts-save-button'))
+
+    await waitFor(() => expect(screen.getByTestId('venue-detail-banner')).toHaveTextContent('A layout cannot be selected more than once.'))
+    expect(screen.getByTestId('venue-detail-layouts-save-button')).toBeVisible()
+    expect(screen.getByTestId('venue-detail-layouts-theatre-input')).toBeChecked()
+  })
+
   // @story: SCRUM-31
   // @ac: 4
   it('shows every field recorded for the venue', async () => {

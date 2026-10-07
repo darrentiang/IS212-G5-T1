@@ -1,4 +1,5 @@
-"""Venue rules — SCRUM-31 (Add a Venue), SCRUM-40 (Block a Venue), SCRUM-75 (Update a Venue),
+"""Venue rules — SCRUM-31 (Add a Venue), SCRUM-32 (Record supported layouts),
+SCRUM-40 (Block a Venue), SCRUM-75 (Update a Venue),
 SCRUM-79 (End or Remove a Venue Block).
 
 Every rule the acceptance criteria state lives here, next to the query, and
@@ -12,7 +13,7 @@ from datetime import datetime, timezone
 import clock
 from db import db
 from errors import ApiRefusal
-from models import AccessibilityFeature, Facility, Venue, VenueBlock
+from models import AccessibilityFeature, Facility, RoomLayout, Venue, VenueBlock
 
 DATE_FORMAT = "%Y-%m-%d"
 TIME_FORMAT = "%H:%M"
@@ -39,13 +40,14 @@ def get_venue(venue_id):
 
 
 def venue_options():
-    """The two fixed lists the add-venue form offers (team decision, 22-09-2026)."""
+    """The fixed lists the venue forms offer."""
     return {
         "facilities": [row.name for row in db.session.query(Facility).order_by(Facility.id)],
         "accessibility_features": [
             row.name
             for row in db.session.query(AccessibilityFeature).order_by(AccessibilityFeature.id)
         ],
+        "layouts": [row.name for row in db.session.query(RoomLayout).order_by(RoomLayout.id)],
     }
 
 
@@ -115,6 +117,22 @@ def update_venue(venue_id, body):
     return venue
 
 
+def update_layouts(venue_id, body):
+    """Replace a venue's supported layout set, including with an empty set."""
+    venue = get_venue(venue_id)
+    values = body.get("layouts")
+    if not isinstance(values, list):
+        raise ApiRefusal(400, "Choose layouts as a list.")
+    if not all(isinstance(value, str) for value in values):
+        raise ApiRefusal(400, "Choose each layout from the list.")
+    if len(values) != len(set(values)):
+        raise ApiRefusal(400, "A layout cannot be selected more than once.")
+    layouts = _chosen(values, RoomLayout, "layout")
+    venue.layouts = layouts
+    db.session.commit()
+    return venue
+
+
 def _required_text(body, field, label):
     value = body.get(field)
     text = str(value).strip() if value is not None else ""
@@ -173,6 +191,7 @@ def venue_to_dict(venue):
         "closing_time": venue.closing_time.strftime(TIME_FORMAT) if venue.closing_time else None,
         "facilities": [row.name for row in venue.facilities],
         "accessibility_features": [row.name for row in venue.accessibility_features],
+        "layouts": [row.name for row in venue.layouts],
         "is_active": venue.is_active,
     }
 

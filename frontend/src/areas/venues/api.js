@@ -6,7 +6,7 @@ import { request } from '../../app/http'
 export const listVenues = () => request('GET', '/api/venues')
 
 // GET /api/venues/:id
-// 200:     { id, name, location, max_capacity, opening_time, closing_time, facilities, accessibility_features }
+// 200:     { id, name, location, max_capacity, opening_time, closing_time, facilities, accessibility_features, layouts }
 // 403/404: { message }
 export const getVenue = (id) => request('GET', `/api/venues/${id}`)
 
@@ -26,6 +26,12 @@ export const createVenue = (data) => request('POST', '/api/venues', data)
 // 200:     the updated venue
 // 400/403/404: { message }
 export const updateVenue = (id, data) => request('PUT', `/api/venues/${id}`, data)
+
+// PATCH /api/venues/:id/layouts
+// body:    { layouts: [ recognised layout names ] } — the selected set is authoritative; [] clears it
+// 200:     the updated venue
+// 400/403/404: { message }
+export const updateVenueLayouts = (id, data) => request('PATCH', `/api/venues/${id}/layouts`, data)
 
 // GET /api/venues/:id/blocks
 // 200:     [ { id, venue_id, start, end, reason, created_by, created_at, phase } ]   start/end '2026-10-20T09:00', local time

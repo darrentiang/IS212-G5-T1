@@ -12,6 +12,7 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | 1.5 | 06-10-2026 | §7 a list of related records on a detail page, and the venue page's Blocks section and inline block form test ids; §9 a period across two dates (`20 Oct 2026, 09:00 to 21 Oct 2026, 18:00`), formatted with `formatDateTimePeriod` | SCRUM-40 lists a venue's blocks on its page and lets Venue Staff block it for a period that may span days |
 | 1.6 | 06-10-2026 | §7 inline update form on venue detail page, and update test ids | SCRUM-75 lets Venue Staff update recorded venue fields via an inline form |
 | 1.7 | 06-10-2026 | §7 the venue page's per-block Remove and End early buttons and the inline end-block form's test ids; one inline form open at a time across Update venue, Block venue and End early | SCRUM-79 lets Venue Staff remove a block that has not started or end one in progress early |
+| 1.8 | 07-10-2026 | §7 venue supported-layout display and selection test ids | SCRUM-32 records the layouts a venue supports |
 | 1.8 | 07-10-2026 | §1 `/requests/:id/bookings/new`; §7 the request page's Request venue booking button and the venue page's Booking requests section; §12 Requested and Withdrawn added to the status-colour table | SCRUM-36 lets an Event Coordinator raise a venue booking request from an event, and lists the venue's booking requests on its page the same way as Blocks |
 
 ## 1. Pages
@@ -140,6 +141,15 @@ The venue page (`venue-detail`), SCRUM-40, SCRUM-75:
 | Inline update form inputs | `venue-detail-update-name-input`, `venue-detail-update-location-input`, `venue-detail-update-max-capacity-input`, `venue-detail-update-opening-time-input`, `venue-detail-update-closing-time-input`, `venue-detail-update-facilities-<kebab-option>-input`, `venue-detail-update-accessibility-features-<kebab-option>-input` |
 | Message under an empty field | `venue-detail-update-<field>-error` (e.g. `venue-detail-update-name-error`) |
 | Save and Cancel update buttons | `venue-detail-update-save-button`, `venue-detail-update-cancel-button` |
+
+SCRUM-32 adds the venue's supported layouts. An empty list is shown as `None`, and the selection form is available only with `venues.edit`; it is another inline form, so it follows the one-form-at-a-time rule above.
+
+| Element | `data-testid` |
+|---|---|
+| Supported layouts value | `venue-detail-layouts-value` |
+| Select layouts button (only with `venues.edit`) | `venue-detail-layouts-button` |
+| Layout checkbox | `venue-detail-layouts-<kebab-option>-input` |
+| Save and Cancel layout buttons | `venue-detail-layouts-save-button`, `venue-detail-layouts-cancel-button` |
 
 SCRUM-79 adds an action cell to each block row, only with `venues.edit`. Which action a block offers follows its `phase` from the API (not a status, so no badge): a block that has not started offers Remove, which acts at once; a block in progress offers End early, which opens an inline end-block form below the Blocks table (new end date and time, End and Cancel); a block that has ended offers neither. The update form, the block form and the end-block form are all inline forms, so only one of the three is open at a time: opening any one closes the other two.
 
