@@ -1,4 +1,5 @@
-"""Venue booking request rules — SCRUM-36 (Request Venue Booking).
+"""Venue booking request rules — SCRUM-36 (Request Venue Booking) and
+SCRUM-42 (Warn When a Requested Venue Appears Unsuitable).
 
 Every rule the acceptance criteria state lives here, next to the query, and
 refuses by raising ApiRefusal; the route never decides (ADR-002). Approving,
@@ -21,6 +22,8 @@ RAISABLE_STATUSES = ("Approved", "Planning")
 
 # A request in this status against the same (venue, event) pair blocks a new one (AC9).
 AWAITING_DECISION = "Requested"
+
+TIME_FORMAT = "%H:%M"
 
 
 def _get_event_request(event_request_id):
@@ -119,3 +122,69 @@ def booking_to_dict(booking):
         "raised_by": booking.raised_by.username,
         "raised_at": booking.raised_at.isoformat(),
     }
+
+
+def check_venue(account, event_request_id, venue_id):
+    """SCRUM-42: the warnings for one (event request, venue) pair; nothing is stored.
+
+    The route's @require(BOOKINGS_EDIT) has already refused anyone who may not
+    raise a booking request (403 before 404, ADR-002). A Draft is refused 403,
+    the same read rule GET /api/requests/:id applies to an Event Coordinator:
+    the check must not reveal a Draft's attendance or times.
+    """
+    event_request = _get_event_request(event_request_id)
+    venue = _get_venue(venue_id)
+    if event_request.status == "Draft":
+        raise ApiRefusal(403, "You do not have permission to perform this action.")
+    return venue_warnings(event_request, venue)
+
+
+def _within_hours(moment, opening, closing):
+    # Exactly at opening or closing is within hours (PO decision).
+    return opening <= moment <= closing
+
+
+def venue_warnings(event_request, venue):
+    """One warning per mismatch between an event and a venue (SCRUM-42 AC2-AC4).
+
+    Each carries the values AC3 shows. Attendance equal to the capacity fits.
+    Operating hours are checked only when the venue records both opening and
+    closing time; the start and the end are each checked on their own, so an
+    event wholly outside the hours gets two warnings. A layout, facility or
+    accessibility feature the event did not choose is not checked. An event
+    crossing midnight is out of scope.
+    """
+    warnings = []
+
+    if event_request.attendance > venue.max_capacity:
+        warnings.append(
+            {
+                "type": "capacity",
+                "attendance": event_request.attendance,
+                "max_capacity": venue.max_capacity,
+            }
+        )
+
+    if venue.opening_time is not None and venue.closing_time is not None:
+        opening = venue.opening_time.strftime(TIME_FORMAT)
+        closing = venue.closing_time.strftime(TIME_FORMAT)
+        for field in ("start_time", "end_time"):
+            value = getattr(event_request, field)
+            moment = datetime.strptime(value, TIME_FORMAT).time()
+            if not _within_hours(moment, venue.opening_time, venue.closing_time):
+                warnings.append(
+                    {"type": field, field: value, "opening_time": opening, "closing_time": closing}
+                )
+
+    if event_request.layout is not None and event_request.layout not in venue.layouts:
+        warnings.append({"type": "layout", "name": event_request.layout.name})
+
+    for row in event_request.facilities:
+        if row not in venue.facilities:
+            warnings.append({"type": "facility", "name": row.name})
+
+    for row in event_request.accessibility_features:
+        if row not in venue.accessibility_features:
+            warnings.append({"type": "accessibility_feature", "name": row.name})
+
+    return warnings

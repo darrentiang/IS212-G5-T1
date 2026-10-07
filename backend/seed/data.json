@@ -90,7 +90,16 @@
       "accessibility_needs": "Step-free access and reserved seating",
       "equipment_requirements": "Sound system and stage lighting",
       "registration_needs": "No registration; the client supplies the guest list",
-      "submitted_at": "2026-09-01T10:00:00+00:00"
+      "submitted_at": "2026-09-01T10:00:00+00:00",
+      "layout": "Banquet",
+      "facilities": [
+        "Stage lighting",
+        "Sound system"
+      ],
+      "accessibility_features": [
+        "Step-free access",
+        "Reserved seating"
+      ]
     },
     {
       "name": "Design Workshop",
@@ -125,7 +134,16 @@
       "accessibility_needs": "Hearing loop and an accessible toilet",
       "equipment_requirements": "Projector, sound system and two microphones",
       "registration_needs": "No public registration; the client supplies the attendee list",
-      "submitted_at": "2026-09-02T09:00:00+00:00"
+      "submitted_at": "2026-09-02T09:00:00+00:00",
+      "layout": "Theatre",
+      "facilities": [
+        "Projector",
+        "Sound system"
+      ],
+      "accessibility_features": [
+        "Hearing loop",
+        "Accessible toilet"
+      ]
     },
     {
       "name": "Open House",

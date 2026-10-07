@@ -5,6 +5,8 @@ read access. SCRUM-28: event request creation and submission. SCRUM-31:
 venues with their facilities, accessibility features and layouts. SCRUM-40: venue
 blocks. SCRUM-36: venue booking requests, and a venue's is_active flag
 (retiring one is SCRUM-76; this story only needed somewhere to check).
+SCRUM-42: an event request's required layout, facilities and accessibility
+features, chosen from the same fixed lists as a venue's.
 No permission logic here — see backend/permissions.py.
 """
 
@@ -17,8 +19,9 @@ from db import db
 # SCRUM-28 added event request columns; SCRUM-31 added venues and the two
 # fixed lists they choose from. SCRUM-29 added the approve/reject decision.
 # SCRUM-40 added venue blocks. SCRUM-36 added venue booking requests and
-# Venue.is_active and SCRUM-32 added room layouts.
-SCHEMA_VERSION = 8
+# Venue.is_active and SCRUM-32 added room layouts. SCRUM-42 added an event
+# request's required layout, facilities and accessibility features.
+SCHEMA_VERSION = 9
 
 
 account_roles = db.Table(
@@ -74,7 +77,9 @@ class EventRequest(db.Model):
 
     SCRUM-27 added read-only access with role rules (own only / all except
     Draft, internal notes gating). SCRUM-28 added creation and the
-    Draft -> Submitted transition. SCRUM-29 added approve/reject. 
+    Draft -> Submitted transition. SCRUM-29 added approve/reject.
+    SCRUM-42 added the optional required layout, facilities and accessibility
+    features, stored as links to the venue lists; never required to submit.
     Later stories add columns and transitions in their own pull requests.
     """
 
@@ -124,8 +129,21 @@ class EventRequest(db.Model):
     decided_at = db.Column(db.DateTime, nullable=True)
     decided_by_id = db.Column(db.Integer, db.ForeignKey("accounts.id"), nullable=True)
 
+    # SCRUM-42: one required layout or none; any number of facilities and
+    # accessibility features. Ordered as the fixed lists are.
+    layout_id = db.Column(db.Integer, db.ForeignKey("room_layouts.id"), nullable=True)
+
     created_by = db.relationship("Account", foreign_keys=[created_by_id], backref="event_requests")
     decided_by = db.relationship("Account", foreign_keys=[decided_by_id])
+    layout = db.relationship("RoomLayout")
+    facilities = db.relationship(
+        "Facility", secondary="event_request_facilities", order_by="Facility.id"
+    )
+    accessibility_features = db.relationship(
+        "AccessibilityFeature",
+        secondary="event_request_accessibility_features",
+        order_by="AccessibilityFeature.id",
+    )
 
     def missing_fields(self):
         """Names of required fields that are unset or blank, in REQUIRED_FIELDS order."""
@@ -147,6 +165,9 @@ class EventRequest(db.Model):
             "decision_reason": self.decision_reason,
             "decided_at": self.decided_at.isoformat() if self.decided_at else None,
             "decided_by": self.decided_by.username if self.decided_by else None,
+            "layout": self.layout.name if self.layout else None,
+            "facilities": [row.name for row in self.facilities],
+            "accessibility_features": [row.name for row in self.accessibility_features],
             **{field: getattr(self, field) for field in self.REQUIRED_FIELDS},
         }
 
@@ -177,6 +198,25 @@ venue_layouts = db.Table(
     "venue_layouts",
     db.Column("venue_id", db.Integer, db.ForeignKey("venues.id"), primary_key=True),
     db.Column("layout_id", db.Integer, db.ForeignKey("room_layouts.id"), primary_key=True),
+)
+
+
+event_request_facilities = db.Table(
+    "event_request_facilities",
+    db.Column("event_request_id", db.Integer, db.ForeignKey("event_requests.id"), primary_key=True),
+    db.Column("facility_id", db.Integer, db.ForeignKey("facilities.id"), primary_key=True),
+)
+
+
+event_request_accessibility_features = db.Table(
+    "event_request_accessibility_features",
+    db.Column("event_request_id", db.Integer, db.ForeignKey("event_requests.id"), primary_key=True),
+    db.Column(
+        "accessibility_feature_id",
+        db.Integer,
+        db.ForeignKey("accessibility_features.id"),
+        primary_key=True,
+    ),
 )
 
 

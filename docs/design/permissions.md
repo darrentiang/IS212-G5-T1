@@ -15,6 +15,7 @@ Kept current by every story that adds an action: the row is added or changed in 
 | View venues and venue booking requests | No | Yes | Yes | No | No |
 | Maintain venue records and layouts; block a venue | No | No | Yes | No | No |
 | Raise or withdraw a venue booking request | No | Yes* | No | No | No |
+| See warnings that a venue appears unsuitable for an event, before raising a venue booking request | No | Yes* | No | No | No |
 | Approve or reject a venue booking | No | No | Yes | No | No |
 | Record equipment requirements | No | Assigned coordinator | No | View | No |
 | Maintain equipment inventory; reserve or release; withdraw from service | No | No | No | Yes | No |
@@ -58,3 +59,4 @@ Keys used in `backend/permissions.py` and on API routes / `features` from `/api/
 | 1.5 | 23-09-2026 | Rule: 403 for an object-level refusal on a read, 404 on a write | SCRUM-30 review: the split already existed in code (SCRUM-27/28) but was undocumented and read as an accident |
 | 1.6| 24-09-2026 | `requests.decide` for Event Coordinators; Organiser may see the request-level approve/reject reason | SCRUM-29: Organisers already hold `requests.edit`, so decide needs its own key; AC6 makes that decision public on the request |
 | 1.7 | 07-10-2026 | `bookings.edit` for Event Coordinators; "Raise or withdraw a venue booking request" row marked \* (unenforced "assigned coordinator"), with a Rule explaining why | SCRUM-36: raising a booking needs a key of its own, and is the first story to hit the fact that coordinator assignment itself does not exist yet |
+| 1.8 | 08-10-2026 | Venue-suitability warnings row, under `bookings.edit`, marked \* like raising; no new feature key. The fixed lists an event request's requirements are chosen from (`GET /api/request-options`) sit under `requests.edit`, covered by the existing create/edit row | SCRUM-42: the check is part of raising a venue booking request; Event Organisers choose requirements but do not hold `venues.view` |

@@ -5,7 +5,8 @@ import { request } from '../../app/http'
 //              decision, decision_reason, decided_at, decided_by,
 //              name, purpose, description, date, start_time, end_time, attendance,
 //              venue_requirements, accessibility_needs, equipment_requirements,
-//              registration_needs } ]
+//              registration_needs, layout, facilities, accessibility_features } ]
+//          layout: name | null; facilities, accessibility_features: [name] (SCRUM-42)
 // 403:     { message }
 export const listRequests = () => request('GET', '/api/requests')
 
@@ -17,7 +18,9 @@ export const getRequest = (id) => request('GET', `/api/requests/${id}`)
 
 // POST /api/requests
 // body:    { name, purpose, description, date, start_time, end_time, attendance,
-//            venue_requirements, accessibility_needs, equipment_requirements, registration_needs }
+//            venue_requirements, accessibility_needs, equipment_requirements, registration_needs,
+//            layout, facilities, accessibility_features }
+//          layout: name | null; the lists: [name]; none of the three is required (SCRUM-42)
 // 201:     the created, Submitted request
 // 400/403: { message }
 export const submitRequest = (data) => request('POST', '/api/requests', data)
@@ -41,13 +44,15 @@ export const rejectRequest = (id, reason) => request('POST', `/api/requests/${id
 // POST /api/requests/draft
 // body:    { name, purpose, description, date, start_time, end_time, attendance,
 //            venue_requirements, accessibility_needs, equipment_requirements,
-//            registration_needs } — only name is required
+//            registration_needs, layout, facilities, accessibility_features }
+//          — only name is required
 // 201:     the saved Draft
 // 400/403: { message }
 export const saveDraft = (data) => request('POST', '/api/requests/draft', data)
 
 // PUT /api/requests/:id
-// body:    any subset of the fields above
+// body:    any subset of the fields above; a choice left out is unchanged,
+//          null or [] clears it (SCRUM-42)
 // 200:     the updated Draft
 // 400/403/404: { message }
 export const updateDraft = (id, data) => request('PUT', `/api/requests/${id}`, data)
@@ -56,3 +61,8 @@ export const updateDraft = (id, data) => request('PUT', `/api/requests/${id}`, d
 // 204:     deleted
 // 400/403/404: { message }
 export const deleteDraft = (id) => request('DELETE', `/api/requests/${id}`)
+
+// GET /api/request-options   (SCRUM-42)
+// 200:     { layouts: [name], facilities: [name], accessibility_features: [name] }   in list order
+// 401/403: { message }
+export const getRequestOptions = () => request('GET', '/api/request-options')

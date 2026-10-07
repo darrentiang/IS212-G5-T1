@@ -2,7 +2,15 @@ import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import { useAuth } from '../../app/auth'
 import { STATUS, formatDate, formatDateTime, formatTime, statusBadgeClass } from '../../app/format'
-import { approveRequest, deleteDraft, getRequest, rejectRequest, submitDraft, updateDraft } from './api'
+import {
+  approveRequest,
+  deleteDraft,
+  getRequest,
+  getRequestOptions,
+  rejectRequest,
+  submitDraft,
+  updateDraft,
+} from './api'
 
 // SCRUM-27: show one request or the API refusal (banner), never invent data.
 // SCRUM-28: show the success banner carried from RequestNewPage's navigate(),
@@ -13,6 +21,8 @@ import { approveRequest, deleteDraft, getRequest, rejectRequest, submitDraft, up
 // SCRUM-36: for an Approved or Planning event, an Event Coordinator may
 // request a venue booking; it links to the bookings area's own page
 // (docs/design/frontend.md §2) rather than an inline form.
+// SCRUM-42: the chosen required layout, facilities and accessibility features,
+// shown as on the venue page ("None" when empty), and chosen in the Draft edit form.
 
 // Same order and labels as RequestNewPage's form (ui-guidelines.md §7).
 const FIELDS = [
@@ -61,6 +71,21 @@ const SHORT = new Set(['date', 'start_time', 'end_time', 'attendance'])
 const editValuesFrom = (row) =>
   Object.fromEntries(EDIT_FIELDS.map((field) => [field.name, row[field.name] ?? '']))
 
+// SCRUM-42: the requirement choices, after the fields above.
+const CHOICES = [
+  { name: 'facilities', label: 'Required facilities' },
+  { name: 'accessibility_features', label: 'Required accessibility features' },
+]
+
+const list = (values) => (values.length > 0 ? values.join(', ') : 'None')
+
+// The test id of one checkbox is the option's name in kebab-case
+// (docs/design/ui-guidelines.md §5).
+const kebab = (value) => value.toLowerCase().replaceAll(' ', '-')
+
+const toggle = (values, value) =>
+  values.includes(value) ? values.filter((item) => item !== value) : [...values, value]
+
 export default function RequestDetailPage() {
   const { id } = useParams()
   const location = useLocation()
@@ -77,6 +102,7 @@ export default function RequestDetailPage() {
   const [reasonError, setReasonError] = useState(null)
   const [editValues, setEditValues] = useState(null)
   const [editError, setEditError] = useState(null)
+  const [options, setOptions] = useState(null)
 
   // Keyed to id: a reply for the request the user has left can
   // arrive after the current one, so a stale reply is ignored
@@ -167,10 +193,25 @@ const openDecision = (action) => {
     Boolean(can?.('bookings.edit')) &&
     [STATUS.REQUEST.APPROVED, STATUS.REQUEST.PLANNING].includes(row?.status)
 
-  const openEdit = () => {
-    setEditValues(editValuesFrom(row))
-    setEditError(null)
-    setOpenAction('edit')
+  // The lists are needed only to edit, so they load when Edit is opened.
+  const openEdit = async () => {
+    setSubmitting(true)
+    try {
+      setOptions(await getRequestOptions())
+      setEditValues({
+        ...editValuesFrom(row),
+        layout: row.layout ?? '',
+        facilities: row.facilities,
+        accessibility_features: row.accessibility_features,
+      })
+      setEditError(null)
+      setOpenAction('edit')
+    } catch (error) {
+      setBanner(error.message)
+      setSuccessBanner(null)
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const setEditValue = (name, value) => setEditValues((prev) => ({ ...prev, [name]: value }))
@@ -183,7 +224,7 @@ const openDecision = (action) => {
     setEditError(null)
     setSubmitting(true)
     try {
-      const updated = await updateDraft(id, editValues)
+      const updated = await updateDraft(id, { ...editValues, layout: editValues.layout || null })
       setRow(updated)
       setBanner(null)
       setSuccessBanner('Draft updated')
@@ -241,6 +282,16 @@ const openDecision = (action) => {
                 <dd className="whitespace-pre-wrap" data-testid={testId(field.name)}>
                   {show(row[field.name], field.format)}
                 </dd>
+              </div>
+            ))}
+            <div>
+              <dt>Required room layout</dt>
+              <dd data-testid="request-detail-layout">{row.layout ?? 'None'}</dd>
+            </div>
+            {CHOICES.map((choice) => (
+              <div key={choice.name}>
+                <dt>{choice.label}</dt>
+                <dd data-testid={testId(choice.name)}>{list(row[choice.name])}</dd>
               </div>
             ))}
             <div>
@@ -379,6 +430,41 @@ const openDecision = (action) => {
               </div>
             ))}
           </div>
+          <div>
+            <label htmlFor="request-detail-edit-layout" className="label">
+              Required room layout
+            </label>
+            <select
+              id="request-detail-edit-layout"
+              className="input"
+              value={editValues.layout}
+              onChange={(event) => setEditValue('layout', event.target.value)}
+              data-testid="request-detail-edit-layout-input"
+            >
+              <option value="">None</option>
+              {options.layouts.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </div>
+          {CHOICES.map((choice) => (
+            <fieldset key={choice.name}>
+              <legend className="label">{choice.label}</legend>
+              {options[choice.name].map((option) => (
+                <label key={option} className="flex items-center gap-2 py-1">
+                  <input
+                    type="checkbox"
+                    checked={editValues[choice.name].includes(option)}
+                    onChange={() => setEditValue(choice.name, toggle(editValues[choice.name], option))}
+                    data-testid={`request-detail-edit-${choice.name.replaceAll('_', '-')}-${kebab(option)}-input`}
+                  />
+                  {option}
+                </label>
+              ))}
+            </fieldset>
+          ))}
           <div className="flex flex-wrap justify-end gap-2">
             <button
               type="button"

@@ -14,6 +14,7 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | 1.7 | 06-10-2026 | §7 the venue page's per-block Remove and End early buttons and the inline end-block form's test ids; one inline form open at a time across Update venue, Block venue and End early | SCRUM-79 lets Venue Staff remove a block that has not started or end one in progress early |
 | 1.8 | 07-10-2026 | §7 venue supported-layout display and selection test ids | SCRUM-32 records the layouts a venue supports |
 | 1.8 | 07-10-2026 | §1 `/requests/:id/bookings/new`; §7 the request page's Request venue booking button and the venue page's Booking requests section; §12 Requested and Withdrawn added to the status-colour table | SCRUM-36 lets an Event Coordinator raise a venue booking request from an event, and lists the venue's booking requests on its page the same way as Blocks |
+| 1.9 | 08-10-2026 | §5 an optional single choice is a select whose first option is None; §7 the request's required layout, facilities and accessibility features on the new-request page, the request page and the Draft edit form; the booking-new page's venue-suitability warnings | SCRUM-42 lets an Event Organiser choose an event's requirements from the venue lists, and warns an Event Coordinator when a chosen venue does not match them |
 
 ## 1. Pages
 
@@ -82,6 +83,7 @@ While the page is waiting for the API it renders the title row and nothing below
 - Required fields: label ends with ` *`, the input has `aria-required="true"`. No native `required` attribute (browser pop-ups bypass our messages and cannot be asserted consistently).
 - On submit the page checks required fields are filled and shows a message under each empty one, sending nothing. Every other rule is the API's, and an API refusal always shows in the banner, never under a field. Because the banner is not beside the field, the API's refusal message names the field it is about ("Attendance must be a positive whole number.", "Date cannot be earlier than today.").
 - Input types: `date`, `time`, `number` where the value is one; a select for fixed choices; a textarea for long text.
+- **An optional single choice from a fixed list** is a select whose first option is `None` (value empty); choosing None sends `null`.
 - **Several choices from a fixed list** are a group of checkboxes, one per option, inside a `fieldset` whose `legend` is the field's label. One checkbox's test id is `<page>-<field>-<value>-input`, the option's own text in kebab-case (`venue-new-facilities-stage-lighting-input`). A select with `multiple` is not used: one checkbox per option is what a test can tick and read back.
 - Buttons at the bottom right. One primary button (the action that completes the story), secondary buttons to its left (e.g. Save draft left of Submit).
 - All buttons disabled while the request is being sent.
@@ -187,6 +189,29 @@ The booking-new page (`booking-new`): a venue picker (`select`, the active venue
 | Venue select | `booking-new-venue-input` |
 | Message under an empty field | `booking-new-venue-error` |
 | Raise (confirm) button | `booking-new-raise-button` |
+
+**Requirements an event chose** (SCRUM-42). On the new-request page and in the Draft edit form on the request page, after the free-text fields: a "Required room layout" select (None, then the layouts) and two checkbox groups per §5, "Required facilities" and "Required accessibility features", from the same fixed lists as a venue's. None is required: no `*`, no message under them. The request page shows the three as label/value pairs after Registration needs, comma-separated in list order, `None` when empty (as the venue page does).
+
+| Element | `data-testid` |
+|---|---|
+| Layout select | `request-new-layout-input`, `request-detail-edit-layout-input` |
+| Facility checkbox | `request-new-facilities-<kebab-option>-input`, `request-detail-edit-facilities-<kebab-option>-input` |
+| Accessibility feature checkbox | `request-new-accessibility-features-<kebab-option>-input`, `request-detail-edit-accessibility-features-<kebab-option>-input` |
+| Layout value | `request-detail-layout` |
+| Facilities value | `request-detail-facilities` |
+| Accessibility features value | `request-detail-accessibility-features` |
+
+**Venue-suitability warnings** on the booking-new page (SCRUM-42). Choosing or changing the venue checks it against the event; each mismatch is one line in a warning list (`.warning-list`, `visual-style.md`) inside the form, under the venue select and above Raise, headed "This venue may not suit the event". A venue with no mismatch shows no list, and a new choice clears the old one's. The list is not a banner: it does not stop Raise, and it does not count against one banner at a time. The coordinator may Raise despite it, or leave with the back link, which is the Cancel (AC5). A failed check shows its message in `booking-new-banner`.
+
+| Element | `data-testid` | Text |
+|---|---|---|
+| Warning list | `booking-new-warnings` | This venue may not suit the event |
+| Capacity | `booking-new-warning-capacity` | Expected attendance 100 is above the venue's maximum capacity of 60. |
+| Start time | `booking-new-warning-start-time` | Start time 07:59 is outside the venue's operating hours, 08:00 to 20:00. |
+| End time | `booking-new-warning-end-time` | End time 20:01 is outside the venue's operating hours, 08:00 to 20:00. |
+| Missing layout | `booking-new-warning-layout-<kebab-option>` | The venue does not record the Theatre layout. |
+| Missing facility | `booking-new-warning-facility-<kebab-option>` | The venue does not record the facility Sound system. |
+| Missing accessibility feature | `booking-new-warning-accessibility-feature-<kebab-option>` | The venue does not record the accessibility feature Hearing loop. |
 
 ## 8. Not-permitted page
 
