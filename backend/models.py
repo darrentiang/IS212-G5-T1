@@ -2,7 +2,7 @@
 
 SCRUM-26: accounts and roles. SCRUM-27: event requests for role-based
 read access. SCRUM-28: event request creation and submission. SCRUM-31:
-venues with their facilities and accessibility features. SCRUM-40: venue
+venues with their facilities, accessibility features and layouts. SCRUM-40: venue
 blocks. SCRUM-36: venue booking requests, and a venue's is_active flag
 (retiring one is SCRUM-76; this story only needed somewhere to check).
 No permission logic here — see backend/permissions.py.
@@ -17,8 +17,8 @@ from db import db
 # SCRUM-28 added event request columns; SCRUM-31 added venues and the two
 # fixed lists they choose from. SCRUM-29 added the approve/reject decision.
 # SCRUM-40 added venue blocks. SCRUM-36 added venue booking requests and
-# Venue.is_active.
-SCHEMA_VERSION = 7
+# Venue.is_active and SCRUM-32 added room layouts.
+SCHEMA_VERSION = 8
 
 
 account_roles = db.Table(
@@ -173,6 +173,13 @@ venue_accessibility_features = db.Table(
 )
 
 
+venue_layouts = db.Table(
+    "venue_layouts",
+    db.Column("venue_id", db.Integer, db.ForeignKey("venues.id"), primary_key=True),
+    db.Column("layout_id", db.Integer, db.ForeignKey("room_layouts.id"), primary_key=True),
+)
+
+
 class Facility(db.Model):
     """One entry of the fixed facility list (team decision, 22-09-2026).
 
@@ -201,12 +208,24 @@ class AccessibilityFeature(db.Model):
         return f"<AccessibilityFeature {self.name}>"
 
 
+class RoomLayout(db.Model):
+    """One shared room layout option (SCRUM-32)."""
+
+    __tablename__ = "room_layouts"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(64), unique=True, nullable=False)
+
+    def __repr__(self):
+        return f"<RoomLayout {self.name}>"
+
+
 class Venue(db.Model):
     """A venue Venue Staff maintain (SCRUM-31).
 
     Name, location and maximum capacity are required; the operating hours and
-    the two lists are optional. Editing is SCRUM-75, retiring SCRUM-76 and
-    room layouts SCRUM-32, so nothing here supports them yet.
+    the two lists and supported room layouts are optional. Editing is SCRUM-75;
+    retiring is SCRUM-76 and layout assignments are SCRUM-32.
     """
 
     __tablename__ = "venues"
@@ -225,6 +244,7 @@ class Venue(db.Model):
         secondary=venue_accessibility_features,
         backref="venues",
     )
+    layouts = db.relationship("RoomLayout", secondary=venue_layouts, backref="venues")
 
     def __repr__(self):
         return f"<Venue {self.id} {self.name}>"

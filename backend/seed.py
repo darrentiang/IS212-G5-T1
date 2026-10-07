@@ -31,6 +31,7 @@ from models import (
     EventRequest,
     Facility,
     Role,
+    RoomLayout,
     SchemaMeta,
     Venue,
 )
@@ -126,6 +127,9 @@ def seed_database(db, data_path=DEFAULT_DATA_PATH):
             feature = AccessibilityFeature(name=name)
             accessibility_features[name] = feature
             db.session.add(feature)
+
+        for name in data.get("layouts", []):
+            db.session.add(RoomLayout(name=name))
 
         for entry in data.get("venues", []):
             db.session.add(

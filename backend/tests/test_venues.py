@@ -314,6 +314,13 @@ def test_the_form_is_offered_the_two_seeded_lists(client):
             "Lift access",
             "Reserved seating",
         ],
+        "layouts": [
+            "Classroom",
+            "Theatre",
+            "Boardroom",
+            "Banquet",
+            "Exhibition",
+        ],
     }
 
 
@@ -627,4 +634,3 @@ def test_subsequent_list_and_detail_reads_return_updated_information(client):
     v1 = next(v for v in venues if v["id"] == 1)
     assert v1["name"] == "New Name In List"
     assert v1["location"] == "New Location In List"
-

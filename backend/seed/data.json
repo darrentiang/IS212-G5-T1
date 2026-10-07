@@ -161,6 +161,13 @@
     "Lift access",
     "Reserved seating"
   ],
+  "layouts": [
+    "Classroom",
+    "Theatre",
+    "Boardroom",
+    "Banquet",
+    "Exhibition"
+  ],
   "venues": [
     {
       "name": "Seminar Room 1",
