@@ -45,14 +45,18 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-function renderPage(state) {
-  return render(
+function venuePage(state) {
+  return (
     <MemoryRouter initialEntries={[{ pathname: '/venues/3', state }]}>
       <Routes>
         <Route path="/venues/:id" element={<VenueDetailPage />} />
       </Routes>
-    </MemoryRouter>,
+    </MemoryRouter>
   )
+}
+
+function renderPage(state) {
+  return render(venuePage(state))
 }
 
 describe('VenueDetailPage', () => {
@@ -136,7 +140,7 @@ describe('VenueDetailPage', () => {
 
   // @story: SCRUM-32
   // @ac: 6
-  it('ignores an options refusal that arrives after the page unmounts', async () => {
+  it('ignores an options refusal after permissions make the page view-only', async () => {
     let rejectOptions
     api.getVenue.mockResolvedValue(HALL_A)
     api.getVenueOptions.mockReturnValue(
@@ -145,14 +149,17 @@ describe('VenueDetailPage', () => {
       }),
     )
 
-    const { unmount } = renderPage()
+    const rendered = renderPage()
     await waitFor(() => expect(screen.getByTestId('venue-detail-name')).toHaveTextContent('Hall A'))
-    unmount()
+
+    signInWith(['venues.view'])
+    rendered.rerender(venuePage())
 
     await act(async () => {
       rejectOptions(new Error('Late options refusal'))
     })
 
+    expect(screen.getByTestId('venue-detail-name')).toHaveTextContent('Hall A')
     expect(screen.queryByTestId('venue-detail-banner')).not.toBeInTheDocument()
   })
 
