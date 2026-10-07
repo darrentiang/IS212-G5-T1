@@ -173,6 +173,7 @@ def venue_to_dict(venue):
         "closing_time": venue.closing_time.strftime(TIME_FORMAT) if venue.closing_time else None,
         "facilities": [row.name for row in venue.facilities],
         "accessibility_features": [row.name for row in venue.accessibility_features],
+        "is_active": venue.is_active,
     }
 
 

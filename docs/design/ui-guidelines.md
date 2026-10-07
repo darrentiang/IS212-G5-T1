@@ -12,6 +12,7 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | 1.5 | 06-10-2026 | §7 a list of related records on a detail page, and the venue page's Blocks section and inline block form test ids; §9 a period across two dates (`20 Oct 2026, 09:00 to 21 Oct 2026, 18:00`), formatted with `formatDateTimePeriod` | SCRUM-40 lists a venue's blocks on its page and lets Venue Staff block it for a period that may span days |
 | 1.6 | 06-10-2026 | §7 inline update form on venue detail page, and update test ids | SCRUM-75 lets Venue Staff update recorded venue fields via an inline form |
 | 1.7 | 06-10-2026 | §7 the venue page's per-block Remove and End early buttons and the inline end-block form's test ids; one inline form open at a time across Update venue, Block venue and End early | SCRUM-79 lets Venue Staff remove a block that has not started or end one in progress early |
+| 1.8 | 07-10-2026 | §1 `/requests/:id/bookings/new`; §7 the request page's Request venue booking button and the venue page's Booking requests section; §12 Requested and Withdrawn added to the status-colour table | SCRUM-36 lets an Event Coordinator raise a venue booking request from an event, and lists the venue's booking requests on its page the same way as Blocks |
 
 ## 1. Pages
 
@@ -24,6 +25,7 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | `/venues` | `venues` | Feature per `permissions.md` |
 | `/venues/new` | `venue-new` | Feature per `permissions.md` |
 | `/venues/:id` | `venue-detail` | Feature per `permissions.md` |
+| `/requests/:id/bookings/new` | `booking-new` | Feature per `permissions.md` |
 | — (shown in place of a refused page) | `not-permitted` | Anyone whose account lacks the page's feature |
 
 - Not logged in → any page sends the user to `/login`.
@@ -149,6 +151,33 @@ SCRUM-79 adds an action cell to each block row, only with `venues.edit`. Which a
 | Message under an empty field | `venue-detail-end-block-<field>-error` (e.g. `venue-detail-end-block-end-time-error`) |
 | End (confirm) and Cancel buttons | `venue-detail-end-block-confirm-button`, `venue-detail-end-block-cancel-button` |
 
+**Booking requests** (SCRUM-36) is a second related-records section on the venue page, below Blocks, read-only: raising one happens from the event's own page (below), not here. Status as the exact state-model.md word, as a badge (§12).
+
+| Element | `data-testid` |
+|---|---|
+| Booking row | `venue-detail-booking-row-<id>` |
+| Booking status | `venue-detail-booking-status-<id>` |
+| Booking period | `venue-detail-booking-period-<id>` |
+| Booking event name | `venue-detail-booking-event-<id>` |
+| No booking requests | `venue-detail-bookings-empty` |
+
+On the request page (`request-detail`), SCRUM-36: an Event Coordinator sees a Request venue booking button when the event's status is Approved or Planning; it links to `/requests/:id/bookings/new`, not an inline form, since raising starts a new record the bookings area owns (`docs/design/frontend.md` §2).
+
+| Element | `data-testid` |
+|---|---|
+| Request venue booking button (only with `bookings.edit`, status Approved or Planning) | `request-detail-raise-booking-button` |
+
+The booking-new page (`booking-new`): a venue picker (`select`, the active venues) and the usual form buttons.
+
+| Element | `data-testid` |
+|---|---|
+| Back link | `booking-new-back-link` |
+| Title | `booking-new-title` |
+| Banner | `booking-new-banner` |
+| Venue select | `booking-new-venue-input` |
+| Message under an empty field | `booking-new-venue-error` |
+| Raise (confirm) button | `booking-new-raise-button` |
+
 ## 8. Not-permitted page
 
 - One sentence saying the account cannot open this page, and a link home (§1).
@@ -188,5 +217,7 @@ How pages look (tokens, type, spacing and the shared classes) is in `visual-styl
 | Rejected | Danger |
 | Cancelled | Danger |
 | Completed | Neutral |
+| Requested | Info |
+| Withdrawn | Neutral |
 
-A status not in this table is neutral until a story adds its row here.
+A status not in this table is neutral until a story adds its row here. Requested and Withdrawn are a venue booking request's own statuses (state-model.md); its Approved and Rejected reuse the colours already above.

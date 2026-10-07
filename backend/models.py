@@ -3,7 +3,9 @@
 SCRUM-26: accounts and roles. SCRUM-27: event requests for role-based
 read access. SCRUM-28: event request creation and submission. SCRUM-31:
 venues with their facilities and accessibility features. SCRUM-40: venue
-blocks. No permission logic here — see backend/permissions.py.
+blocks. SCRUM-36: venue booking requests, and a venue's is_active flag
+(retiring one is SCRUM-76; this story only needed somewhere to check).
+No permission logic here — see backend/permissions.py.
 """
 
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -14,8 +16,9 @@ from db import db
 # start when the stored version differs; seed.py --reset rebuilds the database.
 # SCRUM-28 added event request columns; SCRUM-31 added venues and the two
 # fixed lists they choose from. SCRUM-29 added the approve/reject decision.
-# SCRUM-40 added venue blocks.
-SCHEMA_VERSION = 6
+# SCRUM-40 added venue blocks. SCRUM-36 added venue booking requests and
+# Venue.is_active.
+SCHEMA_VERSION = 7
 
 
 account_roles = db.Table(
@@ -214,6 +217,7 @@ class Venue(db.Model):
     max_capacity = db.Column(db.Integer, nullable=False)
     opening_time = db.Column(db.Time, nullable=True)
     closing_time = db.Column(db.Time, nullable=True)
+    is_active = db.Column(db.Boolean, nullable=False, default=True)
 
     facilities = db.relationship("Facility", secondary=venue_facilities, backref="venues")
     accessibility_features = db.relationship(
@@ -251,6 +255,42 @@ class VenueBlock(db.Model):
 
     def __repr__(self):
         return f"<VenueBlock {self.id} venue {self.venue_id}>"
+
+
+class VenueBookingRequest(db.Model):
+    """An Event Coordinator's request to book a venue for an event (SCRUM-36).
+
+    date, start_time, end_time, attendance and venue_requirements are copied
+    from the event request at the moment of raising (AC3): a later change to
+    the event does not move the booking request. raised_at is UTC, the same
+    convention as an event request's submitted_at. Deciding (approve/reject)
+    and withdrawing are later stories; nothing here supports them yet.
+    """
+
+    __tablename__ = "venue_booking_requests"
+
+    STATUSES = ("Requested", "Approved", "Rejected", "Withdrawn")
+
+    id = db.Column(db.Integer, primary_key=True)
+    venue_id = db.Column(db.Integer, db.ForeignKey("venues.id"), nullable=False)
+    event_request_id = db.Column(db.Integer, db.ForeignKey("event_requests.id"), nullable=False)
+    status = db.Column(db.String(32), nullable=False, default="Requested")
+
+    date = db.Column(db.String(10))  # ISO yyyy-mm-dd, copied from the event
+    start_time = db.Column(db.String(5))  # HH:MM
+    end_time = db.Column(db.String(5))  # HH:MM
+    attendance = db.Column(db.Integer)
+    venue_requirements = db.Column(db.Text)
+
+    raised_by_id = db.Column(db.Integer, db.ForeignKey("accounts.id"), nullable=False)
+    raised_at = db.Column(db.DateTime, nullable=False)
+
+    venue = db.relationship("Venue", backref="booking_requests")
+    event_request = db.relationship("EventRequest", backref="booking_requests")
+    raised_by = db.relationship("Account")
+
+    def __repr__(self):
+        return f"<VenueBookingRequest {self.id} venue {self.venue_id} event {self.event_request_id} {self.status}>"
 
 
 class SchemaMeta(db.Model):

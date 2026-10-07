@@ -50,3 +50,10 @@ export const removeVenueBlock = (id, blockId) => request('DELETE', `/api/venues/
 // 200:     the updated block
 // 400/403/404: { message }
 export const endVenueBlock = (id, blockId, data) => request('PATCH', `/api/venues/${id}/blocks/${blockId}`, data)
+
+// GET /api/venues/:id/bookings   (SCRUM-36)
+// 200:     [ { id, venue_id, event_request_id, event_request_name, status,
+//              date, start_time, end_time, attendance, venue_requirements,
+//              raised_by, raised_at } ]
+// 403/404: { message }
+export const listVenueBookings = (id) => request('GET', `/api/venues/${id}/bookings`)

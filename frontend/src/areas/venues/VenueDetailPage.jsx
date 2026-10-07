@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation, useParams } from 'react-router'
 import { useAuth } from '../../app/auth'
-import { formatDateTimePeriod, formatTime } from '../../app/format'
+import { formatDateTimePeriod, formatPeriod, formatTime, statusBadgeClass } from '../../app/format'
 import {
   blockVenue,
   endVenueBlock,
   getVenue,
   getVenueOptions,
   listVenueBlocks,
+  listVenueBookings,
   removeVenueBlock,
   updateVenue,
 } from './api'
@@ -61,6 +62,7 @@ export default function VenueDetailPage() {
   const { can } = useAuth()
   const [row, setRow] = useState(null)
   const [blocks, setBlocks] = useState([])
+  const [bookings, setBookings] = useState([])
   const [loading, setLoading] = useState(true)
   const [banner, setBanner] = useState(null)
   // The success banner shows on the page the user lands on after saving
@@ -95,11 +97,12 @@ export default function VenueDetailPage() {
   // (docs/design/frontend.md section 7).
   useEffect(() => {
     let active = true
-    Promise.all([getVenue(id), listVenueBlocks(id)])
-      .then(([venue, venueBlocks]) => {
+    Promise.all([getVenue(id), listVenueBlocks(id), listVenueBookings(id)])
+      .then(([venue, venueBlocks, venueBookings]) => {
         if (active) {
           setRow(venue)
           setBlocks(venueBlocks)
+          setBookings(venueBookings)
         }
       })
       .catch((error) => {
@@ -711,6 +714,47 @@ export default function VenueDetailPage() {
                   </button>
                 </div>
               </form>
+            )}
+          </section>
+
+          {/* SCRUM-36: booking requests raised against this venue, read-only here. */}
+          <section className="space-y-4">
+            <h2 className="section-title">Booking requests</h2>
+            {bookings.length === 0 ? (
+              <div className="card">
+                <p className="empty-state" data-testid="venue-detail-bookings-empty">
+                  This venue has no booking requests.
+                </p>
+              </div>
+            ) : (
+              <div className="card p-0 overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>Event</th>
+                        <th>Period</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {bookings.map((booking) => (
+                        <tr key={booking.id} data-testid={`venue-detail-booking-row-${booking.id}`}>
+                          <td data-testid={`venue-detail-booking-event-${booking.id}`}>
+                            {booking.event_request_name}
+                          </td>
+                          <td data-testid={`venue-detail-booking-period-${booking.id}`}>
+                            {formatPeriod(booking.date, booking.start_time, booking.end_time)}
+                          </td>
+                          <td data-testid={`venue-detail-booking-status-${booking.id}`}>
+                            <span className={statusBadgeClass(booking.status)}>{booking.status}</span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             )}
           </section>
         </>

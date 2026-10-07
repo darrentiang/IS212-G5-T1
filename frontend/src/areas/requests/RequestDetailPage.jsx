@@ -10,6 +10,9 @@ import { approveRequest, deleteDraft, getRequest, rejectRequest, submitDraft, up
 // SCRUM-29: every submitted field, the submission date and organiser, and the
 // decision; an Event Coordinator approves or rejects a Submitted request
 // through an inline reason form (ui-guidelines.md §7).
+// SCRUM-36: for an Approved or Planning event, an Event Coordinator may
+// request a venue booking; it links to the bookings area's own page
+// (docs/design/frontend.md §2) rather than an inline form.
 
 // Same order and labels as RequestNewPage's form (ui-guidelines.md §7).
 const FIELDS = [
@@ -160,6 +163,9 @@ const openDecision = (action) => {
   }
 
   const canDecide = Boolean(can?.('requests.decide')) && row?.status === STATUS.REQUEST.SUBMITTED
+  const canRaiseBooking =
+    Boolean(can?.('bookings.edit')) &&
+    [STATUS.REQUEST.APPROVED, STATUS.REQUEST.PLANNING].includes(row?.status)
 
   const openEdit = () => {
     setEditValues(editValuesFrom(row))
@@ -229,7 +235,6 @@ const openDecision = (action) => {
       {loading || !row ? null : (
         <div className="card space-y-6">
           <dl className="detail-list" data-testid="request-detail-fields">
-            {/* Keeping HEAD's dynamic FIELDS map but using main's clean styles */}
             {typeof FIELDS !== 'undefined' && FIELDS.map((field) => (
               <div key={field.name}>
                 <dt>{field.label}</dt>
@@ -249,7 +254,6 @@ const openDecision = (action) => {
               <dd data-testid="request-detail-created-by">{row.created_by}</dd>
             </div>
             
-            {/* HEAD's Decision Tracking Fields */}
             {row.submitted_at && (
               <div>
                 <dt>Submitted on</dt>
@@ -283,7 +287,6 @@ const openDecision = (action) => {
               </>
             )}
 
-            {/* Main's coordinator notes safely checked */}
             {'coordinator_notes' in row && row.coordinator_notes != null && (
               <div>
                 <dt>Coordinator notes</dt>
@@ -292,7 +295,7 @@ const openDecision = (action) => {
             )}
           </dl>
 
-          {/* Main's Draft buttons */}
+          {/* SCRUM-30: a Draft's owner may edit, delete or submit it. */}
           {row.status === STATUS.REQUEST.DRAFT && (
             <div className="flex flex-wrap justify-end gap-2">
               <button
@@ -324,10 +327,23 @@ const openDecision = (action) => {
               </button>
             </div>
           )}
+
+          {/* SCRUM-36: an Approved or Planning event may have a venue booking requested. */}
+          {canRaiseBooking && (
+            <div className="flex justify-end">
+              <Link
+                to={`/requests/${id}/bookings/new`}
+                className="btn btn-primary"
+                data-testid="request-detail-raise-booking-button"
+              >
+                Request venue booking
+              </Link>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Main's Edit form */}
+      {/* SCRUM-30: edit any field of an own Draft, including the name. */}
       {openAction === 'edit' && editValues && (
         <div className="card form-card space-y-4" data-testid="request-detail-edit-form">
           <h2 className="section-title">Edit draft</h2>
@@ -386,7 +402,7 @@ const openDecision = (action) => {
         </div>
       )}
 
-      {/* Main's Delete form */}
+      {/* SCRUM-30: permanently delete an own Draft. */}
       {openAction === 'delete' && (
         <div className="card space-y-4" data-testid="request-detail-delete-form">
           <h2 className="section-title">Delete draft</h2>
@@ -414,7 +430,7 @@ const openDecision = (action) => {
         </div>
       )}
 
-      {/* HEAD's Decision Action Buttons (styled with main's classes) */}
+      {/* SCRUM-29: approve or reject a Submitted request. */}
       {!loading && canDecide && (
         <div className="flex justify-end gap-2">
           <button
@@ -438,7 +454,6 @@ const openDecision = (action) => {
         </div>
       )}
 
-      {/* HEAD's Decision Form (styled with main's classes) */}
       {canDecide && ['approve', 'reject'].includes(openAction) && (
         <form onSubmit={handleConfirmDecision} noValidate className="card form-card space-y-4">
           <h2 className="section-title">{DECISIONS[openAction].label} Request</h2>
