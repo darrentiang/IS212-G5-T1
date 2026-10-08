@@ -296,7 +296,65 @@ describe('BookingNewPage', () => {
       expect(navigate).toHaveBeenCalledWith('/venues/1', { state: { banner: 'Venue booking requested' } }),
     )
   })
+
+  // --- SCRUM-38: warnings when the chosen venue is already held ---
+
+  // @story: SCRUM-38
+  // @ac: 7
+  it('names each approved booking and block holding the venue, after the mismatches', async () => {
+    api.checkVenue.mockResolvedValue([CAPACITY, HELD_BY_BOOKING, HELD_BY_BLOCK])
+    await renderPage()
+
+    await userEvent.selectOptions(screen.getByTestId('booking-new-venue-input'), '1')
+
+    expect(await screen.findByTestId('booking-new-warning-approved-booking-31')).toHaveTextContent(
+      'The venue already holds an approved booking for TC38 Holder, 10 Dec 2026, 14:00–17:00.',
+    )
+    expect(screen.getByTestId('booking-new-warning-block-7')).toHaveTextContent(
+      'The venue is blocked 10 Dec 2026, 13:00 to 10 Dec 2026, 15:00 (Projector replacement).',
+    )
+    const lines = screen.getAllByRole('listitem').map((item) => item.dataset.testid)
+    expect(lines).toEqual([
+      'booking-new-warning-capacity',
+      'booking-new-warning-approved-booking-31',
+      'booking-new-warning-block-7',
+    ])
+  })
+
+  // @story: SCRUM-38
+  // @ac: 7
+  it('raises despite a venue being held', async () => {
+    api.checkVenue.mockResolvedValue([HELD_BY_BOOKING])
+    api.raiseBooking.mockResolvedValue({ id: 9 })
+    await renderPage()
+    await userEvent.selectOptions(screen.getByTestId('booking-new-venue-input'), '1')
+    await screen.findByTestId('booking-new-warning-approved-booking-31')
+
+    await userEvent.click(screen.getByTestId('booking-new-raise-button'))
+
+    expect(api.raiseBooking).toHaveBeenCalledWith('5', '1')
+    await waitFor(() =>
+      expect(navigate).toHaveBeenCalledWith('/venues/1', { state: { banner: 'Venue booking requested' } }),
+    )
+  })
 })
+
+const HELD_BY_BOOKING = {
+  type: 'approved_booking',
+  id: 31,
+  event_request_name: 'TC38 Holder',
+  date: '2026-12-10',
+  start_time: '14:00',
+  end_time: '17:00',
+}
+
+const HELD_BY_BLOCK = {
+  type: 'block',
+  id: 7,
+  start: '2026-12-10T13:00',
+  end: '2026-12-10T15:00',
+  reason: 'Projector replacement',
+}
 
 const CAPACITY = { type: 'capacity', attendance: 100, max_capacity: 60 }
 

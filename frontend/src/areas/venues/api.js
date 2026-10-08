@@ -96,7 +96,9 @@ export const listVenueBookings = (id) => request('GET', `/api/venues/${id}/booki
 // POST /api/venues/:id/bookings/:booking_id/approve   (SCRUM-37)
 // body:    { reason }   optional
 // 200:     the booking, now Approved
-// 403/404/409: { message }   409 when the booking is not Requested or already decided
+// 403/404/409: { message }   409 when the booking is not Requested or already decided,
+//          or (SCRUM-38) when an approved booking or a block of the venue
+//          overlaps its period; the message names each one
 export const approveBooking = (id, bookingId, reason) =>
   request('POST', `/api/venues/${id}/bookings/${bookingId}/approve`, { reason })
 

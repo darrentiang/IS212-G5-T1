@@ -20,6 +20,7 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | 1.11 | 08-10-2026 | §7 the venue page's setup-time and turnaround-time display and the inline Edit times form test ids; one inline form open at a time across Update venue, Edit times, Block venue and End early | SCRUM-80 lets Venue Staff record how long a venue needs before and after an event |
 | 1.12 | 08-10-2026 | §7 the venue page's Booking requests section gains attendance, the event's layout and facilities (its venue requirements, SCRUM-42) and a decision cell, plus per-row Approve/Reject and an inline decide form. The decision cell is blank while the booking is Requested, then reads `<Decision> by <username> (<moment>)`, followed by `: <reason>` when a reason was given (e.g. `Rejected by venue1 (08 Oct 2026, 09:15): Already committed that week`); the moment is formatted with `formatDateTime`, in UTC (§9) | SCRUM-37 lets Venue Staff decide a booking request from the venue's own page |
 | 1.13 | 08-10-2026 | §7 a per-row action's confirm/reason form opens as its own row directly below the one it acts on, not below the whole table; End block early and Deciding a booking request updated to match | A form that opened at the bottom of a long list was mistaken for not working; this is now the rule for every per-row action, not just these two |
+| 1.14 | 09-10-2026 | §7 the booking-new page's warnings gain a line per approved booking and per block already holding the chosen venue over the event's period (`booking-new-warning-approved-booking-<id>`, `booking-new-warning-block-<id>`); deciding a booking request: a refused approval shows the API's message, naming what holds the venue, in the venue page's banner | SCRUM-38 refuses an approval that would double-book a venue and warns the Event Coordinator before raising |
 
 ## 1. Pages
 
@@ -196,7 +197,7 @@ SCRUM-80 records two durations in whole minutes for the venue — setup time, th
 | Approve button (Requested row, only with `bookings.decide`) | `venue-detail-booking-approve-button-<id>` |
 | Reject button (Requested row, only with `bookings.decide`) | `venue-detail-booking-reject-button-<id>` |
 
-**Deciding a booking request** opens its inline form as its own row directly below the booking's, inside the table, the same per-row pattern as End block early above (not below the whole Booking requests table): only one of Update venue, Edit times, Block venue, End early and this is open at a time. Reason is required to reject, optional to approve (the same rule as deciding an event request, `ui-guidelines.md` existing request-detail reject/approve pattern). Its test ids use the action as `<field>`, the same convention as request-detail's decide form.
+**Deciding a booking request** opens its inline form as its own row directly below the booking's, inside the table, the same per-row pattern as End block early above (not below the whole Booking requests table): only one of Update venue, Edit times, Block venue, End early and this is open at a time. Reason is required to reject, optional to approve (the same rule as deciding an event request, `ui-guidelines.md` existing request-detail reject/approve pattern). Its test ids use the action as `<field>`, the same convention as request-detail's decide form. An approval refused because an approved booking or a block already holds the venue over an overlapping period (SCRUM-38) shows the API's message in `venue-detail-banner`, naming each holder (`This venue is already committed for an overlapping period: TC38 Holder, 10 Dec 2026, 14:00–17:00.`; a block as `blocked 10 Dec 2026, 13:00 to 10 Dec 2026, 15:00 (Projector replacement)`; several joined with `; `); the booking stays Requested and its decision cell stays blank.
 
 | Element | `data-testid` |
 |---|---|
@@ -244,6 +245,10 @@ The booking-new page (`booking-new`): a venue picker (`select`, the active venue
 | Missing layout | `booking-new-warning-layout-<kebab-option>` | The venue does not record the Theatre layout. |
 | Missing facility | `booking-new-warning-facility-<kebab-option>` | The venue does not record the facility Sound system. |
 | Missing accessibility feature | `booking-new-warning-accessibility-feature-<kebab-option>` | The venue does not record the accessibility feature Hearing loop. |
+| Approved booking holding the venue (SCRUM-38) | `booking-new-warning-approved-booking-<id>` (the booking's id) | The venue already holds an approved booking for TC38 Holder, 10 Dec 2026, 14:00–17:00. |
+| Block holding the venue (SCRUM-38) | `booking-new-warning-block-<id>` (the block's id) | The venue is blocked 10 Dec 2026, 13:00 to 10 Dec 2026, 15:00 (Projector replacement). |
+
+SCRUM-38: after the mismatches, one line per approved booking and then per block of the venue that overlaps the event's period, each earliest first; a booking that is not Approved, or a period that only touches the event's, gives no line. The period is formatted with `formatPeriod` for a booking and `formatDateTimePeriod` for a block (§9). Like every other line, it does not stop Raise.
 
 **Venue search** (SCRUM-33). On the request page, an Event Coordinator sees a Search venues button when the event's status is Approved or Planning, next to Request venue booking; it links to `/requests/:id/venues/search`. For any other status the button is not shown.
 

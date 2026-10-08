@@ -23,8 +23,12 @@ export const raiseBooking = (requestId, venueId) =>
 // 200:     [ { type: 'capacity', attendance, max_capacity }
 //          | { type: 'start_time', start_time, opening_time, closing_time }
 //          | { type: 'end_time', end_time, opening_time, closing_time }
-//          | { type: 'layout' | 'facility' | 'accessibility_feature', name } ]
-//          one per mismatch; [] when the venue fits; nothing is stored
+//          | { type: 'layout' | 'facility' | 'accessibility_feature', name }
+//          | { type: 'approved_booking', id, event_request_name, date, start_time, end_time }
+//          | { type: 'block', id, start, end, reason } ]
+//          one per mismatch, then one per approved booking and per block
+//          overlapping the event's period (SCRUM-38 AC7); [] when the venue
+//          fits; nothing is stored
 // 401/403/404: { message }
 export const checkVenue = (requestId, venueId) =>
   request('GET', `/api/requests/${requestId}/venues/${venueId}/warnings`)

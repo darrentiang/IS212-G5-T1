@@ -8,6 +8,7 @@ Every acceptance criterion that changes a status uses a value from these tables.
 | 1.1 | 15-09-2026 | Event request: removed Under Clarification (clarification is a flag on Submitted); added Rejected → Submitted; added Confirmed → Planning; Approved → Planning is by system assignment; Confirm requires every recorded arrangement approved; Cancelled is terminal | Customer clarifications Q-01, Q-11 (decision log); team decisions D-13, D-14, D-15, D-16 |
 | 1.2 | 16-09-2026 | No change to any status or transition; recorded that the front end mirrors these words | `ui-guidelines.md` v1.1 §9 stops pages typing status strings by hand |
 | 1.3 | 08-10-2026 | Venue booking request: dropped the unenforced "(conflict check passes)" qualifier on Approve, with a footnote explaining why | SCRUM-37 review: the qualifier predates any story that defines what a conflict is; approving now matches what the criteria actually say |
+| 1.4 | 09-10-2026 | Venue booking request: restored "(conflict check passes)" on Approve, defined the conflict and removed the 1.3 footnote | SCRUM-38 is the story that defines a conflict and enforces it |
 
 The front end holds these words in `frontend/src/app/format.js` (`STATUS`); a change here changes that file in the same pull request.
 
@@ -50,16 +51,16 @@ stateDiagram-v2
 | From | To | Action | Who |
 |---|---|---|---|
 | — | Requested | Raise a booking request | Event Coordinator |
-| Requested | Approved | Approve\* | Venue Staff |
+| Requested | Approved | Approve (conflict check passes) | Venue Staff |
 | Requested | Rejected | Reject (reason required) | Venue Staff |
 | Requested | Withdrawn | Withdraw before a decision | Event Coordinator |
 
-\* "(conflict check passes)" from earlier versions of this table is not enforced: no story's acceptance criteria have ever defined what a conflict is (another Approved booking for the same venue over an overlapping period, most likely) or asked for it to be checked. SCRUM-37 approves unconditionally once the request is still Requested (team decision, 08-10-2026). Add the rule, and the "conflict check passes" qualifier back, in the same pull request as whichever story defines it.
+A conflict (SCRUM-38) is an Approved booking or a block of the same venue whose period overlaps the booking's. Requested, Rejected and Withdrawn bookings never conflict, periods that only touch at a boundary do not overlap, and a booking never conflicts with itself. A refused approval leaves the booking Requested. Rejecting is never checked.
 
 ```mermaid
 stateDiagram-v2
     [*] --> Requested: Raise a booking request
-    Requested --> Approved: Approve
+    Requested --> Approved: Approve (conflict check passes)
     Requested --> Rejected: Reject (reason required)
     Requested --> Withdrawn: Withdraw before a decision
 ```

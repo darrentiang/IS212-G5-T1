@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
-import { formatTime } from '../../app/format'
+import { formatDateTimePeriod, formatPeriod, formatTime } from '../../app/format'
 import { checkVenue, listVenues, raiseBooking } from './api'
 
 // SCRUM-42: one line per mismatch, with the values AC3 names. The test id
 // suffix is the warning's type, plus the missing option for a named one
-// (docs/design/ui-guidelines.md §7).
+// (docs/design/ui-guidelines.md §7). SCRUM-38 AC7: one line per approved
+// booking or block already holding the venue over the event's period, keyed
+// by its id, since a venue may have several.
 const kebab = (value) => value.toLowerCase().replaceAll(' ', '-')
 const hours = (warning) => `${formatTime(warning.opening_time)} to ${formatTime(warning.closing_time)}`
 
@@ -33,6 +35,15 @@ const WARNINGS = {
   accessibility_feature: {
     key: (w) => `accessibility-feature-${kebab(w.name)}`,
     text: (w) => `The venue does not record the accessibility feature ${w.name}.`,
+  },
+  approved_booking: {
+    key: (w) => `approved-booking-${w.id}`,
+    text: (w) =>
+      `The venue already holds an approved booking for ${w.event_request_name}, ${formatPeriod(w.date, w.start_time, w.end_time)}.`,
+  },
+  block: {
+    key: (w) => `block-${w.id}`,
+    text: (w) => `The venue is blocked ${formatDateTimePeriod(w.start, w.end)} (${w.reason}).`,
   },
 }
 
