@@ -9,8 +9,9 @@ Seeing venues and their blocks is venues.view (Event Coordinator and Venue
 Staff); adding a venue, updating one, blocking one, and ending or removing a
 block is venues.edit (Venue Staff only) — docs/design/permissions.md.
 SCRUM-33: search the venues free for an Approved or Planning event, which is
-venues.search (Event Coordinator only). Rules are in services.py; the contract
-is frontend/src/areas/venues/api.js.
+venues.search (Event Coordinator only); SCRUM-34 narrows that search by
+accessibility features. Rules are in services.py; the contract is
+frontend/src/areas/venues/api.js.
 """
 
 from flask import Blueprint, g, jsonify, request
@@ -37,7 +38,9 @@ def venue_options():
 @require(VENUES_SEARCH)
 def search_venues():
     event, venues = services.search_venues(
-        request.args.get("event_request_id", type=int), request.args.get("location", "")
+        request.args.get("event_request_id", type=int),
+        request.args.get("location", ""),
+        request.args.getlist("accessibility_features"),
     )
     return jsonify(services.search_to_dict(event, venues))
 
