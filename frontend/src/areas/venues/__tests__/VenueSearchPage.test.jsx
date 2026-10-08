@@ -1,0 +1,228 @@
+import { describe, it, expect, vi, afterEach } from 'vitest'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { MemoryRouter, Route, Routes } from 'react-router'
+import * as api from '../api'
+import VenueSearchPage from '../VenueSearchPage'
+
+vi.mock('../api')
+
+afterEach(() => {
+  api.searchVenues.mockReset()
+})
+
+const EVENT = {
+  id: 5,
+  name: 'Search Test A',
+  date: '2026-12-15',
+  start_time: '10:00',
+  end_time: '12:00',
+  attendance: 50,
+}
+const SEMINAR_ROOM_1 = { id: 1, name: 'Seminar Room 1', location: 'Block A Level 2', max_capacity: 60 }
+const AUDITORIUM = { id: 2, name: 'Auditorium', location: 'Block C Level 1', max_capacity: 400 }
+
+const found = (venues) => ({ event: EVENT, venues })
+const refusal = (message, status = 400) => Object.assign(new Error(message), { status })
+
+function renderPage() {
+  render(
+    <MemoryRouter initialEntries={['/requests/5/venues/search']}>
+      <Routes>
+        <Route path="/requests/:id/venues/search" element={<VenueSearchPage />} />
+      </Routes>
+    </MemoryRouter>,
+  )
+}
+
+// Sets the field in one change rather than key by key (a slow machine times out
+// typing), then presses Apply as a user does.
+async function applyLocation(text) {
+  fireEvent.change(screen.getByTestId('venue-search-location-input'), { target: { value: text } })
+  await userEvent.click(screen.getByTestId('venue-search-apply-button'))
+}
+
+describe('VenueSearchPage', () => {
+  // @story: SCRUM-33
+  // @ac: 1
+  it('shows only the title while the search is waiting for the API', () => {
+    api.searchVenues.mockReturnValue(new Promise(() => {}))
+
+    renderPage()
+
+    expect(screen.getByTestId('venue-search-title')).toHaveTextContent('Search venues')
+    expect(screen.queryByTestId('venue-search-empty')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('venue-search-apply-button')).not.toBeInTheDocument()
+  })
+
+  // @story: SCRUM-33
+  // @ac: 1
+  it('searches for the event in the address and shows the event values the search used', async () => {
+    api.searchVenues.mockResolvedValue(found([SEMINAR_ROOM_1]))
+
+    renderPage()
+
+    expect(await screen.findByTestId('venue-search-event-name')).toHaveTextContent('Search Test A')
+    expect(screen.getByTestId('venue-search-period')).toHaveTextContent('15 Dec 2026, 10:00–12:00')
+    expect(screen.getByTestId('venue-search-attendance')).toHaveTextContent('50')
+    expect(api.searchVenues).toHaveBeenCalledWith('5', '')
+    expect(screen.getByTestId('venue-search-back-link')).toHaveAttribute('href', '/requests/5')
+  })
+
+  // @story: SCRUM-33
+  // @ac: 7
+  it('shows each venue with its name, location and maximum capacity, the name linking to the venue', async () => {
+    api.searchVenues.mockResolvedValue(found([SEMINAR_ROOM_1, AUDITORIUM]))
+
+    renderPage()
+
+    expect(await screen.findByTestId('venue-search-row-1')).toBeInTheDocument()
+    expect(screen.getByTestId('venue-search-name-1')).toHaveTextContent('Seminar Room 1')
+    expect(screen.getByTestId('venue-search-name-1')).toHaveAttribute('href', '/venues/1')
+    expect(screen.getByTestId('venue-search-location-1')).toHaveTextContent('Block A Level 2')
+    expect(screen.getByTestId('venue-search-capacity-1')).toHaveTextContent('60')
+    expect(screen.getByTestId('venue-search-name-2')).toHaveTextContent('Auditorium')
+    expect(screen.getByTestId('venue-search-location-2')).toHaveTextContent('Block C Level 1')
+    expect(screen.getByTestId('venue-search-capacity-2')).toHaveTextContent('400')
+    expect(screen.queryByTestId('venue-search-empty')).not.toBeInTheDocument()
+  })
+
+  // @story: SCRUM-33
+  // @ac: 8
+  it('shows one sentence and no table when no venue matches, and no error', async () => {
+    api.searchVenues.mockResolvedValue(found([]))
+
+    renderPage()
+
+    expect(await screen.findByTestId('venue-search-empty')).toHaveTextContent('No venues match this search.')
+    expect(screen.queryByRole('table')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('venue-search-banner')).not.toBeInTheDocument()
+  })
+
+  // @story: SCRUM-33
+  // @ac: 1
+  it('shows the API refusal in the banner and nothing else when the event cannot be searched', async () => {
+    api.searchVenues.mockRejectedValue(
+      refusal('Venue search is available only for an Approved or Planning event.'),
+    )
+
+    renderPage()
+
+    expect(await screen.findByTestId('venue-search-banner')).toHaveTextContent(
+      'Venue search is available only for an Approved or Planning event.',
+    )
+    expect(screen.getByTestId('venue-search-banner')).toHaveAttribute('role', 'alert')
+    expect(screen.queryByTestId('venue-search-apply-button')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('venue-search-event-name')).not.toBeInTheDocument()
+  })
+
+  // @story: SCRUM-33
+  // @ac: 6
+  it('applies the typed location only when Apply is pressed', async () => {
+    api.searchVenues.mockResolvedValue(found([SEMINAR_ROOM_1, AUDITORIUM]))
+    renderPage()
+    await screen.findByTestId('venue-search-row-2')
+
+    fireEvent.change(screen.getByTestId('venue-search-location-input'), {
+      target: { value: 'Block C Level 1' },
+    })
+    expect(api.searchVenues).toHaveBeenCalledTimes(1)
+
+    api.searchVenues.mockResolvedValue(found([AUDITORIUM]))
+    await userEvent.click(screen.getByTestId('venue-search-apply-button'))
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('venue-search-row-1')).not.toBeInTheDocument()
+    })
+    expect(screen.getByTestId('venue-search-row-2')).toBeInTheDocument()
+    expect(api.searchVenues).toHaveBeenLastCalledWith('5', 'Block C Level 1')
+  })
+
+  // @story: SCRUM-33
+  // @ac: 6
+  it('applies no location restriction again once the location is emptied', async () => {
+    api.searchVenues.mockResolvedValue(found([AUDITORIUM]))
+    renderPage()
+    await screen.findByTestId('venue-search-row-2')
+    await applyLocation('Block C Level 1')
+    await waitFor(() => {
+      expect(api.searchVenues).toHaveBeenLastCalledWith('5', 'Block C Level 1')
+    })
+
+    api.searchVenues.mockResolvedValue(found([SEMINAR_ROOM_1, AUDITORIUM]))
+    await applyLocation('')
+
+    expect(await screen.findByTestId('venue-search-row-1')).toBeInTheDocument()
+    expect(api.searchVenues).toHaveBeenLastCalledWith('5', '')
+  })
+
+  // @story: SCRUM-33
+  // @ac: 1
+  it('keeps the earlier results under the refusal when a later search fails, then clears it on success', async () => {
+    api.searchVenues.mockResolvedValue(found([SEMINAR_ROOM_1]))
+    renderPage()
+    await screen.findByTestId('venue-search-row-1')
+
+    api.searchVenues.mockRejectedValue(refusal('Event request not found.', 404))
+    await applyLocation('Block A Level 2')
+    expect(await screen.findByTestId('venue-search-banner')).toHaveTextContent('Event request not found.')
+    expect(screen.getByTestId('venue-search-row-1')).toBeInTheDocument()
+
+    api.searchVenues.mockResolvedValue(found([AUDITORIUM]))
+    await applyLocation('Block C Level 1')
+    expect(await screen.findByTestId('venue-search-row-2')).toBeInTheDocument()
+    expect(screen.queryByTestId('venue-search-banner')).not.toBeInTheDocument()
+  })
+
+  // @story: SCRUM-33
+  // @ac: 6
+  it('keeps the results of the location applied last when an earlier search replies last', async () => {
+    api.searchVenues.mockResolvedValueOnce(found([SEMINAR_ROOM_1, AUDITORIUM]))
+    renderPage()
+    await screen.findByTestId('venue-search-row-1')
+
+    let resolveFirst
+    api.searchVenues
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveFirst = resolve
+        }),
+      )
+      .mockResolvedValueOnce(found([AUDITORIUM]))
+    await applyLocation('Block A Level 2')
+    await applyLocation('Block C Level 1')
+    await waitFor(() => {
+      expect(screen.queryByTestId('venue-search-row-1')).not.toBeInTheDocument()
+    })
+    await act(async () => resolveFirst(found([SEMINAR_ROOM_1])))
+
+    expect(screen.queryByTestId('venue-search-row-1')).not.toBeInTheDocument()
+    expect(screen.getByTestId('venue-search-row-2')).toBeInTheDocument()
+  })
+
+  // @story: SCRUM-33
+  // @ac: 6
+  it('ignores an earlier search that fails after a later one has succeeded', async () => {
+    api.searchVenues.mockResolvedValueOnce(found([SEMINAR_ROOM_1, AUDITORIUM]))
+    renderPage()
+    await screen.findByTestId('venue-search-row-1')
+
+    let rejectFirst
+    api.searchVenues
+      .mockReturnValueOnce(
+        new Promise((_resolve, reject) => {
+          rejectFirst = reject
+        }),
+      )
+      .mockResolvedValueOnce(found([AUDITORIUM]))
+    await applyLocation('Block A Level 2')
+    await applyLocation('Block C Level 1')
+    await waitFor(() => {
+      expect(screen.queryByTestId('venue-search-row-1')).not.toBeInTheDocument()
+    })
+    await act(async () => rejectFirst(refusal('Something went wrong', 500)))
+
+    expect(screen.queryByTestId('venue-search-banner')).not.toBeInTheDocument()
+    expect(screen.getByTestId('venue-search-row-2')).toBeInTheDocument()
+  })
+})
