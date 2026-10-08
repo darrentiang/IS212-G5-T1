@@ -33,8 +33,11 @@ const OPTIONS = {
   layouts: ['Classroom', 'Theatre', 'Boardroom', 'Banquet', 'Exhibition'],
 }
 
-function signInWith(features) {
-  vi.mocked(auth.useAuth).mockReturnValue({ can: (feature) => features.includes(feature) })
+function signInWith(features, username = 'venue1') {
+  vi.mocked(auth.useAuth).mockReturnValue({
+    can: (feature) => features.includes(feature),
+    account: { username },
+  })
 }
 
 // SCRUM-40 made the page read the account and load the venue's blocks; the
@@ -1740,6 +1743,7 @@ const REQUESTED_BOOKING = {
   attendance: 75,
   layout: 'Theatre',
   facilities: ['Projector', 'Whiteboard'],
+  raised_by: 'coord1',
 }
 
 describe('VenueDetailPage deciding a booking request', () => {
@@ -1908,5 +1912,110 @@ describe('VenueDetailPage deciding a booking request', () => {
     await userEvent.click(screen.getByTestId('venue-detail-booking-reject-button-12'))
     expect(screen.queryByTestId('venue-detail-block-confirm-button')).not.toBeInTheDocument()
     expect(screen.getByTestId('venue-detail-decide-confirm-button')).toBeInTheDocument()
+  })
+})
+
+describe('VenueDetailPage withdrawing a booking request', () => {
+  beforeEach(() => {
+    api.getVenue.mockResolvedValue(HALL_A)
+    api.listVenueBookings.mockResolvedValue([REQUESTED_BOOKING])
+  })
+
+  // @story: SCRUM-77
+  // @ac: 1
+  it('offers Withdraw on a Requested booking the signed-in Coordinator raised', async () => {
+    signInWith(['venues.view', 'bookings.edit'], 'coord1')
+
+    renderPage()
+
+    expect(await screen.findByTestId('venue-detail-booking-withdraw-button-12')).toBeInTheDocument()
+  })
+
+  // @story: SCRUM-77
+  // @ac: 4
+  it('offers no Withdraw on a booking raised by a different Coordinator', async () => {
+    signInWith(['venues.view', 'bookings.edit'], 'coord2')
+
+    renderPage()
+
+    await waitFor(() => screen.getByTestId('venue-detail-booking-row-12'))
+    expect(screen.queryByTestId('venue-detail-booking-withdraw-button-12')).not.toBeInTheDocument()
+  })
+
+  // @story: SCRUM-77
+  it('offers no Withdraw without bookings.edit', async () => {
+    signInWith(['venues.view'], 'coord1')
+
+    renderPage()
+
+    await waitFor(() => screen.getByTestId('venue-detail-booking-row-12'))
+    expect(screen.queryByTestId('venue-detail-booking-withdraw-button-12')).not.toBeInTheDocument()
+  })
+
+  // @story: SCRUM-77
+  // @ac: 2
+  it('offers no Withdraw once the booking is no longer Requested', async () => {
+    api.listVenueBookings.mockResolvedValue([{ ...REQUESTED_BOOKING, status: 'Approved' }])
+    signInWith(['venues.view', 'bookings.edit'], 'coord1')
+
+    renderPage()
+
+    await waitFor(() => screen.getByTestId('venue-detail-booking-row-12'))
+    expect(screen.queryByTestId('venue-detail-booking-withdraw-button-12')).not.toBeInTheDocument()
+  })
+
+  // @story: SCRUM-77
+  // @ac: 1
+  it('withdraws a booking at once, no confirmation, with the API response', async () => {
+    signInWith(['venues.view', 'bookings.edit'], 'coord1')
+    api.withdrawBooking.mockResolvedValue({ ...REQUESTED_BOOKING, status: 'Withdrawn' })
+
+    renderPage()
+    await waitFor(() => screen.getByTestId('venue-detail-booking-withdraw-button-12'))
+    await userEvent.click(screen.getByTestId('venue-detail-booking-withdraw-button-12'))
+
+    await waitFor(() => {
+      expect(api.withdrawBooking).toHaveBeenCalledWith('3', 12)
+    })
+    expect(screen.getByTestId('venue-detail-banner')).toHaveTextContent('Booking withdrawn')
+    expect(screen.getByTestId('venue-detail-booking-status-12')).toHaveTextContent('Withdrawn')
+  })
+
+  // @story: SCRUM-77
+  it('shows the API refusal in the banner when withdrawing fails', async () => {
+    signInWith(['venues.view', 'bookings.edit'], 'coord1')
+    api.withdrawBooking.mockRejectedValue(
+      Object.assign(new Error('This booking request has already been decided (Approved).'), { status: 409 }),
+    )
+
+    renderPage()
+    await waitFor(() => screen.getByTestId('venue-detail-booking-withdraw-button-12'))
+    await userEvent.click(screen.getByTestId('venue-detail-booking-withdraw-button-12'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('venue-detail-banner')).toHaveTextContent(
+        'This booking request has already been decided (Approved).',
+      )
+    })
+  })
+
+  // @story: SCRUM-77
+  // @ac: 5
+  it('leaves another booking row unchanged after withdrawing one', async () => {
+    api.listVenueBookings.mockResolvedValue([
+      REQUESTED_BOOKING,
+      { ...REQUESTED_BOOKING, id: 13, event_request_name: 'Second Event' },
+    ])
+    signInWith(['venues.view', 'bookings.edit'], 'coord1')
+    api.withdrawBooking.mockResolvedValue({ ...REQUESTED_BOOKING, status: 'Withdrawn' })
+
+    renderPage()
+    await waitFor(() => screen.getByTestId('venue-detail-booking-withdraw-button-12'))
+    await userEvent.click(screen.getByTestId('venue-detail-booking-withdraw-button-12'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('venue-detail-booking-status-12')).toHaveTextContent('Withdrawn')
+    })
+    expect(screen.getByTestId('venue-detail-booking-status-13')).toHaveTextContent('Requested')
   })
 })

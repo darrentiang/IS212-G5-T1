@@ -1,13 +1,15 @@
 """Venue booking request — Jira area(s) 12, 13, 14 (docs/design/frontend.md §2).
 
 SCRUM-36: raise a booking request for one venue against one event, and list
-a venue's booking requests. SCRUM-37: approve or reject one. Raising is
-bookings.edit (Event Coordinator); deciding is bookings.decide (Venue Staff);
-listing reuses venues.view (Event Coordinator and Venue Staff), since a
-venue's booking requests are shown on its own page — docs/design/permissions.md.
-SCRUM-42: the warnings for a venue chosen for an event, before raising;
-bookings.edit, since only whoever may raise needs them.
-Rules are in services.py; the contract is frontend/src/areas/bookings/api.js.
+a venue's booking requests. SCRUM-37: approve or reject one. SCRUM-77: the
+raising Coordinator withdraws one before it is decided. Raising and
+withdrawing are bookings.edit (Event Coordinator); deciding is
+bookings.decide (Venue Staff); listing reuses venues.view (Event Coordinator
+and Venue Staff), since a venue's booking requests are shown on its own page
+— docs/design/permissions.md. SCRUM-42: the warnings for a venue chosen for
+an event, before raising; bookings.edit, since only whoever may raise needs
+them. Rules are in services.py; the contract is
+frontend/src/areas/bookings/api.js.
 """
 
 from flask import Blueprint, g, jsonify, request
@@ -55,4 +57,12 @@ def reject_booking(venue_id, booking_id):
     """SCRUM-37: Requested -> Rejected; reason required."""
     body = request.get_json(silent=True) or {}
     updated = services.reject_booking(venue_id, booking_id, g.account, body)
+    return jsonify(services.booking_to_dict(updated)), 200
+
+
+@bp.post("/venues/<int:venue_id>/bookings/<int:booking_id>/withdraw")
+@require(BOOKINGS_EDIT)
+def withdraw_booking(venue_id, booking_id):
+    """SCRUM-77: Requested -> Withdrawn, by the Coordinator who raised it."""
+    updated = services.withdraw_booking(venue_id, booking_id, g.account)
     return jsonify(services.booking_to_dict(updated)), 200

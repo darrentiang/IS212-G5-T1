@@ -15,6 +15,7 @@ import {
   updateVenue,
   updateVenueLayouts,
   updateVenueTimes,
+  withdrawBooking,
 } from './api'
 
 // Operating hours are two values, each through formatTime: format.js has no
@@ -84,7 +85,7 @@ const byStartThenId = (a, b) => a.start.localeCompare(b.start) || a.id - b.id
 export default function VenueDetailPage() {
   const { id } = useParams()
   const routerLocation = useLocation()
-  const { can } = useAuth()
+  const { can, account } = useAuth()
   const [row, setRow] = useState(null)
   const [blocks, setBlocks] = useState([])
   const [bookings, setBookings] = useState([])
@@ -130,6 +131,10 @@ export default function VenueDetailPage() {
 
   const canBlock = can('venues.edit')
   const canDecideBookings = can('bookings.decide')
+  // SCRUM-77: bookings.edit (Event Coordinator) gates the role; whether this
+  // account raised the specific row is checked per-row below, the API's
+  // own ownership rule mirrored here for usability (ADR-002).
+  const canWithdraw = can('bookings.edit')
 
   // Keyed to id: a reply for the venue the user has left can
   // arrive after the current one, so a stale reply is ignored
@@ -408,6 +413,23 @@ export default function VenueDetailPage() {
       setBookings((current) => current.map((booking) => (booking.id === updated.id ? updated : booking)))
       setOpenForm(null)
       setSuccess(action.banner)
+    } catch (error) {
+      setBanner(error.message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  // Withdraw acts at once, the same as Remove on a block: the criteria ask
+  // for no confirmation.
+  const handleWithdraw = async (booking) => {
+    setBanner(null)
+    setSuccess(null)
+    setSubmitting(true)
+    try {
+      const updated = await withdrawBooking(id, booking.id)
+      setBookings((current) => current.map((row) => (row.id === updated.id ? updated : row)))
+      setSuccess('Booking withdrawn')
     } catch (error) {
       setBanner(error.message)
     } finally {
@@ -1056,7 +1078,7 @@ export default function VenueDetailPage() {
                         <th>Facilities</th>
                         <th>Status</th>
                         <th>Decision</th>
-                        {canDecideBookings && <th>Actions</th>}
+                        {(canDecideBookings || canWithdraw) && <th>Actions</th>}
                       </tr>
                     </thead>
                     <tbody>
@@ -1089,28 +1111,43 @@ export default function VenueDetailPage() {
                             >
                               {bookingDecisionText(booking)}
                             </td>
-                            {canDecideBookings && (
+                            {(canDecideBookings || canWithdraw) && (
                               <td>
                                 {booking.status === REQUESTED && (
                                   <div className="flex flex-wrap gap-2">
-                                    <button
-                                      type="button"
-                                      disabled={submitting}
-                                      onClick={() => openDecide(booking, 'reject')}
-                                      className="btn btn-secondary"
-                                      data-testid={`venue-detail-booking-reject-button-${booking.id}`}
-                                    >
-                                      Reject
-                                    </button>
-                                    <button
-                                      type="button"
-                                      disabled={submitting}
-                                      onClick={() => openDecide(booking, 'approve')}
-                                      className="btn btn-primary"
-                                      data-testid={`venue-detail-booking-approve-button-${booking.id}`}
-                                    >
-                                      Approve
-                                    </button>
+                                    {canDecideBookings && (
+                                      <>
+                                        <button
+                                          type="button"
+                                          disabled={submitting}
+                                          onClick={() => openDecide(booking, 'reject')}
+                                          className="btn btn-secondary"
+                                          data-testid={`venue-detail-booking-reject-button-${booking.id}`}
+                                        >
+                                          Reject
+                                        </button>
+                                        <button
+                                          type="button"
+                                          disabled={submitting}
+                                          onClick={() => openDecide(booking, 'approve')}
+                                          className="btn btn-primary"
+                                          data-testid={`venue-detail-booking-approve-button-${booking.id}`}
+                                        >
+                                          Approve
+                                        </button>
+                                      </>
+                                    )}
+                                    {canWithdraw && booking.raised_by === account?.username && (
+                                      <button
+                                        type="button"
+                                        disabled={submitting}
+                                        onClick={() => handleWithdraw(booking)}
+                                        className="btn btn-secondary"
+                                        data-testid={`venue-detail-booking-withdraw-button-${booking.id}`}
+                                      >
+                                        Withdraw
+                                      </button>
+                                    )}
                                   </div>
                                 )}
                               </td>
