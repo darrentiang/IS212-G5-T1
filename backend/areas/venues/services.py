@@ -1,6 +1,7 @@
 """Venue rules — SCRUM-31 (Add a Venue), SCRUM-32 (Record supported layouts),
 SCRUM-40 (Block a Venue), SCRUM-75 (Update a Venue),
-SCRUM-79 (End or Remove a Venue Block).
+SCRUM-79 (End or Remove a Venue Block), SCRUM-33 (Search Venues by Date and
+Capacity).
 
 Every rule the acceptance criteria state lives here, next to the query, and
 refuses by raising ApiRefusal; the route never decides (ADR-002). Retiring a
@@ -13,12 +14,25 @@ from datetime import datetime, timezone
 import clock
 from db import db
 from errors import ApiRefusal
-from models import AccessibilityFeature, Facility, RoomLayout, Venue, VenueBlock
+from models import (
+    AccessibilityFeature,
+    EventRequest,
+    Facility,
+    RoomLayout,
+    Venue,
+    VenueBlock,
+)
 
 DATE_FORMAT = "%Y-%m-%d"
 TIME_FORMAT = "%H:%M"
 # A block's start and end on the wire: '2026-10-20T09:00', naive local time.
 DATE_TIME_FORMAT = f"{DATE_FORMAT}T{TIME_FORMAT}"
+
+# SCRUM-33 AC1: only an event in one of these statuses may be searched for.
+SEARCHABLE_STATUSES = ("Approved", "Planning")
+
+# SCRUM-33 AC3: only a booking in this status takes the venue's time.
+OCCUPYING_BOOKING_STATUS = "Approved"
 
 # A block's phase on the wire (SCRUM-79): derived from the time, never stored.
 PHASE_UPCOMING = "upcoming"
@@ -341,4 +355,93 @@ def block_to_dict(block):
         "created_by": block.created_by.username,
         "created_at": block.created_at.isoformat(),
         "phase": block_phase(block, clock.now_local()),
+    }
+
+
+def search_venues(event_request_id, location):
+    """Venues that are free for an event and large enough for it (SCRUM-33).
+
+    AC1: the event must be Approved or in Planning, and the search uses the
+    event's own date, start time, end time and expected attendance, read here
+    and never sent by the caller. AC2: only venues whose maximum capacity is at
+    least that attendance. AC3 and AC5: a venue is left out when the event
+    period overlaps an approved booking's occupied period or a block; periods
+    that only touch at a boundary do not overlap. AC4: a booking that is not
+    Approved never leaves a venue out. AC6: a location, when given, must match
+    the venue's recorded location exactly; none given means no restriction.
+    AC8: nothing matching is an empty list, not a refusal.
+
+    A retired venue is left out as well. The criteria do not say so, but a
+    retired venue cannot be booked (SCRUM-36 AC10), so offering it to
+    shortlist would only end in a refusal.
+    """
+    if event_request_id is None:
+        raise ApiRefusal(400, "Event request is required.")
+    event = db.session.get(EventRequest, event_request_id)
+    if event is None:
+        raise ApiRefusal(404, "Event request not found.")
+    if event.status not in SEARCHABLE_STATUSES:
+        raise ApiRefusal(400, "Venue search is available only for an Approved or Planning event.")
+
+    starts_at = _moment(event.date, event.start_time)
+    ends_at = _moment(event.date, event.end_time)
+
+    query = db.session.query(Venue).filter(
+        Venue.is_active.is_(True), Venue.max_capacity >= event.attendance
+    )
+    if location:
+        query = query.filter(Venue.location == location)
+    venues = [
+        venue
+        for venue in query.order_by(Venue.id).all()
+        if _is_free(venue, starts_at, ends_at)
+    ]
+    return event, venues
+
+
+def _moment(date_text, time_text):
+    """A stored ISO date and HH:MM time as a naive local date-time."""
+    return datetime.strptime(f"{date_text} {time_text}", f"{DATE_FORMAT} {TIME_FORMAT}")
+
+
+def _overlaps(first_start, first_end, second_start, second_end):
+    """Two periods overlap when each starts before the other ends: touching is not overlapping."""
+    return first_start < second_end and second_start < first_end
+
+
+def _occupied_period(booking):
+    """The period an approved booking takes the venue for.
+
+    SCRUM-41 adds setup and turnaround time to this period (SCRUM-33 AC3); it
+    is not built yet, so for now the occupied period is the booking's own.
+    """
+    return _moment(booking.date, booking.start_time), _moment(booking.date, booking.end_time)
+
+
+def _is_free(venue, starts_at, ends_at):
+    """True when no block and no approved booking of the venue overlaps the period."""
+    for block in venue.blocks:
+        if _overlaps(block.starts_at, block.ends_at, starts_at, ends_at):
+            return False
+    for booking in venue.booking_requests:
+        if booking.status != OCCUPYING_BOOKING_STATUS:
+            continue
+        occupied_start, occupied_end = _occupied_period(booking)
+        if _overlaps(occupied_start, occupied_end, starts_at, ends_at):
+            return False
+    return True
+
+
+def search_to_dict(event, venues):
+    """Public JSON for a search: the event values it used, and the venues that fit."""
+    return {
+        "event": {
+            "id": event.id,
+            "name": event.name,
+            "date": event.date,
+            "start_time": event.start_time,
+            "end_time": event.end_time,
+            "attendance": event.attendance,
+        },
+        "venues": [venue_to_dict(venue) for venue in venues],
     }

@@ -57,6 +57,18 @@ export const removeVenueBlock = (id, blockId) => request('DELETE', `/api/venues/
 // 400/403/404: { message }
 export const endVenueBlock = (id, blockId, data) => request('PATCH', `/api/venues/${id}/blocks/${blockId}`, data)
 
+// GET /api/venues/search?event_request_id=:id[&location=:text]   (SCRUM-33)
+// The API reads the event's own date, times and attendance; the caller sends only which event.
+// 200:     { event: { id, name, date, start_time, end_time, attendance },
+//            venues: [ { id, name, location, max_capacity, ... } ] }   venues may be []
+//          location, when given, must match a venue's recorded location exactly
+// 400/403/404: { message }   400 when the event is not Approved or Planning
+export const searchVenues = (eventRequestId, location) => {
+  const params = new URLSearchParams({ event_request_id: eventRequestId })
+  if (location) params.set('location', location)
+  return request('GET', `/api/venues/search?${params}`)
+}
+
 // GET /api/venues/:id/bookings   (SCRUM-36)
 // 200:     [ { id, venue_id, event_request_id, event_request_name, status,
 //              date, start_time, end_time, attendance, venue_requirements,
