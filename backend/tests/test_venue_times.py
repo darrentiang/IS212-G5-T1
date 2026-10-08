@@ -643,6 +643,9 @@ def test_event_request_repr_and_methods(app):
         assert repr(req) == f"<EventRequest {req.id} Draft>"
         missing = req.missing_fields()
         # Every required field except name is unset, in REQUIRED_FIELDS order.
+        # SCRUM-42 dropped the free-text venue_requirements and
+        # accessibility_needs; every remaining required field except name is
+        # unset, in REQUIRED_FIELDS order.
         assert missing == [
             "purpose",
             "description",
@@ -650,8 +653,6 @@ def test_event_request_repr_and_methods(app):
             "start_time",
             "end_time",
             "attendance",
-            "venue_requirements",
-            "accessibility_needs",
             "equipment_requirements",
             "registration_needs",
         ]
