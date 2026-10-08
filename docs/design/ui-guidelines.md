@@ -15,6 +15,7 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | 1.8 | 07-10-2026 | §7 venue supported-layout display and selection test ids | SCRUM-32 records the layouts a venue supports |
 | 1.8 | 07-10-2026 | §1 `/requests/:id/bookings/new`; §7 the request page's Request venue booking button and the venue page's Booking requests section; §12 Requested and Withdrawn added to the status-colour table | SCRUM-36 lets an Event Coordinator raise a venue booking request from an event, and lists the venue's booking requests on its page the same way as Blocks |
 | 1.9 | 08-10-2026 | §7 the venue page's Booking requests section gains attendance, venue requirements and a decision cell, plus per-row Approve/Reject and an inline decide form | SCRUM-37 lets Venue Staff decide a booking request from the venue's own page |
+| 1.10 | 08-10-2026 | §7 a per-row action's confirm/reason form opens as its own row directly below the one it acts on, not below the whole table; End block early and Deciding a booking request updated to match | A form that opened at the bottom of a long list was mistaken for not working; this is now the rule for every per-row action, not just these two |
 
 ## 1. Pages
 
@@ -124,7 +125,7 @@ While the page is waiting for the API it renders the title row and nothing below
 | Status | `<page>-status` | `request-detail-status` |
 | Flag | `<page>-<flag>-flag` | `request-detail-clarification-flag` |
 
-**A list of related records on a detail page** (a venue's blocks) is a section under the fields with an `h2` and a table per §6. Its ids carry the record's name in place of the page's own list ids, so they cannot clash with the page's fields: `<page>-<record>-row-<id>`, one cell `<page>-<record>-<field>-<id>`, and `<page>-<records>-empty` when there are none.
+**A list of related records on a detail page** (a venue's blocks) is a section under the fields with an `h2` and a table per §6. Its ids carry the record's name in place of the page's own list ids, so they cannot clash with the page's fields: `<page>-<record>-row-<id>`, one cell `<page>-<record>-<field>-<id>`, and `<page>-<records>-empty` when there are none. A per-row action's confirm/reason form opens as its own row directly below the one it acts on (a `<td colspan>` spanning the table), never below the whole table: in a long list, a form that opens far from its row is a form the user cannot find.
 
 The venue page (`venue-detail`), SCRUM-40, SCRUM-75:
 
@@ -152,7 +153,7 @@ SCRUM-32 adds the venue's supported layouts. An empty list is shown as `None`, a
 | Layout checkbox | `venue-detail-layouts-<kebab-option>-input` |
 | Save and Cancel layout buttons | `venue-detail-layouts-save-button`, `venue-detail-layouts-cancel-button` |
 
-SCRUM-79 adds an action cell to each block row, only with `venues.edit`. Which action a block offers follows its `phase` from the API (not a status, so no badge): a block that has not started offers Remove, which acts at once; a block in progress offers End early, which opens an inline end-block form below the Blocks table (new end date and time, End and Cancel); a block that has ended offers neither. The update form, the block form and the end-block form are all inline forms, so only one of the three is open at a time: opening any one closes the other two.
+SCRUM-79 adds an action cell to each block row, only with `venues.edit`. Which action a block offers follows its `phase` from the API (not a status, so no badge): a block that has not started offers Remove, which acts at once; a block in progress offers End early, which opens an inline end-block form (new end date and time, End and Cancel) as its own row directly below the block's, inside the table (`<td colspan>` spanning every column) rather than below the whole table: a form that opens far from the row a long list scrolled past it is a form the user cannot find (SCRUM-37 review, 08-10-2026). A block that has ended offers neither. The update form, the block form and the end-block form are all inline forms, so only one of the three is open at a time: opening any one closes the other two.
 
 | Element | `data-testid` |
 |---|---|
@@ -177,7 +178,7 @@ SCRUM-79 adds an action cell to each block row, only with `venues.edit`. Which a
 | Approve button (Requested row, only with `bookings.decide`) | `venue-detail-booking-approve-button-<id>` |
 | Reject button (Requested row, only with `bookings.decide`) | `venue-detail-booking-reject-button-<id>` |
 
-**Deciding a booking request** opens an inline form below the Booking requests table, the same pattern as End block early: only one of Update venue, Block venue, End early and this is open at a time. Reason is required to reject, optional to approve (the same rule as deciding an event request, `ui-guidelines.md` existing request-detail reject/approve pattern). Its test ids use the action as `<field>`, the same convention as request-detail's decide form.
+**Deciding a booking request** opens its inline form as its own row directly below the booking's, inside the table, the same per-row pattern as End block early above (not below the whole Booking requests table): only one of Update venue, Block venue, End early and this is open at a time. Reason is required to reject, optional to approve (the same rule as deciding an event request, `ui-guidelines.md` existing request-detail reject/approve pattern). Its test ids use the action as `<field>`, the same convention as request-detail's decide form.
 
 | Element | `data-testid` |
 |---|---|

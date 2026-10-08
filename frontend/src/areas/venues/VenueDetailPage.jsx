@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { Link, useLocation, useParams } from 'react-router'
 import { useAuth } from '../../app/auth'
 import { formatDateTime, formatDateTimePeriod, formatPeriod, formatTime, statusBadgeClass } from '../../app/format'
@@ -322,8 +322,6 @@ export default function VenueDetailPage() {
     }
   }
 
-  const ending = openForm === 'end' ? blocks.find((block) => block.id === endingId) : undefined
-
   const openDecide = (booking, action) => {
     setOpenForm('decide')
     setDecidingBookingId(booking.id)
@@ -339,18 +337,6 @@ export default function VenueDetailPage() {
     setDecideReasonError(null)
   }
 
-  const deciding = openForm === 'decide' ? bookings.find((booking) => booking.id === decidingBookingId) : undefined
-
-  // The decide form sits below the whole Booking requests table, so a click
-  // on a row near the top can land it off-screen; bring it into view rather
-  // than leave the user to go find it (reported against this page directly).
-  const decideFormRef = useRef(null)
-  useEffect(() => {
-    if (deciding) {
-      // jsdom (the test environment) has no scrollIntoView at all, unlike a real browser.
-      decideFormRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
-    }
-  }, [deciding])
 
   // Reason is required to reject, optional to approve, the same rule as
   // deciding an event request (request-detail's decide form).
@@ -796,101 +782,115 @@ export default function VenueDetailPage() {
                     </thead>
                     <tbody>
                       {blocks.map((block) => (
-                        <tr key={block.id} data-testid={`venue-detail-block-row-${block.id}`}>
-                          <td data-testid={`venue-detail-block-period-${block.id}`}>
-                            {formatDateTimePeriod(block.start, block.end)}
-                          </td>
-                          <td className="whitespace-pre-wrap" data-testid={`venue-detail-block-reason-${block.id}`}>
-                            {block.reason}
-                          </td>
-                          {canBlock && (
-                            <td>
-                              {block.phase === UPCOMING && (
-                                <button
-                                  type="button"
-                                  disabled={submitting}
-                                  onClick={() => handleRemove(block)}
-                                  className="btn btn-secondary"
-                                  data-testid={`venue-detail-block-remove-button-${block.id}`}
-                                >
-                                  Remove
-                                </button>
-                              )}
-                              {block.phase === IN_PROGRESS && (
-                                <button
-                                  type="button"
-                                  disabled={submitting}
-                                  onClick={() => openEnd(block)}
-                                  className="btn btn-secondary"
-                                  data-testid={`venue-detail-block-end-button-${block.id}`}
-                                >
-                                  End early
-                                </button>
-                              )}
+                        <Fragment key={block.id}>
+                          <tr data-testid={`venue-detail-block-row-${block.id}`}>
+                            <td data-testid={`venue-detail-block-period-${block.id}`}>
+                              {formatDateTimePeriod(block.start, block.end)}
                             </td>
+                            <td
+                              className="whitespace-pre-wrap"
+                              data-testid={`venue-detail-block-reason-${block.id}`}
+                            >
+                              {block.reason}
+                            </td>
+                            {canBlock && (
+                              <td>
+                                {block.phase === UPCOMING && (
+                                  <button
+                                    type="button"
+                                    disabled={submitting}
+                                    onClick={() => handleRemove(block)}
+                                    className="btn btn-secondary"
+                                    data-testid={`venue-detail-block-remove-button-${block.id}`}
+                                  >
+                                    Remove
+                                  </button>
+                                )}
+                                {block.phase === IN_PROGRESS && (
+                                  <button
+                                    type="button"
+                                    disabled={submitting}
+                                    onClick={() => openEnd(block)}
+                                    className="btn btn-secondary"
+                                    data-testid={`venue-detail-block-end-button-${block.id}`}
+                                  >
+                                    End early
+                                  </button>
+                                )}
+                              </td>
+                            )}
+                          </tr>
+                          {openForm === 'end' && endingId === block.id && (
+                            <tr>
+                              {/* canBlock is always true here: only the Remove/End early
+                                  buttons this form answers to are gated by it. */}
+                              <td colSpan={3} className="p-0">
+                                <form
+                                  onSubmit={handleEnd}
+                                  noValidate
+                                  className="form-card space-y-4 m-4"
+                                >
+                                  <h2 className="section-title">End block early</h2>
+                                  <div className="grid gap-4 md:grid-cols-2">
+                                    {END_FIELDS.map((field) => {
+                                      const inputId = `venue-detail-end-block-${kebab(field.name)}`
+                                      return (
+                                        <div key={field.name}>
+                                          <label htmlFor={inputId} className="label">
+                                            {field.label} *
+                                          </label>
+                                          <input
+                                            type={field.type}
+                                            id={inputId}
+                                            value={endValues[field.name]}
+                                            onChange={(changed) =>
+                                              setEndValues((current) => ({
+                                                ...current,
+                                                [field.name]: changed.target.value,
+                                              }))
+                                            }
+                                            aria-required="true"
+                                            className="input"
+                                            data-testid={`${inputId}-input`}
+                                          />
+                                          {endErrors[field.name] && (
+                                            <p className="field-error" data-testid={`${inputId}-error`}>
+                                              {endErrors[field.name]}
+                                            </p>
+                                          )}
+                                        </div>
+                                      )
+                                    })}
+                                  </div>
+                                  <div className="flex flex-wrap justify-end gap-2">
+                                    <button
+                                      type="button"
+                                      disabled={submitting}
+                                      onClick={closeEnd}
+                                      className="btn btn-secondary"
+                                      data-testid="venue-detail-end-block-cancel-button"
+                                    >
+                                      Cancel
+                                    </button>
+                                    <button
+                                      type="submit"
+                                      disabled={submitting}
+                                      className="btn btn-primary"
+                                      data-testid="venue-detail-end-block-confirm-button"
+                                    >
+                                      End
+                                    </button>
+                                  </div>
+                                </form>
+                              </td>
+                            </tr>
                           )}
-                        </tr>
+                        </Fragment>
                       ))}
                     </tbody>
                   </table>
                 </div>
               </div>
-            )}
-
-            {ending && (
-              <form onSubmit={handleEnd} noValidate className="card form-card space-y-4">
-                <h2 className="section-title">End block early</h2>
-                <p className="subtitle">
-                  {formatDateTimePeriod(ending.start, ending.end)}: {ending.reason}
-                </p>
-                <div className="grid gap-4 md:grid-cols-2">
-                  {END_FIELDS.map((field) => {
-                    const inputId = `venue-detail-end-block-${kebab(field.name)}`
-                    return (
-                      <div key={field.name}>
-                        <label htmlFor={inputId} className="label">
-                          {field.label} *
-                        </label>
-                        <input
-                          type={field.type}
-                          id={inputId}
-                          value={endValues[field.name]}
-                          onChange={(changed) =>
-                            setEndValues((current) => ({ ...current, [field.name]: changed.target.value }))
-                          }
-                          aria-required="true"
-                          className="input"
-                          data-testid={`${inputId}-input`}
-                        />
-                        {endErrors[field.name] && (
-                          <p className="field-error" data-testid={`${inputId}-error`}>
-                            {endErrors[field.name]}
-                          </p>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-                <div className="flex flex-wrap justify-end gap-2">
-                  <button
-                    type="button"
-                    disabled={submitting}
-                    onClick={closeEnd}
-                    className="btn btn-secondary"
-                    data-testid="venue-detail-end-block-cancel-button"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={submitting}
-                    className="btn btn-primary"
-                    data-testid="venue-detail-end-block-confirm-button"
-                  >
-                    End
-                  </button>
-                </div>
-              </form>
             )}
           </section>
 
@@ -921,109 +921,121 @@ export default function VenueDetailPage() {
                     </thead>
                     <tbody>
                       {bookings.map((booking) => (
-                        <tr key={booking.id} data-testid={`venue-detail-booking-row-${booking.id}`}>
-                          <td data-testid={`venue-detail-booking-event-${booking.id}`}>
-                            {booking.event_request_name}
-                          </td>
-                          <td data-testid={`venue-detail-booking-period-${booking.id}`}>
-                            {formatPeriod(booking.date, booking.start_time, booking.end_time)}
-                          </td>
-                          <td data-testid={`venue-detail-booking-attendance-${booking.id}`}>
-                            {booking.attendance}
-                          </td>
-                          <td
-                            className="whitespace-pre-wrap"
-                            data-testid={`venue-detail-booking-venue-requirements-${booking.id}`}
-                          >
-                            {booking.venue_requirements}
-                          </td>
-                          <td data-testid={`venue-detail-booking-status-${booking.id}`}>
-                            <span className={statusBadgeClass(booking.status)}>{booking.status}</span>
-                          </td>
-                          <td
-                            className="whitespace-pre-wrap"
-                            data-testid={`venue-detail-booking-decision-${booking.id}`}
-                          >
-                            {bookingDecisionText(booking)}
-                          </td>
-                          {canDecideBookings && (
-                            <td>
-                              {booking.status === REQUESTED && (
-                                <div className="flex flex-wrap gap-2">
-                                  <button
-                                    type="button"
-                                    disabled={submitting}
-                                    onClick={() => openDecide(booking, 'reject')}
-                                    className="btn btn-secondary"
-                                    data-testid={`venue-detail-booking-reject-button-${booking.id}`}
-                                  >
-                                    Reject
-                                  </button>
-                                  <button
-                                    type="button"
-                                    disabled={submitting}
-                                    onClick={() => openDecide(booking, 'approve')}
-                                    className="btn btn-primary"
-                                    data-testid={`venue-detail-booking-approve-button-${booking.id}`}
-                                  >
-                                    Approve
-                                  </button>
-                                </div>
-                              )}
+                        <Fragment key={booking.id}>
+                          <tr data-testid={`venue-detail-booking-row-${booking.id}`}>
+                            <td data-testid={`venue-detail-booking-event-${booking.id}`}>
+                              {booking.event_request_name}
                             </td>
+                            <td data-testid={`venue-detail-booking-period-${booking.id}`}>
+                              {formatPeriod(booking.date, booking.start_time, booking.end_time)}
+                            </td>
+                            <td data-testid={`venue-detail-booking-attendance-${booking.id}`}>
+                              {booking.attendance}
+                            </td>
+                            <td
+                              className="whitespace-pre-wrap"
+                              data-testid={`venue-detail-booking-venue-requirements-${booking.id}`}
+                            >
+                              {booking.venue_requirements}
+                            </td>
+                            <td data-testid={`venue-detail-booking-status-${booking.id}`}>
+                              <span className={statusBadgeClass(booking.status)}>{booking.status}</span>
+                            </td>
+                            <td
+                              className="whitespace-pre-wrap"
+                              data-testid={`venue-detail-booking-decision-${booking.id}`}
+                            >
+                              {bookingDecisionText(booking)}
+                            </td>
+                            {canDecideBookings && (
+                              <td>
+                                {booking.status === REQUESTED && (
+                                  <div className="flex flex-wrap gap-2">
+                                    <button
+                                      type="button"
+                                      disabled={submitting}
+                                      onClick={() => openDecide(booking, 'reject')}
+                                      className="btn btn-secondary"
+                                      data-testid={`venue-detail-booking-reject-button-${booking.id}`}
+                                    >
+                                      Reject
+                                    </button>
+                                    <button
+                                      type="button"
+                                      disabled={submitting}
+                                      onClick={() => openDecide(booking, 'approve')}
+                                      className="btn btn-primary"
+                                      data-testid={`venue-detail-booking-approve-button-${booking.id}`}
+                                    >
+                                      Approve
+                                    </button>
+                                  </div>
+                                )}
+                              </td>
+                            )}
+                          </tr>
+                          {openForm === 'decide' && decidingBookingId === booking.id && (
+                            <tr>
+                              {/* canDecideBookings is always true here: only the Approve/Reject
+                                  buttons this form answers to are gated by it. */}
+                              <td colSpan={7} className="p-0">
+                                <form
+                                  onSubmit={handleDecide}
+                                  noValidate
+                                  className="form-card space-y-4 m-4"
+                                >
+                                  <h2 className="section-title">
+                                    {DECIDE_ACTIONS[decidingAction].label} booking request
+                                  </h2>
+                                  <div>
+                                    <label htmlFor="venue-detail-decide-reason" className="label">
+                                      {DECIDE_ACTIONS[decidingAction].reasonRequired ? 'Reason *' : 'Reason'}
+                                    </label>
+                                    <textarea
+                                      id="venue-detail-decide-reason"
+                                      value={decideReason}
+                                      onChange={(event) => setDecideReason(event.target.value)}
+                                      aria-required={
+                                        DECIDE_ACTIONS[decidingAction].reasonRequired ? 'true' : undefined
+                                      }
+                                      className="input"
+                                      data-testid="venue-detail-decide-reason-input"
+                                    />
+                                    {decideReasonError && (
+                                      <p className="field-error" data-testid="venue-detail-decide-reason-error">
+                                        {decideReasonError}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <div className="flex flex-wrap justify-end gap-2">
+                                    <button
+                                      type="button"
+                                      disabled={submitting}
+                                      onClick={closeDecide}
+                                      className="btn btn-secondary"
+                                      data-testid="venue-detail-decide-cancel-button"
+                                    >
+                                      Cancel
+                                    </button>
+                                    <button
+                                      type="submit"
+                                      disabled={submitting}
+                                      className="btn btn-primary"
+                                      data-testid="venue-detail-decide-confirm-button"
+                                    >
+                                      {DECIDE_ACTIONS[decidingAction].label}
+                                    </button>
+                                  </div>
+                                </form>
+                              </td>
+                            </tr>
                           )}
-                        </tr>
+                        </Fragment>
                       ))}
                     </tbody>
                   </table>
                 </div>
               </div>
-            )}
-
-            {deciding && (
-              <form ref={decideFormRef} onSubmit={handleDecide} noValidate className="card form-card space-y-4">
-                <h2 className="section-title">{DECIDE_ACTIONS[decidingAction].label} booking request</h2>
-                <p className="subtitle">
-                  {deciding.event_request_name} — {formatPeriod(deciding.date, deciding.start_time, deciding.end_time)}
-                </p>
-                <div>
-                  <label htmlFor="venue-detail-decide-reason" className="label">
-                    {DECIDE_ACTIONS[decidingAction].reasonRequired ? 'Reason *' : 'Reason'}
-                  </label>
-                  <textarea
-                    id="venue-detail-decide-reason"
-                    value={decideReason}
-                    onChange={(event) => setDecideReason(event.target.value)}
-                    aria-required={DECIDE_ACTIONS[decidingAction].reasonRequired ? 'true' : undefined}
-                    className="input"
-                    data-testid="venue-detail-decide-reason-input"
-                  />
-                  {decideReasonError && (
-                    <p className="field-error" data-testid="venue-detail-decide-reason-error">
-                      {decideReasonError}
-                    </p>
-                  )}
-                </div>
-                <div className="flex flex-wrap justify-end gap-2">
-                  <button
-                    type="button"
-                    disabled={submitting}
-                    onClick={closeDecide}
-                    className="btn btn-secondary"
-                    data-testid="venue-detail-decide-cancel-button"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={submitting}
-                    className="btn btn-primary"
-                    data-testid="venue-detail-decide-confirm-button"
-                  >
-                    {DECIDE_ACTIONS[decidingAction].label}
-                  </button>
-                </div>
-              </form>
             )}
           </section>
         </>

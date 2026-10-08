@@ -1063,8 +1063,6 @@ describe('VenueDetailPage ending or removing a block', () => {
       expect(input).toHaveValue('')
       expect(screen.getByLabelText(label)).toBe(input)
     }
-    // The form names the block being ended, its period per ui-guidelines.md §9.
-    expect(screen.getByText('06 Oct 2026, 09:00 to 07 Oct 2026, 18:00: Lift repair')).toBeInTheDocument()
     expect(screen.getByTestId('venue-detail-end-block-confirm-button')).toHaveTextContent('End')
     expect(screen.getByTestId('venue-detail-end-block-cancel-button')).toHaveTextContent('Cancel')
   })
