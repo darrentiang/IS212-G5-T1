@@ -158,10 +158,44 @@
       "equipment_requirements": "Projector and sound system",
       "registration_needs": "Public registration through the system, capped at 250 attendees",
       "submitted_at": "2026-09-03T08:00:00+00:00",
+      "assigned_coordinator": "coord2",
+      "assigned_at": "2026-09-04T09:00:00+00:00",
       "layout": "Exhibition",
       "accessibility_features": [
         "Step-free access"
       ]
+    },
+    {
+      "name": "Past Gala",
+      "purpose": "Finished client gala",
+      "status": "Completed",
+      "created_by": "org1",
+      "description": "A gala that has already taken place",
+      "date": "2026-09-12",
+      "start_time": "18:00",
+      "end_time": "22:00",
+      "attendance": 120,
+      "equipment_requirements": "Sound system",
+      "registration_needs": "No registration; the client supplies the guest list",
+      "submitted_at": "2026-08-20T10:00:00+00:00",
+      "assigned_coordinator": "multi1",
+      "assigned_at": "2026-08-21T09:00:00+00:00"
+    },
+    {
+      "name": "Called Off Fair",
+      "purpose": "Cancelled careers fair",
+      "status": "Cancelled",
+      "created_by": "org1",
+      "description": "A fair that was cancelled",
+      "date": "2026-09-19",
+      "start_time": "09:00",
+      "end_time": "15:00",
+      "attendance": 80,
+      "equipment_requirements": "Projector",
+      "registration_needs": "No registration; the client supplies the attendee list",
+      "submitted_at": "2026-08-22T10:00:00+00:00",
+      "assigned_coordinator": "multi1",
+      "assigned_at": "2026-08-23T09:00:00+00:00"
     }
   ],
   "facilities": [

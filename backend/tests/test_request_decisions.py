@@ -67,14 +67,16 @@ def test_approve_without_reason_records_the_decision(client, app):
     resp = client.post(f"/api/requests/{request_id}/approve", json={"reason": "   "})
     assert resp.status_code == 200
     body = resp.get_json()
-    assert body["status"] == "Approved"
+    # SCRUM-43: approving also assigns a Coordinator, which moves the request to
+    # Planning; the decision stays recorded as Approved.
+    assert body["status"] == "Planning"
     assert body["decision"] == "Approved"
     assert body["decision_reason"] is None
     assert body["decided_by"] == "coord1"
     assert body["decided_at"] is not None
 
     saved = stored(app, request_id)
-    assert saved.status == "Approved"
+    assert saved.status == "Planning"
     assert saved.decided_at is not None
     assert saved.decided_by.username == "coord1"
 
