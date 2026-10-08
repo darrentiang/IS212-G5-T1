@@ -1,6 +1,8 @@
 """Event-request rules — SCRUM-27 (read access, object rules), SCRUM-28
-(create and submit) and SCRUM-29 (approve or reject).
-(create and submit) and SCRUM-30 (save, edit and delete a Draft).
+(create and submit), SCRUM-29 (approve or reject) and SCRUM-30 (save, edit
+and delete a Draft).
+SCRUM-42: the optional required layout, facilities and accessibility features,
+which replace the free-text venue requirements and accessibility needs.
 
 Object rules from permissions.md / ADR-002 live here next to the query.
 """
@@ -9,7 +11,7 @@ from datetime import date, datetime, timezone
 
 from db import db
 from errors import ApiRefusal
-from models import EventRequest
+from models import AccessibilityFeature, EventRequest, Facility, RoomLayout
 from permissions import INTERNAL_NOTES_VIEW, can
 
 ORGANISER_ROLE = "Event Organiser"
@@ -70,6 +72,87 @@ def _apply_fields(event_request, data):
     for field in EventRequest.REQUIRED_FIELDS:
         if field in data:
             setattr(event_request, field, data[field])
+
+
+def request_options():
+    """SCRUM-42: the fixed lists an event request's requirements are chosen from.
+
+    The same tables as /api/venue-options, served under requests.edit because
+    an Event Organiser does not hold venues.view.
+    """
+    return {
+        "layouts": [row.name for row in db.session.query(RoomLayout).order_by(RoomLayout.id)],
+        "facilities": [row.name for row in db.session.query(Facility).order_by(Facility.id)],
+        "accessibility_features": [
+            row.name
+            for row in db.session.query(AccessibilityFeature).order_by(AccessibilityFeature.id)
+        ],
+    }
+
+
+def _chosen_rows(values, model, singular, plural, duplicate_message):
+    """Rows for a list of names from one fixed list, else refuse 400.
+
+    Same rules and wording as SCRUM-32's venue layouts: a list, of names on
+    the list, none twice. An empty list or null clears the choice.
+    """
+    if values is None:
+        return []
+    if not isinstance(values, list):
+        raise ApiRefusal(400, f"Choose {plural} as a list.")
+    if not all(isinstance(value, str) for value in values):
+        raise ApiRefusal(400, f"Choose each {singular} from the list.")
+    if len(values) != len(set(values)):
+        raise ApiRefusal(400, duplicate_message)
+    rows = []
+    for name in values:
+        row = db.session.query(model).filter_by(name=name).first()
+        if row is None:
+            raise ApiRefusal(400, f"Choose each {singular} from the list.")
+        rows.append(row)
+    return rows
+
+
+def _chosen_layout(value):
+    """The one required layout, or None when none is chosen, else refuse 400."""
+    if value is None or value == "":
+        return None
+    row = None
+    if isinstance(value, str):
+        row = db.session.query(RoomLayout).filter_by(name=value).first()
+    if row is None:
+        raise ApiRefusal(400, "Choose the layout from the list.")
+    return row
+
+
+def _resolve_choices(data):
+    """SCRUM-42 AC1: the requirement choices sent, resolved to rows.
+
+    Only the keys present are returned, so an edit that leaves one out leaves
+    it unchanged. Every value is checked before anything is changed, so a
+    refusal records nothing, on a Draft too: an unknown value cannot be
+    stored as a link.
+    """
+    choices = {}
+    if "layout" in data:
+        choices["layout"] = _chosen_layout(data["layout"])
+    if "facilities" in data:
+        choices["facilities"] = _chosen_rows(
+            data["facilities"], Facility, "facility", "facilities",
+            "A facility cannot be selected more than once.",
+        )
+    if "accessibility_features" in data:
+        choices["accessibility_features"] = _chosen_rows(
+            data["accessibility_features"], AccessibilityFeature,
+            "accessibility feature", "accessibility features",
+            "An accessibility feature cannot be selected more than once.",
+        )
+    return choices
+
+
+def _apply_choices(event_request, choices):
+    for field, value in choices.items():
+        setattr(event_request, field, value)
 
 
 def _get_own_request(account, request_id):
@@ -146,8 +229,10 @@ def submit_new_request(account, data):
     """
     _require_organiser(account)
 
+    choices = _resolve_choices(data)
     event_request = EventRequest(created_by_id=account.id, status="Draft")
     _apply_fields(event_request, data)
+    _apply_choices(event_request, choices)
     _refuse_if_incomplete(event_request)
     _refuse_if_business_rules_violated(event_request)
 
@@ -244,8 +329,10 @@ def save_new_draft(account, data):
     if existing is not None:
         raise ApiRefusal(400, "You already have an open draft. Submit or delete it before starting another.")
 
+    choices = _resolve_choices(data)
     event_request = EventRequest(created_by_id=account.id, status="Draft")
     _apply_fields(event_request, data)
+    _apply_choices(event_request, choices)
     _refuse_if_name_missing(event_request)
 
     db.session.add(event_request)
@@ -275,7 +362,9 @@ def update_draft(account, request_id, data):
     if event_request.status != "Draft":
         raise ApiRefusal(400, "Only a Draft request can be edited.")
 
+    choices = _resolve_choices(data)
     _apply_fields(event_request, data)
+    _apply_choices(event_request, choices)
     _refuse_if_name_missing(event_request)
 
     db.session.commit()

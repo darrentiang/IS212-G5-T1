@@ -34,8 +34,6 @@ EVENT_DEFAULTS = {
     "start_time": "10:00",
     "end_time": "12:00",
     "attendance": 50,
-    "venue_requirements": "Any hall",
-    "accessibility_needs": "None",
     "equipment_requirements": "None",
     "registration_needs": "None",
 }
@@ -71,7 +69,6 @@ def add_booking(venue_name, status, start, end, date="2026-12-15"):
         start_time=start,
         end_time=end,
         attendance=10,
-        venue_requirements="Any",
         raised_by=db.session.query(Account).filter_by(username="coord1").one(),
         raised_at=datetime.now(timezone.utc),
     )

@@ -38,8 +38,6 @@ const VALID_REQUEST = {
   'start-time': '09:00',
   'end-time': '17:00',
   attendance: '200',
-  'venue-requirements': 'Large hall with stage',
-  'accessibility-needs': 'Wheelchair access',
   'equipment-requirements': 'Projector, microphones',
   'registration-needs': 'Online registration with capacity cap',
 }
