@@ -311,7 +311,8 @@ def test_any_event_coordinator_may_raise_not_just_one(client):
     assert resp.get_json()["raised_by"] == "coord2"
 
 
-# --- AC9: a request already awaiting a decision for the same venue and event blocks a new one ---
+# --- AC9: an Approved booking or a request awaiting a decision for the same venue and event
+# blocks a new one; an earlier Rejected request does not (refined 09-10-2026) ---
 
 
 # @story: SCRUM-36
@@ -331,17 +332,47 @@ def test_a_second_booking_for_the_same_venue_and_event_is_refused(client):
 
 # @story: SCRUM-36
 # @ac: 9
-def test_a_new_booking_is_allowed_once_the_earlier_one_is_no_longer_awaiting(client):
-    login(client)
-    event = make_event()
-    first_id = post_booking(client, event).get_json()["id"]
-    # No decide/withdraw endpoint exists yet (later stories); set the status
-    # directly to prove the rule checks status, not just (venue, event) existence.
-    first = db.session.get(VenueBookingRequest, first_id)
-    first.status = "Approved"
-    db.session.commit()
+def test_an_approved_booking_blocks_a_new_request_for_the_same_venue_and_event(client):
+    event, booking = raise_and_get_id(client)
+    login(client, "venue1")
+    assert decide(client, venue_id(), booking, "approve").status_code == 200
+    login(client, "coord1")
 
     resp = post_booking(client, event)
+
+    assert resp.status_code == 400
+    assert resp.get_json()["message"] == (
+        "This event already holds an approved booking for this venue."
+    )
+    assert booking_count() == 1
+
+
+# @story: SCRUM-36
+# @ac: 9
+def test_a_rejected_booking_does_not_block_a_new_request(client):
+    event, booking = raise_and_get_id(client)
+    login(client, "venue1")
+    rejected = decide(client, venue_id(), booking, "reject", reason="Projector under repair")
+    assert rejected.status_code == 200
+    login(client, "coord1")
+
+    resp = post_booking(client, event)
+
+    assert resp.status_code == 201
+    assert resp.get_json()["status"] == "Requested"
+    assert booking_count() == 2
+
+
+# @story: SCRUM-36
+# @ac: 9
+def test_an_approved_booking_for_another_event_does_not_block(client):
+    # AC6 still holds: the block is per (venue, event), not per venue.
+    _, booking = raise_and_get_id(client)
+    login(client, "venue1")
+    assert decide(client, venue_id(), booking, "approve").status_code == 200
+    login(client, "coord1")
+
+    resp = post_booking(client, make_event())
 
     assert resp.status_code == 201
     assert booking_count() == 2

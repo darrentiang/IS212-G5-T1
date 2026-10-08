@@ -24,8 +24,18 @@ from models import EventRequest, Venue, VenueBookingRequest
 # AC2: only these event statuses may receive a booking request.
 RAISABLE_STATUSES = ("Approved", "Planning")
 
-# A request in this status against the same (venue, event) pair blocks a new one (AC9).
+# The status of a request still awaiting a decision; only it may be decided.
 AWAITING_DECISION = "Requested"
+
+# AC9 (refined by the PO, 09-10-2026): a request in either status against the
+# same (venue, event) pair blocks a new one. Rejected and Withdrawn do not.
+BLOCKING_STATUSES = (AWAITING_DECISION, "Approved")
+
+# AC9: the refusal for each blocking status, so the message names why.
+DUPLICATE_MESSAGES = {
+    AWAITING_DECISION: "A booking request for this venue and event is already awaiting a decision.",
+    "Approved": "This event already holds an approved booking for this venue.",
+}
 
 TIME_FORMAT = "%H:%M"
 
@@ -48,8 +58,9 @@ def raise_booking(account, event_request_id, data):
     """Raise a booking request for one venue against one event (AC1).
 
     AC2: the event must be Approved or in Planning. AC10: the venue must be
-    active. AC9: no request already awaiting a decision for the same venue
-    and event. Every check runs before anything is written, so a refusal
+    active. AC9: the event holds no Approved booking, and has no request
+    awaiting a decision, for the same venue; an earlier Rejected request does
+    not block. Every check runs before anything is written, so a refusal
     records nothing.
 
     Who may call this is the route's own @require(BOOKINGS_EDIT): the
@@ -72,13 +83,15 @@ def raise_booking(account, event_request_id, data):
 
     existing = (
         db.session.query(VenueBookingRequest)
-        .filter_by(venue_id=venue.id, event_request_id=event_request.id, status=AWAITING_DECISION)
+        .filter(
+            VenueBookingRequest.venue_id == venue.id,
+            VenueBookingRequest.event_request_id == event_request.id,
+            VenueBookingRequest.status.in_(BLOCKING_STATUSES),
+        )
         .first()
     )
     if existing is not None:
-        raise ApiRefusal(
-            400, "A booking request for this venue and event is already awaiting a decision."
-        )
+        raise ApiRefusal(400, DUPLICATE_MESSAGES[existing.status])
 
     booking = VenueBookingRequest(
         venue=venue,
