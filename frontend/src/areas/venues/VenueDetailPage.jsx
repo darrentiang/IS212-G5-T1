@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useParams } from 'react-router'
 import { useAuth } from '../../app/auth'
 import { formatDateTime, formatDateTimePeriod, formatPeriod, formatTime, statusBadgeClass } from '../../app/format'
@@ -340,6 +340,17 @@ export default function VenueDetailPage() {
   }
 
   const deciding = openForm === 'decide' ? bookings.find((booking) => booking.id === decidingBookingId) : undefined
+
+  // The decide form sits below the whole Booking requests table, so a click
+  // on a row near the top can land it off-screen; bring it into view rather
+  // than leave the user to go find it (reported against this page directly).
+  const decideFormRef = useRef(null)
+  useEffect(() => {
+    if (deciding) {
+      // jsdom (the test environment) has no scrollIntoView at all, unlike a real browser.
+      decideFormRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
+    }
+  }, [deciding])
 
   // Reason is required to reject, optional to approve, the same rule as
   // deciding an event request (request-detail's decide form).
@@ -970,7 +981,7 @@ export default function VenueDetailPage() {
             )}
 
             {deciding && (
-              <form onSubmit={handleDecide} noValidate className="card form-card space-y-4">
+              <form ref={decideFormRef} onSubmit={handleDecide} noValidate className="card form-card space-y-4">
                 <h2 className="section-title">{DECIDE_ACTIONS[decidingAction].label} booking request</h2>
                 <p className="subtitle">
                   {deciding.event_request_name} — {formatPeriod(deciding.date, deciding.start_time, deciding.end_time)}
