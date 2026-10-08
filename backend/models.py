@@ -5,7 +5,9 @@ read access. SCRUM-28: event request creation and submission. SCRUM-31:
 venues with their facilities, accessibility features and layouts. SCRUM-40: venue
 blocks. SCRUM-36: venue booking requests, and a venue's is_active flag
 (retiring one is SCRUM-76; this story only needed somewhere to check).
-SCRUM-37: approve/reject a venue booking request.
+SCRUM-42: an event request's required layout, facilities and accessibility
+features, chosen from the same fixed lists as a venue's. SCRUM-37: a venue
+booking request's approve/reject decision.
 No permission logic here — see backend/permissions.py.
 """
 
@@ -18,9 +20,15 @@ from db import db
 # SCRUM-28 added event request columns; SCRUM-31 added venues and the two
 # fixed lists they choose from. SCRUM-29 added the approve/reject decision.
 # SCRUM-40 added venue blocks. SCRUM-36 added venue booking requests and
-# Venue.is_active and SCRUM-32 added room layouts. SCRUM-37 added the venue
-# booking request's own approve/reject decision.
-SCHEMA_VERSION = 9
+# Venue.is_active and SCRUM-32 added room layouts. SCRUM-42 added an event
+# request's required layout, facilities and accessibility features, and dropped
+# the free-text venue_requirements and accessibility_needs they replace.
+# SCRUM-80 added setup_time and turnaround_time to Venue. SCRUM-42 and SCRUM-80
+# each raised the version to 9 on their own branch; the merged schema differs
+# from both, so it is 10. SCRUM-37 added a venue booking request's own
+# approve/reject decision (decision, decision_reason, decided_at,
+# decided_by), so 11.
+SCHEMA_VERSION = 11
 
 
 account_roles = db.Table(
@@ -76,7 +84,13 @@ class EventRequest(db.Model):
 
     SCRUM-27 added read-only access with role rules (own only / all except
     Draft, internal notes gating). SCRUM-28 added creation and the
-    Draft -> Submitted transition. SCRUM-29 added approve/reject. 
+    Draft -> Submitted transition. SCRUM-29 added approve/reject.
+    SCRUM-42 added the optional required layout, facilities and accessibility
+    features, stored as links to the venue lists; never required to submit.
+    They replace the brief's free-text "venue requirements" and "accessibility
+    needs" (PO decision): the brief's venue requirements are what the Venue
+    Catalogue records as layouts and facilities, its accessibility needs what
+    it records as accessibility features.
     Later stories add columns and transitions in their own pull requests.
     """
 
@@ -95,8 +109,6 @@ class EventRequest(db.Model):
         "start_time",
         "end_time",
         "attendance",
-        "venue_requirements",
-        "accessibility_needs",
         "equipment_requirements",
         "registration_needs",
     )
@@ -112,8 +124,6 @@ class EventRequest(db.Model):
     start_time = db.Column(db.String(5))  # HH:MM
     end_time = db.Column(db.String(5))  # HH:MM
     attendance = db.Column(db.Integer)
-    venue_requirements = db.Column(db.Text)
-    accessibility_needs = db.Column(db.Text)
     equipment_requirements = db.Column(db.Text)
     registration_needs = db.Column(db.Text)
 
@@ -126,8 +136,21 @@ class EventRequest(db.Model):
     decided_at = db.Column(db.DateTime, nullable=True)
     decided_by_id = db.Column(db.Integer, db.ForeignKey("accounts.id"), nullable=True)
 
+    # SCRUM-42: one required layout or none; any number of facilities and
+    # accessibility features. Ordered as the fixed lists are.
+    layout_id = db.Column(db.Integer, db.ForeignKey("room_layouts.id"), nullable=True)
+
     created_by = db.relationship("Account", foreign_keys=[created_by_id], backref="event_requests")
     decided_by = db.relationship("Account", foreign_keys=[decided_by_id])
+    layout = db.relationship("RoomLayout")
+    facilities = db.relationship(
+        "Facility", secondary="event_request_facilities", order_by="Facility.id"
+    )
+    accessibility_features = db.relationship(
+        "AccessibilityFeature",
+        secondary="event_request_accessibility_features",
+        order_by="AccessibilityFeature.id",
+    )
 
     def missing_fields(self):
         """Names of required fields that are unset or blank, in REQUIRED_FIELDS order."""
@@ -149,6 +172,9 @@ class EventRequest(db.Model):
             "decision_reason": self.decision_reason,
             "decided_at": self.decided_at.isoformat() if self.decided_at else None,
             "decided_by": self.decided_by.username if self.decided_by else None,
+            "layout": self.layout.name if self.layout else None,
+            "facilities": [row.name for row in self.facilities],
+            "accessibility_features": [row.name for row in self.accessibility_features],
             **{field: getattr(self, field) for field in self.REQUIRED_FIELDS},
         }
 
@@ -179,6 +205,25 @@ venue_layouts = db.Table(
     "venue_layouts",
     db.Column("venue_id", db.Integer, db.ForeignKey("venues.id"), primary_key=True),
     db.Column("layout_id", db.Integer, db.ForeignKey("room_layouts.id"), primary_key=True),
+)
+
+
+event_request_facilities = db.Table(
+    "event_request_facilities",
+    db.Column("event_request_id", db.Integer, db.ForeignKey("event_requests.id"), primary_key=True),
+    db.Column("facility_id", db.Integer, db.ForeignKey("facilities.id"), primary_key=True),
+)
+
+
+event_request_accessibility_features = db.Table(
+    "event_request_accessibility_features",
+    db.Column("event_request_id", db.Integer, db.ForeignKey("event_requests.id"), primary_key=True),
+    db.Column(
+        "accessibility_feature_id",
+        db.Integer,
+        db.ForeignKey("accessibility_features.id"),
+        primary_key=True,
+    ),
 )
 
 
@@ -227,7 +272,8 @@ class Venue(db.Model):
 
     Name, location and maximum capacity are required; the operating hours and
     the two lists and supported room layouts are optional. Editing is SCRUM-75;
-    retiring is SCRUM-76 and layout assignments are SCRUM-32.
+    retiring is SCRUM-76 and layout assignments are SCRUM-32. SCRUM-80 adds
+    setup_time and turnaround_time in whole minutes, defaulting to 0.
     """
 
     __tablename__ = "venues"
@@ -238,6 +284,8 @@ class Venue(db.Model):
     max_capacity = db.Column(db.Integer, nullable=False)
     opening_time = db.Column(db.Time, nullable=True)
     closing_time = db.Column(db.Time, nullable=True)
+    setup_time = db.Column(db.Integer, nullable=False, default=0)
+    turnaround_time = db.Column(db.Integer, nullable=False, default=0)
     is_active = db.Column(db.Boolean, nullable=False, default=True)
 
     facilities = db.relationship("Facility", secondary=venue_facilities, backref="venues")
@@ -283,11 +331,17 @@ class VenueBookingRequest(db.Model):
     """An Event Coordinator's request to book a venue for an event (SCRUM-36),
     which Venue Staff approve or reject (SCRUM-37).
 
-    date, start_time, end_time, attendance and venue_requirements are copied
-    from the event request at the moment of raising (AC3): a later change to
-    the event does not move the booking request. raised_at and decided_at are
-    UTC, the same convention as an event request's submitted_at/decided_at.
-    Withdrawing is a later story; nothing here supports it yet.
+    date, start_time, end_time and attendance are copied from the event
+    request at the moment of raising (AC3): a later change to the event does
+    not move the booking request. The event's venue requirements (AC3) are its
+    chosen layout and facilities (SCRUM-42); they are read through
+    event_request, not copied, because today they can change only while the
+    event is a Draft (SCRUM-30) and a booking needs an Approved or Planning
+    event. A future story that lets an event be edited during Planning must
+    decide whether a booking request keeps a snapshot of them. raised_at and
+    decided_at are UTC, the same convention as an event request's
+    submitted_at/decided_at. Withdrawing is a later story; nothing here
+    supports it yet.
     """
 
     __tablename__ = "venue_booking_requests"
@@ -303,7 +357,6 @@ class VenueBookingRequest(db.Model):
     start_time = db.Column(db.String(5))  # HH:MM
     end_time = db.Column(db.String(5))  # HH:MM
     attendance = db.Column(db.Integer)
-    venue_requirements = db.Column(db.Text)
 
     raised_by_id = db.Column(db.Integer, db.ForeignKey("accounts.id"), nullable=False)
     raised_at = db.Column(db.DateTime, nullable=False)

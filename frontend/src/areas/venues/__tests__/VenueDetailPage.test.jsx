@@ -16,10 +16,16 @@ const HALL_A = {
   max_capacity: 250,
   opening_time: '08:00',
   closing_time: '22:00',
+  // SCRUM-80: durations in whole minutes; 0 means never recorded.
+  setup_time: 0,
+  turnaround_time: 0,
   facilities: ['Projector', 'Stage lighting'],
   accessibility_features: ['Step-free access', 'Hearing loop'],
   layouts: ['Classroom'],
 }
+
+// SCRUM-80: a venue whose two times have been recorded.
+const RECORDED_TIMES = { ...HALL_A, setup_time: 30, turnaround_time: 15 }
 
 const OPTIONS = {
   facilities: ['Projector', 'Stage lighting', 'Sound system', 'Whiteboard', 'Wi-Fi'],
@@ -1068,6 +1074,19 @@ describe('VenueDetailPage ending or removing a block', () => {
   })
 
   // @story: SCRUM-79
+  // @ac: 2
+  // The form names the block it ends, now that it opens below that block's row (SCRUM-37).
+  it("names the block's period and reason in the end-block form", async () => {
+    renderPage()
+
+    await openEndForm()
+
+    expect(screen.getByTestId('venue-detail-end-block-confirm-button').closest('form')).toHaveTextContent(
+      '06 Oct 2026, 09:00 to 07 Oct 2026, 18:00: Lift repair',
+    )
+  })
+
+  // @story: SCRUM-79
   // @ac: 3
   it('shows a message under each empty or blank field and sends nothing', async () => {
     renderPage()
@@ -1227,6 +1246,399 @@ describe('VenueDetailPage ending or removing a block', () => {
   })
 })
 
+// ---------------- SCRUM-80 Setup and turnaround time ----------------
+
+async function openTimesForm() {
+  await userEvent.click(await screen.findByTestId('venue-detail-times-button'))
+  expect(screen.getByTestId('venue-detail-times-setup-time-input')).toBeVisible()
+}
+
+async function fillTimesForm({ setup_time, turnaround_time }) {
+  const setup = screen.getByTestId('venue-detail-times-setup-time-input')
+  const turnaround = screen.getByTestId('venue-detail-times-turnaround-time-input')
+  await userEvent.clear(setup)
+  if (setup_time !== '') await userEvent.type(setup, setup_time)
+  await userEvent.clear(turnaround)
+  if (turnaround_time !== '') await userEvent.type(turnaround, turnaround_time)
+}
+
+describe('VenueDetailPage setup and turnaround times', () => {
+  // @story: SCRUM-80
+  // @ac: 4
+  it('shows zero minutes for each time a venue has never recorded, before and after a reload', async () => {
+    api.getVenue.mockResolvedValue(HALL_A)
+
+    const first = renderPage()
+    await waitFor(() => {
+      expect(screen.getByTestId('venue-detail-setup-time')).toHaveTextContent(/^0 minutes$/)
+    })
+    expect(screen.getByTestId('venue-detail-turnaround-time')).toHaveTextContent(/^0 minutes$/)
+    first.unmount()
+
+    renderPage()
+    await waitFor(() => {
+      expect(screen.getByTestId('venue-detail-setup-time')).toHaveTextContent(/^0 minutes$/)
+    })
+    expect(screen.getByTestId('venue-detail-turnaround-time')).toHaveTextContent(/^0 minutes$/)
+  })
+
+  // @story: SCRUM-80
+  // @ac: 5
+  it('shows both recorded times in the venue details', async () => {
+    api.getVenue.mockResolvedValue(RECORDED_TIMES)
+
+    renderPage()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('venue-detail-setup-time')).toHaveTextContent(/^30 minutes$/)
+    })
+    expect(screen.getByTestId('venue-detail-turnaround-time')).toHaveTextContent(/^15 minutes$/)
+  })
+
+  // @story: SCRUM-80
+  // @ac: 5
+  it('reads one recorded minute as a singular minute', async () => {
+    api.getVenue.mockResolvedValue({ ...HALL_A, setup_time: 1, turnaround_time: 1 })
+
+    renderPage()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('venue-detail-setup-time')).toHaveTextContent(/^1 minute$/)
+    })
+    expect(screen.getByTestId('venue-detail-turnaround-time')).toHaveTextContent(/^1 minute$/)
+  })
+
+  // @story: SCRUM-80
+  // @ac: 5, 6
+  it('offers Edit times to a Venue Staff account and shows both times', async () => {
+    signInWith(['venues.view', 'venues.edit'])
+    api.getVenue.mockResolvedValue(RECORDED_TIMES)
+
+    renderPage()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('venue-detail-times-button')).toBeVisible()
+    })
+    expect(screen.getByTestId('venue-detail-setup-time')).toHaveTextContent(/^30 minutes$/)
+    expect(screen.getByTestId('venue-detail-turnaround-time')).toHaveTextContent(/^15 minutes$/)
+  })
+
+  // @story: SCRUM-80
+  // @ac: 5, 6
+  it('shows both times but offers no way to change them without venues.edit', async () => {
+    signInWith(['venues.view'])
+    api.getVenue.mockResolvedValue(RECORDED_TIMES)
+
+    renderPage()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('venue-detail-setup-time')).toHaveTextContent(/^30 minutes$/)
+    })
+    expect(screen.getByTestId('venue-detail-turnaround-time')).toHaveTextContent(/^15 minutes$/)
+    expect(screen.queryByTestId('venue-detail-times-button')).not.toBeInTheDocument()
+  })
+
+  // @story: SCRUM-80
+  // @ac: 1, 4
+  it('opens the times form pre-filled with the recorded values and the blank-field hint', async () => {
+    api.getVenue.mockResolvedValue(RECORDED_TIMES)
+
+    renderPage()
+    await openTimesForm()
+
+    expect(screen.getByTestId('venue-detail-times-setup-time-input')).toHaveValue(30)
+    expect(screen.getByTestId('venue-detail-times-turnaround-time-input')).toHaveValue(15)
+    expect(screen.getByTestId('venue-detail-times-hint')).toHaveTextContent('Leave blank for 0 minutes.')
+    expect(screen.getByLabelText('Setup time (minutes)')).toBe(
+      screen.getByTestId('venue-detail-times-setup-time-input'),
+    )
+    expect(screen.getByLabelText('Turnaround time (minutes)')).toBe(
+      screen.getByTestId('venue-detail-times-turnaround-time-input'),
+    )
+    expect(screen.getByTestId('venue-detail-times-save-button')).toHaveTextContent('Save')
+    expect(screen.getByTestId('venue-detail-times-cancel-button')).toHaveTextContent('Cancel')
+  })
+
+  // @story: SCRUM-80
+  // @ac: 1, 4
+  it('opens the times form with zero for a venue that never recorded either time', async () => {
+    api.getVenue.mockResolvedValue(HALL_A)
+
+    renderPage()
+    await openTimesForm()
+
+    expect(screen.getByTestId('venue-detail-times-setup-time-input')).toHaveValue(0)
+    expect(screen.getByTestId('venue-detail-times-turnaround-time-input')).toHaveValue(0)
+  })
+
+  // @story: SCRUM-80
+  // @ac: 1, 5
+  it('saves both times and shows the saved values with a success banner', async () => {
+    api.getVenue.mockResolvedValue(RECORDED_TIMES)
+    api.updateVenueTimes.mockResolvedValue({ ...RECORDED_TIMES, setup_time: 45, turnaround_time: 20 })
+
+    renderPage()
+    await openTimesForm()
+    await fillTimesForm({ setup_time: '45', turnaround_time: '20' })
+    await userEvent.click(screen.getByTestId('venue-detail-times-save-button'))
+
+    await waitFor(() => {
+      expect(api.updateVenueTimes).toHaveBeenCalledWith('3', { setup_time: '45', turnaround_time: '20' })
+    })
+    expect(await screen.findByTestId('venue-detail-banner')).toHaveTextContent('Times updated')
+    expect(screen.getByTestId('venue-detail-banner')).toHaveAttribute('role', 'status')
+    expect(screen.getByTestId('venue-detail-setup-time')).toHaveTextContent(/^45 minutes$/)
+    expect(screen.getByTestId('venue-detail-turnaround-time')).toHaveTextContent(/^20 minutes$/)
+    expect(screen.queryByTestId('venue-detail-times-setup-time-input')).not.toBeInTheDocument()
+  })
+
+  // @story: SCRUM-80
+  // @ac: 1, 5
+  it('changes only the setup time and keeps the recorded turnaround time', async () => {
+    api.getVenue.mockResolvedValue(RECORDED_TIMES)
+    api.updateVenueTimes.mockResolvedValue({ ...RECORDED_TIMES, setup_time: 45 })
+
+    renderPage()
+    await openTimesForm()
+
+    const setup = screen.getByTestId('venue-detail-times-setup-time-input')
+    await userEvent.clear(setup)
+    await userEvent.type(setup, '45')
+    await userEvent.click(screen.getByTestId('venue-detail-times-save-button'))
+
+    await waitFor(() => {
+      expect(api.updateVenueTimes).toHaveBeenCalledWith('3', { setup_time: '45', turnaround_time: 15 })
+    })
+    expect(await screen.findByTestId('venue-detail-setup-time')).toHaveTextContent(/^45 minutes$/)
+    expect(screen.getByTestId('venue-detail-turnaround-time')).toHaveTextContent(/^15 minutes$/)
+  })
+
+  // @story: SCRUM-80
+  // @ac: 2, 5
+  it('saves a cleared setup time as zero while keeping the turnaround time', async () => {
+    api.getVenue.mockResolvedValue(RECORDED_TIMES)
+    api.updateVenueTimes.mockResolvedValue({ ...RECORDED_TIMES, setup_time: 0 })
+
+    renderPage()
+    await openTimesForm()
+
+    await userEvent.clear(screen.getByTestId('venue-detail-times-setup-time-input'))
+    await userEvent.click(screen.getByTestId('venue-detail-times-save-button'))
+
+    await waitFor(() => {
+      expect(api.updateVenueTimes).toHaveBeenCalledWith('3', { setup_time: '', turnaround_time: 15 })
+    })
+    expect(await screen.findByTestId('venue-detail-setup-time')).toHaveTextContent(/^0 minutes$/)
+    expect(screen.getByTestId('venue-detail-turnaround-time')).toHaveTextContent(/^15 minutes$/)
+  })
+
+  // @story: SCRUM-80
+  // @ac: 2, 5
+  it('saves a cleared turnaround time as zero while keeping the setup time', async () => {
+    api.getVenue.mockResolvedValue(RECORDED_TIMES)
+    api.updateVenueTimes.mockResolvedValue({ ...RECORDED_TIMES, turnaround_time: 0 })
+
+    renderPage()
+    await openTimesForm()
+
+    await userEvent.clear(screen.getByTestId('venue-detail-times-turnaround-time-input'))
+    await userEvent.click(screen.getByTestId('venue-detail-times-save-button'))
+
+    await waitFor(() => {
+      expect(api.updateVenueTimes).toHaveBeenCalledWith('3', { setup_time: 30, turnaround_time: '' })
+    })
+    expect(await screen.findByTestId('venue-detail-turnaround-time')).toHaveTextContent(/^0 minutes$/)
+    expect(screen.getByTestId('venue-detail-setup-time')).toHaveTextContent(/^30 minutes$/)
+  })
+
+  // @story: SCRUM-80
+  // @ac: 3
+  it('shows the refusal naming the invalid field, keeps the form open and both stored times', async () => {
+    api.getVenue.mockResolvedValue(RECORDED_TIMES)
+    api.updateVenueTimes.mockRejectedValue(
+      Object.assign(new Error('Setup time must be a non-negative whole number.'), { status: 400 }),
+    )
+
+    renderPage()
+    await openTimesForm()
+    await fillTimesForm({ setup_time: '0.5', turnaround_time: '20' })
+    await userEvent.click(screen.getByTestId('venue-detail-times-save-button'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('venue-detail-banner')).toHaveTextContent(
+        'Setup time must be a non-negative whole number.',
+      )
+    })
+    expect(screen.getByTestId('venue-detail-banner')).toHaveAttribute('role', 'alert')
+    expect(screen.getByTestId('venue-detail-times-setup-time-input')).toBeVisible()
+    // jest-dom reads a number input's value as a number; the page still sends a string.
+    expect(screen.getByTestId('venue-detail-times-setup-time-input')).toHaveValue(0.5)
+    expect(screen.getByTestId('venue-detail-times-turnaround-time-input')).toHaveValue(20)
+    expect(screen.getByTestId('venue-detail-setup-time')).toHaveTextContent(/^30 minutes$/)
+    expect(screen.getByTestId('venue-detail-turnaround-time')).toHaveTextContent(/^15 minutes$/)
+  })
+
+  // @story: SCRUM-80
+  // @ac: 3
+  it('shows the turnaround refusal and leaves both stored times unchanged', async () => {
+    api.getVenue.mockResolvedValue(RECORDED_TIMES)
+    api.updateVenueTimes.mockRejectedValue(
+      Object.assign(new Error('Turnaround time must be a non-negative whole number.'), { status: 400 }),
+    )
+
+    renderPage()
+    await openTimesForm()
+    await fillTimesForm({ setup_time: '45', turnaround_time: '-1' })
+    await userEvent.click(screen.getByTestId('venue-detail-times-save-button'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('venue-detail-banner')).toHaveTextContent(
+        'Turnaround time must be a non-negative whole number.',
+      )
+    })
+    expect(screen.getByTestId('venue-detail-setup-time')).toHaveTextContent(/^30 minutes$/)
+    expect(screen.getByTestId('venue-detail-turnaround-time')).toHaveTextContent(/^15 minutes$/)
+  })
+
+  // @story: SCRUM-80
+  // @ac: 6
+  it('shows the permission refusal and leaves both stored times unchanged', async () => {
+    api.getVenue.mockResolvedValue(RECORDED_TIMES)
+    api.updateVenueTimes.mockRejectedValue(
+      Object.assign(new Error('You do not have permission to perform this action.'), { status: 403 }),
+    )
+
+    renderPage()
+    await openTimesForm()
+    await fillTimesForm({ setup_time: '45', turnaround_time: '20' })
+    await userEvent.click(screen.getByTestId('venue-detail-times-save-button'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('venue-detail-banner')).toHaveTextContent(
+        'You do not have permission to perform this action.',
+      )
+    })
+    expect(screen.getByTestId('venue-detail-banner')).toHaveAttribute('role', 'alert')
+    expect(screen.getByTestId('venue-detail-setup-time')).toHaveTextContent(/^30 minutes$/)
+    expect(screen.getByTestId('venue-detail-turnaround-time')).toHaveTextContent(/^15 minutes$/)
+  })
+
+  // @story: SCRUM-80
+  // @ac: 6
+  it('shows the refusal when permissions change while the save is pending, and keeps the venue', async () => {
+    api.getVenue.mockResolvedValue(RECORDED_TIMES)
+    let rejectSave
+    api.updateVenueTimes.mockReturnValue(
+      new Promise((resolve, reject) => {
+        rejectSave = reject
+      }),
+    )
+
+    const rendered = renderPage()
+    await openTimesForm()
+    await userEvent.click(screen.getByTestId('venue-detail-times-save-button'))
+
+    signInWith(['venues.view'])
+    rendered.rerender(venuePage())
+
+    await act(async () => {
+      rejectSave(Object.assign(new Error('You do not have permission to perform this action.'), { status: 403 }))
+    })
+
+    expect(screen.getByTestId('venue-detail-banner')).toHaveTextContent(
+      'You do not have permission to perform this action.',
+    )
+    expect(screen.getByTestId('venue-detail-name')).toHaveTextContent('Hall A')
+    expect(screen.getByTestId('venue-detail-setup-time')).toHaveTextContent(/^30 minutes$/)
+    expect(screen.getByTestId('venue-detail-turnaround-time')).toHaveTextContent(/^15 minutes$/)
+  })
+
+  // @story: SCRUM-80
+  // @ac: 1
+  it('disables the times controls while the save is pending', async () => {
+    api.getVenue.mockResolvedValue(RECORDED_TIMES)
+    api.updateVenueTimes.mockReturnValue(new Promise(() => {}))
+
+    renderPage()
+    await openTimesForm()
+    await userEvent.click(screen.getByTestId('venue-detail-times-save-button'))
+
+    expect(screen.getByTestId('venue-detail-times-save-button')).toBeDisabled()
+    expect(screen.getByTestId('venue-detail-times-cancel-button')).toBeDisabled()
+    expect(screen.getByTestId('venue-detail-update-button')).toBeDisabled()
+    expect(screen.getByTestId('venue-detail-block-button')).toBeDisabled()
+  })
+
+  // @story: SCRUM-80
+  // @ac: 1
+  it('closes the times form on Cancel without sending and reopens with the stored values', async () => {
+    api.getVenue.mockResolvedValue(RECORDED_TIMES)
+
+    renderPage()
+    await openTimesForm()
+
+    await fillTimesForm({ setup_time: '99', turnaround_time: '88' })
+    await userEvent.click(screen.getByTestId('venue-detail-times-cancel-button'))
+
+    expect(screen.queryByTestId('venue-detail-times-setup-time-input')).not.toBeInTheDocument()
+    expect(api.updateVenueTimes).not.toHaveBeenCalled()
+
+    await openTimesForm()
+    expect(screen.getByTestId('venue-detail-times-setup-time-input')).toHaveValue(30)
+    expect(screen.getByTestId('venue-detail-times-turnaround-time-input')).toHaveValue(15)
+  })
+
+  // @story: SCRUM-80
+  // @ac: 1
+  it('keeps one inline form open at a time: Edit times closes Update venue and Block venue', async () => {
+    api.getVenue.mockResolvedValue(RECORDED_TIMES)
+    renderPage()
+    await screen.findByTestId('venue-detail-times-button')
+
+    await userEvent.click(screen.getByTestId('venue-detail-update-button'))
+    expect(screen.getByTestId('venue-detail-update-name-input')).toBeInTheDocument()
+
+    await openTimesForm()
+    expect(screen.queryByTestId('venue-detail-update-name-input')).not.toBeInTheDocument()
+
+    await userEvent.click(screen.getByTestId('venue-detail-block-button'))
+    expect(screen.getByTestId('venue-detail-block-reason-input')).toBeInTheDocument()
+    expect(screen.queryByTestId('venue-detail-times-setup-time-input')).not.toBeInTheDocument()
+  })
+
+  // @story: SCRUM-80
+  // @ac: 1
+  it('clears the banner when the times form is opened', async () => {
+    api.getVenue.mockResolvedValue(RECORDED_TIMES)
+    renderPage({ banner: 'Venue added' })
+    expect(await screen.findByTestId('venue-detail-banner')).toHaveTextContent('Venue added')
+
+    await openTimesForm()
+
+    expect(screen.queryByTestId('venue-detail-banner')).not.toBeInTheDocument()
+  })
+
+  // @story: SCRUM-80
+  // @ac: 5
+  it('leaves the other venue details untouched when the times are saved', async () => {
+    api.getVenue.mockResolvedValue(RECORDED_TIMES)
+    api.updateVenueTimes.mockResolvedValue({ ...RECORDED_TIMES, setup_time: 45, turnaround_time: 20 })
+
+    renderPage()
+    await openTimesForm()
+    await fillTimesForm({ setup_time: '45', turnaround_time: '20' })
+    await userEvent.click(screen.getByTestId('venue-detail-times-save-button'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('venue-detail-setup-time')).toHaveTextContent(/^45 minutes$/)
+    })
+    expect(screen.getByTestId('venue-detail-name')).toHaveTextContent('Hall A')
+    expect(screen.getByTestId('venue-detail-location')).toHaveTextContent('Block B Level 3')
+    expect(screen.getByTestId('venue-detail-max-capacity')).toHaveTextContent('250')
+    expect(screen.getByTestId('venue-detail-layouts-value')).toHaveTextContent('Classroom')
+  })
+})
+
 describe('VenueDetailPage booking requests', () => {
   // @story: SCRUM-36
   // @ac: 4, 5
@@ -1269,7 +1681,7 @@ describe('VenueDetailPage booking requests', () => {
 
   // @story: SCRUM-37
   // @ac: 1
-  it('shows attendance and venue requirements', async () => {
+  it("shows attendance and the event's layout and facilities", async () => {
     api.getVenue.mockResolvedValue(HALL_A)
     api.listVenueBookings.mockResolvedValue([
       {
@@ -1280,16 +1692,41 @@ describe('VenueDetailPage booking requests', () => {
         start_time: '09:00',
         end_time: '17:00',
         attendance: 75,
-        venue_requirements: 'Stage and lighting rig',
+        layout: 'Theatre',
+        facilities: ['Projector', 'Whiteboard'],
       },
     ])
 
     renderPage()
 
     expect(await screen.findByTestId('venue-detail-booking-attendance-12')).toHaveTextContent('75')
-    expect(screen.getByTestId('venue-detail-booking-venue-requirements-12')).toHaveTextContent(
-      'Stage and lighting rig',
-    )
+    expect(screen.getByTestId('venue-detail-booking-layout-12')).toHaveTextContent('Theatre')
+    expect(screen.getByTestId('venue-detail-booking-facilities-12')).toHaveTextContent('Projector, Whiteboard')
+    expect(screen.queryByTestId('venue-detail-booking-venue-requirements-12')).not.toBeInTheDocument()
+  })
+
+  // @story: SCRUM-37
+  // @ac: 1
+  it('shows None for a layout or facilities the event did not choose', async () => {
+    api.getVenue.mockResolvedValue(HALL_A)
+    api.listVenueBookings.mockResolvedValue([
+      {
+        id: 12,
+        event_request_name: 'Tech Fair 2026',
+        status: 'Requested',
+        date: '2026-11-20',
+        start_time: '09:00',
+        end_time: '17:00',
+        attendance: 75,
+        layout: null,
+        facilities: [],
+      },
+    ])
+
+    renderPage()
+
+    expect(await screen.findByTestId('venue-detail-booking-layout-12')).toHaveTextContent('None')
+    expect(screen.getByTestId('venue-detail-booking-facilities-12')).toHaveTextContent('None')
   })
 })
 
@@ -1301,7 +1738,8 @@ const REQUESTED_BOOKING = {
   start_time: '09:00',
   end_time: '17:00',
   attendance: 75,
-  venue_requirements: 'Stage and lighting rig',
+  layout: 'Theatre',
+  facilities: ['Projector', 'Whiteboard'],
 }
 
 describe('VenueDetailPage deciding a booking request', () => {
@@ -1459,6 +1897,7 @@ describe('VenueDetailPage deciding a booking request', () => {
   })
 
   // @story: SCRUM-37
+  // @ac: 3
   it('opening Reject on a booking closes an open Block venue form', async () => {
     signInWith(['venues.view', 'venues.edit', 'bookings.decide'])
     renderPage()

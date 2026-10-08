@@ -5,6 +5,8 @@ a venue's booking requests. SCRUM-37: approve or reject one. Raising is
 bookings.edit (Event Coordinator); deciding is bookings.decide (Venue Staff);
 listing reuses venues.view (Event Coordinator and Venue Staff), since a
 venue's booking requests are shown on its own page — docs/design/permissions.md.
+SCRUM-42: the warnings for a venue chosen for an event, before raising;
+bookings.edit, since only whoever may raise needs them.
 Rules are in services.py; the contract is frontend/src/areas/bookings/api.js.
 """
 
@@ -30,6 +32,12 @@ def list_venue_bookings(venue_id):
     return jsonify(
         [services.booking_to_dict(row) for row in services.list_bookings_for_venue(venue_id)]
     )
+
+
+@bp.get("/requests/<int:request_id>/venues/<int:venue_id>/warnings")
+@require(BOOKINGS_EDIT)
+def venue_warnings(request_id, venue_id):
+    return jsonify(services.check_venue(g.account, request_id, venue_id))
 
 
 @bp.post("/venues/<int:venue_id>/bookings/<int:booking_id>/approve")

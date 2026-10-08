@@ -13,8 +13,6 @@ REQUEST_FIELDS = {
     "start_time": "18:00",
     "end_time": "21:00",
     "attendance": 120,
-    "venue_requirements": "Hall with stage",
-    "accessibility_needs": "Step-free access",
     "equipment_requirements": "Projector",
     "registration_needs": "Guest list supplied by the client",
 }

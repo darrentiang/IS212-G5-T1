@@ -14,8 +14,11 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | 1.7 | 06-10-2026 | §7 the venue page's per-block Remove and End early buttons and the inline end-block form's test ids; one inline form open at a time across Update venue, Block venue and End early | SCRUM-79 lets Venue Staff remove a block that has not started or end one in progress early |
 | 1.8 | 07-10-2026 | §7 venue supported-layout display and selection test ids | SCRUM-32 records the layouts a venue supports |
 | 1.8 | 07-10-2026 | §1 `/requests/:id/bookings/new`; §7 the request page's Request venue booking button and the venue page's Booking requests section; §12 Requested and Withdrawn added to the status-colour table | SCRUM-36 lets an Event Coordinator raise a venue booking request from an event, and lists the venue's booking requests on its page the same way as Blocks |
-| 1.9 | 08-10-2026 | §7 the venue page's Booking requests section gains attendance, venue requirements and a decision cell, plus per-row Approve/Reject and an inline decide form | SCRUM-37 lets Venue Staff decide a booking request from the venue's own page |
-| 1.10 | 08-10-2026 | §7 a per-row action's confirm/reason form opens as its own row directly below the one it acts on, not below the whole table; End block early and Deciding a booking request updated to match | A form that opened at the bottom of a long list was mistaken for not working; this is now the rule for every per-row action, not just these two |
+| 1.9 | 08-10-2026 | §1 `/requests/:id/venues/search`; §7 the request page's Search venues button and the venue-search page | SCRUM-33 lets an Event Coordinator find venues that are free on an event's dates and large enough for its attendance |
+| 1.10 | 08-10-2026 | §5 an optional single choice is a select whose first option is None; §7 the request's required layout, facilities and accessibility features on the new-request page, the request page and the Draft edit form, grouped under the headings Venue requirements and Accessibility needs in place of the free-text fields of those names (`request-new-venue-requirements-input`, `request-new-accessibility-needs-input`, their `request-detail-edit-…` inputs and `request-detail-venue-requirements`, `request-detail-accessibility-needs` are removed); the booking-new page's venue-suitability warnings | SCRUM-42 lets an Event Organiser choose an event's requirements from the venue lists, and warns an Event Coordinator when a chosen venue does not match them; the PO decided the choices replace the brief's free-text venue requirements and accessibility needs, which are what the Venue Catalogue records as layouts and facilities, and as accessibility features |
+| 1.11 | 08-10-2026 | §7 the venue page's setup-time and turnaround-time display and the inline Edit times form test ids; one inline form open at a time across Update venue, Edit times, Block venue and End early | SCRUM-80 lets Venue Staff record how long a venue needs before and after an event |
+| 1.12 | 08-10-2026 | §7 the venue page's Booking requests section gains attendance, the event's layout and facilities (its venue requirements, SCRUM-42) and a decision cell, plus per-row Approve/Reject and an inline decide form. The decision cell is blank while the booking is Requested, then reads `<Decision> by <username> (<moment>)`, followed by `: <reason>` when a reason was given (e.g. `Rejected by venue1 (08 Oct 2026, 09:15): Already committed that week`); the moment is formatted with `formatDateTime`, in UTC (§9) | SCRUM-37 lets Venue Staff decide a booking request from the venue's own page |
+| 1.13 | 08-10-2026 | §7 a per-row action's confirm/reason form opens as its own row directly below the one it acts on, not below the whole table; End block early and Deciding a booking request updated to match | A form that opened at the bottom of a long list was mistaken for not working; this is now the rule for every per-row action, not just these two |
 
 ## 1. Pages
 
@@ -29,6 +32,7 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | `/venues/new` | `venue-new` | Feature per `permissions.md` |
 | `/venues/:id` | `venue-detail` | Feature per `permissions.md` |
 | `/requests/:id/bookings/new` | `booking-new` | Feature per `permissions.md` |
+| `/requests/:id/venues/search` | `venue-search` | Feature per `permissions.md` |
 | — (shown in place of a refused page) | `not-permitted` | Anyone whose account lacks the page's feature |
 
 - Not logged in → any page sends the user to `/login`.
@@ -84,6 +88,7 @@ While the page is waiting for the API it renders the title row and nothing below
 - Required fields: label ends with ` *`, the input has `aria-required="true"`. No native `required` attribute (browser pop-ups bypass our messages and cannot be asserted consistently).
 - On submit the page checks required fields are filled and shows a message under each empty one, sending nothing. Every other rule is the API's, and an API refusal always shows in the banner, never under a field. Because the banner is not beside the field, the API's refusal message names the field it is about ("Attendance must be a positive whole number.", "Date cannot be earlier than today.").
 - Input types: `date`, `time`, `number` where the value is one; a select for fixed choices; a textarea for long text.
+- **An optional single choice from a fixed list** is a select whose first option is `None` (value empty); choosing None sends `null`.
 - **Several choices from a fixed list** are a group of checkboxes, one per option, inside a `fieldset` whose `legend` is the field's label. One checkbox's test id is `<page>-<field>-<value>-input`, the option's own text in kebab-case (`venue-new-facilities-stage-lighting-input`). A select with `multiple` is not used: one checkbox per option is what a test can tick and read back.
 - Buttons at the bottom right. One primary button (the action that completes the story), secondary buttons to its left (e.g. Save draft left of Submit).
 - All buttons disabled while the request is being sent.
@@ -153,7 +158,7 @@ SCRUM-32 adds the venue's supported layouts. An empty list is shown as `None`, a
 | Layout checkbox | `venue-detail-layouts-<kebab-option>-input` |
 | Save and Cancel layout buttons | `venue-detail-layouts-save-button`, `venue-detail-layouts-cancel-button` |
 
-SCRUM-79 adds an action cell to each block row, only with `venues.edit`. Which action a block offers follows its `phase` from the API (not a status, so no badge): a block that has not started offers Remove, which acts at once; a block in progress offers End early, which opens an inline end-block form (new end date and time, End and Cancel) as its own row directly below the block's, inside the table (`<td colspan>` spanning every column) rather than below the whole table: a form that opens far from the row a long list scrolled past it is a form the user cannot find (SCRUM-37 review, 08-10-2026). A block that has ended offers neither. The update form, the block form and the end-block form are all inline forms, so only one of the three is open at a time: opening any one closes the other two.
+SCRUM-79 adds an action cell to each block row, only with `venues.edit`. Which action a block offers follows its `phase` from the API (not a status, so no badge): a block that has not started offers Remove, which acts at once; a block in progress offers End early, which opens an inline end-block form (new end date and time, End and Cancel) as its own row directly below the block's, inside the table (`<td colspan>` spanning every column) rather than below the whole table: a form that opens far from the row a long list scrolled past it is a form the user cannot find (SCRUM-37 review, 08-10-2026). A block that has ended offers neither. The update form, the times form, the block form and the end-block form are all inline forms, so only one of them is open at a time: opening any one closes the others.
 
 | Element | `data-testid` |
 |---|---|
@@ -163,7 +168,18 @@ SCRUM-79 adds an action cell to each block row, only with `venues.edit`. Which a
 | Message under an empty field | `venue-detail-end-block-<field>-error` (e.g. `venue-detail-end-block-end-time-error`) |
 | End (confirm) and Cancel buttons | `venue-detail-end-block-confirm-button`, `venue-detail-end-block-cancel-button` |
 
-**Booking requests** (SCRUM-36) is a second related-records section on the venue page, below Blocks: raising one happens from the event's own page (below), not here. Status as the exact state-model.md word, as a badge (§12). SCRUM-37 adds the event's expected attendance and venue requirements, so Venue Staff can decide without leaving the page (AC1), the decision once made (AC5), and a Venue Staff-only action cell per row, the same action-cell pattern as Blocks (§7 above): a Requested row offers Approve and Reject, any other status offers neither.
+SCRUM-80 records two durations in whole minutes for the venue — setup time, the minutes needed before an event, and turnaround time, the minutes needed after it. They are never clock times. Both are shown on the venue page to anyone who may view it, as `0 minutes` when they have never been recorded and `1 minute` for a single minute. Only an account with `venues.edit` is offered **Edit times**, which opens an inline form: the two minute fields, the hint `Leave blank for 0 minutes.` (a field left blank when saving is recorded as zero), and Save and Cancel. It is an inline form, so it obeys the one-form-at-a-time rule with Update venue, Block venue and End early. A refusal from the API appears in the banner and names the field that was invalid; the form stays open with what was typed, and neither stored time changes.
+
+| Element | `data-testid` |
+|---|---|
+| Setup time value | `venue-detail-setup-time` |
+| Turnaround time value | `venue-detail-turnaround-time` |
+| Edit times button (only with `venues.edit`) | `venue-detail-times-button` |
+| Inline times form inputs | `venue-detail-times-setup-time-input`, `venue-detail-times-turnaround-time-input` |
+| Blank-is-zero hint | `venue-detail-times-hint` |
+| Save and Cancel times buttons | `venue-detail-times-save-button`, `venue-detail-times-cancel-button` |
+
+**Booking requests** (SCRUM-36) is a second related-records section on the venue page, below Blocks: raising one happens from the event's own page (below), not here. Status as the exact state-model.md word, as a badge (§12). SCRUM-37 adds the event's expected attendance and its venue requirements, which are the event's chosen layout and facilities (SCRUM-42), each shown `None` when nothing was chosen, as the venue page shows an empty list, so Venue Staff can decide without leaving the page (AC1), the decision once made (AC5, AC9; blank while Requested, then `<Decision> by <username> (<moment>)` and `: <reason>` when one was given, the moment per §9), and a Venue Staff-only action cell per row, the same action-cell pattern as Blocks (§7 above): a Requested row offers Approve and Reject, any other status offers neither.
 
 | Element | `data-testid` |
 |---|---|
@@ -172,13 +188,14 @@ SCRUM-79 adds an action cell to each block row, only with `venues.edit`. Which a
 | Booking period | `venue-detail-booking-period-<id>` |
 | Booking event name | `venue-detail-booking-event-<id>` |
 | Booking attendance | `venue-detail-booking-attendance-<id>` |
-| Booking venue requirements | `venue-detail-booking-venue-requirements-<id>` |
+| Booking layout (`None` when none chosen) | `venue-detail-booking-layout-<id>` |
+| Booking facilities (comma-separated, `None` when none chosen) | `venue-detail-booking-facilities-<id>` |
 | Booking decision (blank until decided) | `venue-detail-booking-decision-<id>` |
 | No booking requests | `venue-detail-bookings-empty` |
 | Approve button (Requested row, only with `bookings.decide`) | `venue-detail-booking-approve-button-<id>` |
 | Reject button (Requested row, only with `bookings.decide`) | `venue-detail-booking-reject-button-<id>` |
 
-**Deciding a booking request** opens its inline form as its own row directly below the booking's, inside the table, the same per-row pattern as End block early above (not below the whole Booking requests table): only one of Update venue, Block venue, End early and this is open at a time. Reason is required to reject, optional to approve (the same rule as deciding an event request, `ui-guidelines.md` existing request-detail reject/approve pattern). Its test ids use the action as `<field>`, the same convention as request-detail's decide form.
+**Deciding a booking request** opens its inline form as its own row directly below the booking's, inside the table, the same per-row pattern as End block early above (not below the whole Booking requests table): only one of Update venue, Edit times, Block venue, End early and this is open at a time. Reason is required to reject, optional to approve (the same rule as deciding an event request, `ui-guidelines.md` existing request-detail reject/approve pattern). Its test ids use the action as `<field>`, the same convention as request-detail's decide form.
 
 | Element | `data-testid` |
 |---|---|
@@ -203,6 +220,53 @@ The booking-new page (`booking-new`): a venue picker (`select`, the active venue
 | Venue select | `booking-new-venue-input` |
 | Message under an empty field | `booking-new-venue-error` |
 | Raise (confirm) button | `booking-new-raise-button` |
+
+**Requirements an event chose** (SCRUM-42). They replace the brief's free-text venue requirements and accessibility needs, so the event request has no field of either name; the brief's wording stays visible as two group headings, in the brief's order: after Expected attendance, before Equipment requirements. On the new-request page and in the Draft edit form on the request page, each group is a `fieldset` whose `legend` is its heading. "Venue requirements" holds a "Room layout" select (None, then the layouts) and a "Facilities" checkbox group per §5; "Accessibility needs" holds an "Accessibility features" checkbox group per §5. The lists are the same fixed lists as a venue's. None is required: no `*`, no message under them. The request page shows the same two headings as `h2`s at the same place, each over its label/value pairs ("Room layout", "Facilities"; "Accessibility features"), comma-separated in list order, `None` when empty (as the venue page does). The headings have no test ids.
+
+| Element | `data-testid` |
+|---|---|
+| Layout select | `request-new-layout-input`, `request-detail-edit-layout-input` |
+| Facility checkbox | `request-new-facilities-<kebab-option>-input`, `request-detail-edit-facilities-<kebab-option>-input` |
+| Accessibility feature checkbox | `request-new-accessibility-features-<kebab-option>-input`, `request-detail-edit-accessibility-features-<kebab-option>-input` |
+| Layout value | `request-detail-layout` |
+| Facilities value | `request-detail-facilities` |
+| Accessibility features value | `request-detail-accessibility-features` |
+
+**Venue-suitability warnings** on the booking-new page (SCRUM-42). Choosing or changing the venue checks it against the event; each mismatch is one line in a warning list (`.warning-list`, `visual-style.md`) inside the form, under the venue select and above Raise, headed "This venue may not suit the event". A venue with no mismatch shows no list, and a new choice clears the old one's. The list is not a banner: it does not stop Raise, and it does not count against one banner at a time. The coordinator may Raise despite it, or leave with the back link, which is the Cancel (AC5). A failed check shows its message in `booking-new-banner`.
+
+| Element | `data-testid` | Text |
+|---|---|---|
+| Warning list | `booking-new-warnings` | This venue may not suit the event |
+| Capacity | `booking-new-warning-capacity` | Expected attendance 100 is above the venue's maximum capacity of 60. |
+| Start time | `booking-new-warning-start-time` | Start time 07:59 is outside the venue's operating hours, 08:00 to 20:00. |
+| End time | `booking-new-warning-end-time` | End time 20:01 is outside the venue's operating hours, 08:00 to 20:00. |
+| Missing layout | `booking-new-warning-layout-<kebab-option>` | The venue does not record the Theatre layout. |
+| Missing facility | `booking-new-warning-facility-<kebab-option>` | The venue does not record the facility Sound system. |
+| Missing accessibility feature | `booking-new-warning-accessibility-feature-<kebab-option>` | The venue does not record the accessibility feature Hearing loop. |
+
+**Venue search** (SCRUM-33). On the request page, an Event Coordinator sees a Search venues button when the event's status is Approved or Planning, next to Request venue booking; it links to `/requests/:id/venues/search`. For any other status the button is not shown.
+
+| Element | `data-testid` |
+|---|---|
+| Search venues button (only with `venues.search`, status Approved or Planning) | `request-detail-search-venues-button` |
+
+The venue-search page (`venue-search`) shows the event's own values, an optional location filter and the venues that fit. The filter is a text input and an Apply button, not a form that leaves the page: Apply searches again with the typed location, and an empty input applies no location restriction. A venue's location must match the typed text exactly. The results are a table per §6 whose first cell links to the venue's page; no results is one sentence instead of the table, never an error.
+
+| Element | `data-testid` |
+|---|---|
+| Back link | `venue-search-back-link` |
+| Title | `venue-search-title` |
+| Banner | `venue-search-banner` |
+| Event name | `venue-search-event-name` |
+| Event date and times | `venue-search-period` |
+| Expected attendance | `venue-search-attendance` |
+| Location input | `venue-search-location-input` |
+| Apply button | `venue-search-apply-button` |
+| Result row | `venue-search-row-<id>` |
+| Venue name (link) | `venue-search-name-<id>` |
+| Venue location | `venue-search-location-<id>` |
+| Venue maximum capacity | `venue-search-capacity-<id>` |
+| No results | `venue-search-empty` |
 
 ## 8. Not-permitted page
 

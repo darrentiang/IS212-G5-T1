@@ -4,16 +4,19 @@ SCRUM-31: list, detail, the two fixed lists the form offers, and add a venue.
 SCRUM-40: list a venue's blocks and block a venue.
 SCRUM-75: update a venue.
 SCRUM-79: remove a block that has not started, or end one in progress early.
+SCRUM-80: record setup and turnaround time for a venue.
 Seeing venues and their blocks is venues.view (Event Coordinator and Venue
 Staff); adding a venue, updating one, blocking one, and ending or removing a
-block is venues.edit (Venue Staff only) — docs/design/permissions.md. Rules are
-in services.py; the contract is frontend/src/areas/venues/api.js.
+block is venues.edit (Venue Staff only) — docs/design/permissions.md.
+SCRUM-33: search the venues free for an Approved or Planning event, which is
+venues.search (Event Coordinator only). Rules are in services.py; the contract
+is frontend/src/areas/venues/api.js.
 """
 
 from flask import Blueprint, g, jsonify, request
 
 from areas.venues import services
-from permissions import VENUES_EDIT, VENUES_VIEW, require
+from permissions import VENUES_EDIT, VENUES_SEARCH, VENUES_VIEW, require
 
 bp = Blueprint("venues", __name__, url_prefix="/api")
 
@@ -28,6 +31,15 @@ def list_venues():
 @require(VENUES_VIEW)
 def venue_options():
     return jsonify(services.venue_options())
+
+
+@bp.get("/venues/search")
+@require(VENUES_SEARCH)
+def search_venues():
+    event, venues = services.search_venues(
+        request.args.get("event_request_id", type=int), request.args.get("location", "")
+    )
+    return jsonify(services.search_to_dict(event, venues))
 
 
 @bp.get("/venues/<int:venue_id>")
@@ -57,6 +69,14 @@ def update_venue(venue_id):
 def update_layouts(venue_id):
     body = request.get_json(silent=True) or {}
     venue = services.update_layouts(venue_id, body)
+    return jsonify(services.venue_to_dict(venue)), 200
+
+
+@bp.patch("/venues/<int:venue_id>/times")
+@require(VENUES_EDIT)
+def update_times(venue_id):
+    body = request.get_json(silent=True) or {}
+    venue = services.update_times(venue_id, body)
     return jsonify(services.venue_to_dict(venue)), 200
 
 

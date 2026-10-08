@@ -26,7 +26,7 @@ from datetime import datetime, timezone
 import pytest
 
 from db import db
-from models import Account, EventRequest, Venue, VenueBookingRequest
+from models import Account, EventRequest, Facility, RoomLayout, Venue, VenueBookingRequest
 
 EVENT_DEFAULTS = {
     "name": "Tech Fair 2026",
@@ -36,8 +36,6 @@ EVENT_DEFAULTS = {
     "start_time": "09:00",
     "end_time": "17:00",
     "attendance": 200,
-    "venue_requirements": "Large hall with stage",
-    "accessibility_needs": "Wheelchair access",
     "equipment_requirements": "Projector, microphones",
     "registration_needs": "Online registration with capacity cap",
 }
@@ -157,6 +155,7 @@ def test_booking_against_an_unknown_event_is_refused(client):
 
 
 # --- AC3: the request carries the event's date, times, attendance and venue requirements ---
+# The event's venue requirements are its chosen layout and facilities (SCRUM-42).
 
 
 # @story: SCRUM-36
@@ -165,7 +164,8 @@ def test_booking_carries_the_events_own_fields(client):
     login(client)
     event = make_event(
         date="2026-12-04", start_time="10:00", end_time="12:00", attendance=20,
-        venue_requirements="Meeting room with whiteboard",
+        layout=db.session.query(RoomLayout).filter_by(name="Boardroom").one(),
+        facilities=[db.session.query(Facility).filter_by(name="Whiteboard").one()],
     )
 
     resp = post_booking(client, event)
@@ -175,7 +175,8 @@ def test_booking_carries_the_events_own_fields(client):
     assert body["start_time"] == "10:00"
     assert body["end_time"] == "12:00"
     assert body["attendance"] == 20
-    assert body["venue_requirements"] == "Meeting room with whiteboard"
+    assert body["layout"] == "Boardroom"
+    assert body["facilities"] == ["Whiteboard"]
 
 
 # @story: SCRUM-36
@@ -459,22 +460,34 @@ def test_an_account_holding_event_coordinator_among_its_roles_can_raise(client):
 # --- AC1: Venue Staff can see the event timing, attendance and venue requirements ---
 
 
-def test_venue_staff_sees_attendance_and_venue_requirements_before_deciding(client):
-    _, booking_id = raise_and_get_id(
-        client, event=make_event(attendance=75, venue_requirements="Stage and lighting rig")
+# @story: SCRUM-37
+# @ac: 1
+def test_venue_staff_sees_attendance_layout_and_facilities_before_deciding(client):
+    # The event's venue requirements are its chosen layout and facilities (SCRUM-42).
+    event = make_event(
+        attendance=75,
+        layout=db.session.query(RoomLayout).filter_by(name="Theatre").one(),
+        facilities=[
+            db.session.query(Facility).filter_by(name=name).one()
+            for name in ("Projector", "Whiteboard")
+        ],
     )
+    _, booking_id = raise_and_get_id(client, event=event)
     login(client, "venue1")
 
     resp = client.get(f"/api/venues/{venue_id()}/bookings")
 
     row = next(row for row in resp.get_json() if row["id"] == booking_id)
     assert row["attendance"] == 75
-    assert row["venue_requirements"] == "Stage and lighting rig"
+    assert row["layout"] == "Theatre"
+    assert row["facilities"] == ["Projector", "Whiteboard"]
 
 
 # --- AC2: Venue Staff can approve, committing the venue to the event ---
 
 
+# @story: SCRUM-37
+# @ac: 2, 4, 9
 def test_venue_staff_approves_a_booking_request(client):
     _, booking_id = raise_and_get_id(client)
     login(client, "venue1")
@@ -493,6 +506,8 @@ def test_venue_staff_approves_a_booking_request(client):
     assert booking.decided_at >= before
 
 
+# @story: SCRUM-37
+# @ac: 2
 def test_approving_with_no_reason_is_accepted(client):
     _, booking_id = raise_and_get_id(client)
     login(client, "venue1")
@@ -506,6 +521,8 @@ def test_approving_with_no_reason_is_accepted(client):
 # --- AC3, AC8: Venue Staff can reject, and a reason is required ---
 
 
+# @story: SCRUM-37
+# @ac: 3
 def test_venue_staff_rejects_a_booking_request_with_a_reason(client):
     _, booking_id = raise_and_get_id(client)
     login(client, "venue1")
@@ -519,6 +536,8 @@ def test_venue_staff_rejects_a_booking_request_with_a_reason(client):
     assert body["decision_reason"] == "Already committed that week"
 
 
+# @story: SCRUM-37
+# @ac: 8
 def test_rejecting_with_a_blank_reason_is_refused_and_unchanged(client):
     _, booking_id = raise_and_get_id(client)
     login(client, "venue1")
@@ -530,6 +549,8 @@ def test_rejecting_with_a_blank_reason_is_refused_and_unchanged(client):
     assert db.session.get(VenueBookingRequest, booking_id).status == "Requested"
 
 
+# @story: SCRUM-37
+# @ac: 8
 def test_rejecting_with_a_whitespace_only_reason_is_refused_and_unchanged(client):
     _, booking_id = raise_and_get_id(client)
     login(client, "venue1")
@@ -541,6 +562,25 @@ def test_rejecting_with_a_whitespace_only_reason_is_refused_and_unchanged(client
     assert db.session.get(VenueBookingRequest, booking_id).status == "Requested"
 
 
+# @story: SCRUM-37
+# @ac: 8
+def test_a_refused_whitespace_only_rejection_records_no_decision(client):
+    _, booking_id = raise_and_get_id(client)
+    login(client, "venue1")
+
+    resp = decide(client, venue_id(), booking_id, "reject", reason=" \t\n ")
+
+    assert resp.status_code == 400
+    booking = db.session.get(VenueBookingRequest, booking_id)
+    assert booking.status == "Requested"
+    assert booking.decision is None
+    assert booking.decision_reason is None
+    assert booking.decided_at is None
+    assert booking.decided_by is None
+
+
+# @story: SCRUM-37
+# @ac: 8
 def test_rejecting_with_no_reason_at_all_is_refused(client):
     _, booking_id = raise_and_get_id(client)
     login(client, "venue1")
@@ -554,6 +594,8 @@ def test_rejecting_with_no_reason_at_all_is_refused(client):
 # --- AC4, AC9: the decision and the deciding Venue Staff member are retained ---
 
 
+# @story: SCRUM-37
+# @ac: 4, 9
 def test_decision_records_the_deciding_venue_staff_and_when(client):
     _, booking_id = raise_and_get_id(client)
     login(client, "venue1")
@@ -568,6 +610,8 @@ def test_decision_records_the_deciding_venue_staff_and_when(client):
 # --- AC5: the Event Coordinator can see the decision and the reason where given ---
 
 
+# @story: SCRUM-37
+# @ac: 5
 def test_coordinator_sees_the_decision_and_reason(client):
     _, booking_id = raise_and_get_id(client)
     login(client, "venue1")
@@ -586,6 +630,8 @@ def test_coordinator_sees_the_decision_and_reason(client):
 # --- AC6: only Venue Staff may approve or reject ---
 
 
+# @story: SCRUM-37
+# @ac: 6
 @pytest.mark.parametrize("username", ["org1", "coord1", "tech1", "att1"])
 def test_an_account_without_venue_staff_cannot_decide(client, username):
     _, booking_id = raise_and_get_id(client)
@@ -597,6 +643,8 @@ def test_an_account_without_venue_staff_cannot_decide(client, username):
     assert db.session.get(VenueBookingRequest, booking_id).status == "Requested"
 
 
+# @story: SCRUM-37
+# @ac: 6
 def test_the_role_check_comes_before_the_booking_lookup(client):
     login(client, "org1")
 
@@ -605,6 +653,8 @@ def test_the_role_check_comes_before_the_booking_lookup(client):
     assert resp.status_code == 403
 
 
+# @story: SCRUM-37
+# @ac: 6
 def test_not_logged_in_cannot_decide(client):
     _, booking_id = raise_and_get_id(client)
     client.post("/api/logout")
@@ -614,6 +664,8 @@ def test_not_logged_in_cannot_decide(client):
     assert resp.status_code == 401
 
 
+# @story: SCRUM-37
+# @ac: 6
 def test_an_account_holding_venue_staff_among_its_roles_can_decide(client):
     # multi1 is Event Coordinator and Venue Staff: any role allowing it is enough (D-09).
     _, booking_id = raise_and_get_id(client)
@@ -628,6 +680,8 @@ def test_an_account_holding_venue_staff_among_its_roles_can_decide(client):
 # --- AC7: only a request awaiting a decision can be approved or rejected ---
 
 
+# @story: SCRUM-37
+# @ac: 7
 def test_an_already_approved_booking_cannot_be_approved_again(client):
     _, booking_id = raise_and_get_id(client)
     login(client, "venue1")
@@ -640,6 +694,8 @@ def test_an_already_approved_booking_cannot_be_approved_again(client):
     assert "Approved" in resp.get_json()["message"]
 
 
+# @story: SCRUM-37
+# @ac: 7
 def test_an_already_rejected_booking_cannot_be_approved(client):
     _, booking_id = raise_and_get_id(client)
     login(client, "venue1")
@@ -652,6 +708,8 @@ def test_an_already_rejected_booking_cannot_be_approved(client):
     assert booking.status == "Rejected"
 
 
+# @story: SCRUM-37
+# @ac: 7
 def test_a_withdrawn_booking_cannot_be_decided(client):
     _, booking_id = raise_and_get_id(client)
     booking = db.session.get(VenueBookingRequest, booking_id)
@@ -664,6 +722,8 @@ def test_a_withdrawn_booking_cannot_be_decided(client):
     assert resp.status_code == 409
 
 
+# @story: SCRUM-37
+# @ac: 7
 def test_deciding_an_unknown_booking_is_refused(client):
     login(client, "venue1")
 
@@ -673,6 +733,8 @@ def test_deciding_an_unknown_booking_is_refused(client):
     assert resp.get_json()["message"] == "Booking request not found."
 
 
+# @story: SCRUM-37
+# @ac: 7
 def test_deciding_a_booking_that_belongs_to_another_venue_is_refused(client):
     _, booking_id = raise_and_get_id(client, venue=venue_id("Seminar Room 1"))
     login(client, "venue1")
@@ -686,6 +748,8 @@ def test_deciding_a_booking_that_belongs_to_another_venue_is_refused(client):
 # --- AC10: deciding one booking leaves an event's other booking requests unchanged ---
 
 
+# @story: SCRUM-37
+# @ac: 10
 def test_deciding_one_booking_leaves_the_events_other_bookings_unchanged(client):
     login(client, "coord1")
     event_id = make_event()

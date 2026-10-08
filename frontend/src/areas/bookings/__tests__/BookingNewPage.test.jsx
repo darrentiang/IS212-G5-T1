@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from 'vitest'
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router'
@@ -18,6 +18,11 @@ const VENUES = [
   { id: 2, name: 'Auditorium', is_active: true },
   { id: 3, name: 'Old Hall', is_active: false },
 ]
+
+// SCRUM-42: choosing a venue checks it; by default it fits.
+beforeEach(() => {
+  api.checkVenue.mockResolvedValue([])
+})
 
 afterEach(() => {
   navigate.mockReset()
@@ -153,4 +158,156 @@ describe('BookingNewPage', () => {
       expect(screen.getByTestId('booking-new-banner')).toHaveTextContent('retired')
     })
   })
+
+  // --- SCRUM-42: warnings when the chosen venue appears unsuitable ---
+
+  // @story: SCRUM-42
+  // @ac: 2, 3
+  it('checks the chosen venue against the event and shows each mismatch', async () => {
+    api.checkVenue.mockResolvedValue(ALL_WARNINGS)
+    await renderPage()
+
+    await userEvent.selectOptions(screen.getByTestId('booking-new-venue-input'), '1')
+
+    expect(api.checkVenue).toHaveBeenCalledWith('5', '1')
+    expect(await screen.findByTestId('booking-new-warnings')).toHaveTextContent(
+      'This venue may not suit the event',
+    )
+    expect(screen.getByTestId('booking-new-warning-capacity')).toHaveTextContent(
+      "Expected attendance 100 is above the venue's maximum capacity of 60.",
+    )
+    expect(screen.getByTestId('booking-new-warning-start-time')).toHaveTextContent(
+      "Start time 07:59 is outside the venue's operating hours, 08:00 to 20:00.",
+    )
+    expect(screen.getByTestId('booking-new-warning-end-time')).toHaveTextContent(
+      "End time 20:01 is outside the venue's operating hours, 08:00 to 20:00.",
+    )
+    expect(screen.getByTestId('booking-new-warning-layout-theatre')).toHaveTextContent(
+      'The venue does not record the Theatre layout.',
+    )
+    expect(screen.getByTestId('booking-new-warning-facility-sound-system')).toHaveTextContent(
+      'The venue does not record the facility Sound system.',
+    )
+    expect(screen.getByTestId('booking-new-warning-accessibility-feature-hearing-loop')).toHaveTextContent(
+      'The venue does not record the accessibility feature Hearing loop.',
+    )
+  })
+
+  // @story: SCRUM-42
+  // @ac: 4
+  it('shows no warning for a venue that fits, and clears earlier warnings', async () => {
+    api.checkVenue.mockResolvedValueOnce([CAPACITY]).mockResolvedValueOnce([])
+    await renderPage()
+    const select = screen.getByTestId('booking-new-venue-input')
+
+    await userEvent.selectOptions(select, '1')
+    expect(await screen.findByTestId('booking-new-warning-capacity')).toBeInTheDocument()
+    await userEvent.selectOptions(select, '2')
+
+    await waitFor(() => expect(api.checkVenue).toHaveBeenLastCalledWith('5', '2'))
+    expect(screen.queryByTestId('booking-new-warnings')).not.toBeInTheDocument()
+  })
+
+  // @story: SCRUM-42
+  // @ac: 4
+  it('clears the warnings without a check when no venue is chosen', async () => {
+    api.checkVenue.mockResolvedValue([CAPACITY])
+    await renderPage()
+    const select = screen.getByTestId('booking-new-venue-input')
+    await userEvent.selectOptions(select, '1')
+    await screen.findByTestId('booking-new-warnings')
+
+    await userEvent.selectOptions(select, '')
+
+    expect(screen.queryByTestId('booking-new-warnings')).not.toBeInTheDocument()
+    expect(api.checkVenue).toHaveBeenCalledTimes(1)
+  })
+
+  // @story: SCRUM-42
+  // @ac: 2
+  it('shows the API refusal when the check fails', async () => {
+    api.checkVenue.mockRejectedValue(Object.assign(new Error('Venue not found.'), { status: 404 }))
+    await renderPage()
+
+    await userEvent.selectOptions(screen.getByTestId('booking-new-venue-input'), '1')
+
+    expect(await screen.findByTestId('booking-new-banner')).toHaveTextContent('Venue not found.')
+  })
+
+  // @story: SCRUM-42
+  // @ac: 4
+  it('keeps the warnings of the venue chosen last when the earlier reply arrives last', async () => {
+    let resolveFirst
+    api.checkVenue
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveFirst = resolve
+        }),
+      )
+      .mockResolvedValueOnce([])
+    await renderPage()
+    const select = screen.getByTestId('booking-new-venue-input')
+
+    await userEvent.selectOptions(select, '1')
+    await userEvent.selectOptions(select, '2')
+    await waitFor(() => expect(api.checkVenue).toHaveBeenCalledTimes(2))
+    resolveFirst([CAPACITY])
+    await settle()
+
+    expect(screen.queryByTestId('booking-new-warnings')).not.toBeInTheDocument()
+  })
+
+  // @story: SCRUM-42
+  // @ac: 2
+  it('ignores a check failure for a venue the user has moved away from', async () => {
+    let rejectFirst
+    api.checkVenue
+      .mockReturnValueOnce(
+        new Promise((_, reject) => {
+          rejectFirst = reject
+        }),
+      )
+      .mockResolvedValueOnce([])
+    await renderPage()
+    const select = screen.getByTestId('booking-new-venue-input')
+
+    await userEvent.selectOptions(select, '1')
+    await userEvent.selectOptions(select, '2')
+    await waitFor(() => expect(api.checkVenue).toHaveBeenCalledTimes(2))
+    rejectFirst(Object.assign(new Error('Venue not found.'), { status: 404 }))
+    await settle()
+
+    expect(screen.queryByTestId('booking-new-banner')).not.toBeInTheDocument()
+  })
+
+  // @story: SCRUM-42
+  // @ac: 5
+  it('raises despite the warnings', async () => {
+    api.checkVenue.mockResolvedValue([CAPACITY])
+    api.raiseBooking.mockResolvedValue({ id: 9 })
+    await renderPage()
+    await userEvent.selectOptions(screen.getByTestId('booking-new-venue-input'), '1')
+    await screen.findByTestId('booking-new-warnings')
+
+    await userEvent.click(screen.getByTestId('booking-new-raise-button'))
+
+    expect(api.raiseBooking).toHaveBeenCalledWith('5', '1')
+    await waitFor(() =>
+      expect(navigate).toHaveBeenCalledWith('/venues/1', { state: { banner: 'Venue booking requested' } }),
+    )
+  })
 })
+
+const CAPACITY = { type: 'capacity', attendance: 100, max_capacity: 60 }
+
+const ALL_WARNINGS = [
+  CAPACITY,
+  { type: 'start_time', start_time: '07:59', opening_time: '08:00', closing_time: '20:00' },
+  { type: 'end_time', end_time: '20:01', opening_time: '08:00', closing_time: '20:00' },
+  { type: 'layout', name: 'Theatre' },
+  { type: 'facility', name: 'Sound system' },
+  { type: 'accessibility_feature', name: 'Hearing loop' },
+]
+
+// Lets the late reply's callbacks run before the assertion that they changed nothing.
+const settle = () => new Promise((resolve) => setTimeout(resolve, 0))

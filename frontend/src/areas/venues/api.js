@@ -33,6 +33,16 @@ export const updateVenue = (id, data) => request('PUT', `/api/venues/${id}`, dat
 // 400/403/404: { message }
 export const updateVenueLayouts = (id, data) => request('PATCH', `/api/venues/${id}/layouts`, data)
 
+// PATCH /api/venues/:id/times   (SCRUM-80)
+// body:    { setup_time, turnaround_time }   both keys required; durations in WHOLE MINUTES,
+//          not clock times. An explicitly blank/null value normalises to 0; a missing key
+//          or malformed body is refused without changing either stored value.
+//          Values must be non-negative whole numbers (30.0 accepted as exact whole;
+//          fractions, booleans and non-numeric strings refused).
+// 200:     the updated venue with setup_time and turnaround_time as canonical integers
+// 400/403/404: { message }   400 message identifies the invalid field
+export const updateVenueTimes = (id, data) => request('PATCH', `/api/venues/${id}/times`, data)
+
 // GET /api/venues/:id/blocks
 // 200:     [ { id, venue_id, start, end, reason, created_by, created_at, phase } ]   start/end '2026-10-20T09:00', local time
 //          phase: 'upcoming' | 'in_progress' | 'ended', derived by the API from the current Singapore time
@@ -57,17 +67,33 @@ export const removeVenueBlock = (id, blockId) => request('DELETE', `/api/venues/
 // 400/403/404: { message }
 export const endVenueBlock = (id, blockId, data) => request('PATCH', `/api/venues/${id}/blocks/${blockId}`, data)
 
+// GET /api/venues/search?event_request_id=:id[&location=:text]   (SCRUM-33)
+// The API reads the event's own date, times and attendance; the caller sends only which event.
+// 200:     { event: { id, name, date, start_time, end_time, attendance },
+//            venues: [ { id, name, location, max_capacity, ... } ] }   venues may be []
+//          location, when given, must match a venue's recorded location exactly
+// 400/403/404: { message }   400 when the event is not Approved or Planning
+export const searchVenues = (eventRequestId, location) => {
+  const params = new URLSearchParams({ event_request_id: eventRequestId })
+  if (location) params.set('location', location)
+  return request('GET', `/api/venues/search?${params}`)
+}
+
 // GET /api/venues/:id/bookings   (SCRUM-36, SCRUM-37)
 // 200:     [ { id, venue_id, event_request_id, event_request_name, status,
-//              date, start_time, end_time, attendance, venue_requirements,
+//              date, start_time, end_time, attendance, layout, facilities,
 //              raised_by, raised_at, decision, decision_reason, decided_at, decided_by } ]
+//          layout: name | null; facilities: [name]: the event's venue
+//          requirements (SCRUM-42)
+//          decision, decided_at, decided_by: null until decided; decision_reason:
+//          null unless one was given (SCRUM-37)
 // 403/404: { message }
 export const listVenueBookings = (id) => request('GET', `/api/venues/${id}/bookings`)
 
 // POST /api/venues/:id/bookings/:booking_id/approve   (SCRUM-37)
 // body:    { reason }   optional
 // 200:     the booking, now Approved
-// 400/403/404/409: { message }   409 when the booking is not Requested or already decided
+// 403/404/409: { message }   409 when the booking is not Requested or already decided
 export const approveBooking = (id, bookingId, reason) =>
   request('POST', `/api/venues/${id}/bookings/${bookingId}/approve`, { reason })
 
