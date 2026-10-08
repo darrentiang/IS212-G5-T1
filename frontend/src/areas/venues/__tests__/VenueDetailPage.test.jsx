@@ -1069,10 +1069,21 @@ describe('VenueDetailPage ending or removing a block', () => {
       expect(input).toHaveValue('')
       expect(screen.getByLabelText(label)).toBe(input)
     }
-    // The form names the block being ended, its period per ui-guidelines.md §9.
-    expect(screen.getByText('06 Oct 2026, 09:00 to 07 Oct 2026, 18:00: Lift repair')).toBeInTheDocument()
     expect(screen.getByTestId('venue-detail-end-block-confirm-button')).toHaveTextContent('End')
     expect(screen.getByTestId('venue-detail-end-block-cancel-button')).toHaveTextContent('Cancel')
+  })
+
+  // @story: SCRUM-79
+  // @ac: 2
+  // The form names the block it ends, now that it opens below that block's row (SCRUM-37).
+  it("names the block's period and reason in the end-block form", async () => {
+    renderPage()
+
+    await openEndForm()
+
+    expect(screen.getByTestId('venue-detail-end-block-confirm-button').closest('form')).toHaveTextContent(
+      '06 Oct 2026, 09:00 to 07 Oct 2026, 18:00: Lift repair',
+    )
   })
 
   // @story: SCRUM-79
@@ -1666,5 +1677,236 @@ describe('VenueDetailPage booking requests', () => {
     expect(await screen.findByTestId('venue-detail-bookings-empty')).toHaveTextContent(
       'This venue has no booking requests.',
     )
+  })
+
+  // @story: SCRUM-37
+  // @ac: 1
+  it("shows attendance and the event's layout and facilities", async () => {
+    api.getVenue.mockResolvedValue(HALL_A)
+    api.listVenueBookings.mockResolvedValue([
+      {
+        id: 12,
+        event_request_name: 'Tech Fair 2026',
+        status: 'Requested',
+        date: '2026-11-20',
+        start_time: '09:00',
+        end_time: '17:00',
+        attendance: 75,
+        layout: 'Theatre',
+        facilities: ['Projector', 'Whiteboard'],
+      },
+    ])
+
+    renderPage()
+
+    expect(await screen.findByTestId('venue-detail-booking-attendance-12')).toHaveTextContent('75')
+    expect(screen.getByTestId('venue-detail-booking-layout-12')).toHaveTextContent('Theatre')
+    expect(screen.getByTestId('venue-detail-booking-facilities-12')).toHaveTextContent('Projector, Whiteboard')
+    expect(screen.queryByTestId('venue-detail-booking-venue-requirements-12')).not.toBeInTheDocument()
+  })
+
+  // @story: SCRUM-37
+  // @ac: 1
+  it('shows None for a layout or facilities the event did not choose', async () => {
+    api.getVenue.mockResolvedValue(HALL_A)
+    api.listVenueBookings.mockResolvedValue([
+      {
+        id: 12,
+        event_request_name: 'Tech Fair 2026',
+        status: 'Requested',
+        date: '2026-11-20',
+        start_time: '09:00',
+        end_time: '17:00',
+        attendance: 75,
+        layout: null,
+        facilities: [],
+      },
+    ])
+
+    renderPage()
+
+    expect(await screen.findByTestId('venue-detail-booking-layout-12')).toHaveTextContent('None')
+    expect(screen.getByTestId('venue-detail-booking-facilities-12')).toHaveTextContent('None')
+  })
+})
+
+const REQUESTED_BOOKING = {
+  id: 12,
+  event_request_name: 'Tech Fair 2026',
+  status: 'Requested',
+  date: '2026-11-20',
+  start_time: '09:00',
+  end_time: '17:00',
+  attendance: 75,
+  layout: 'Theatre',
+  facilities: ['Projector', 'Whiteboard'],
+}
+
+describe('VenueDetailPage deciding a booking request', () => {
+  beforeEach(() => {
+    signInWith(['venues.view', 'bookings.decide'])
+    api.getVenue.mockResolvedValue(HALL_A)
+    api.listVenueBookings.mockResolvedValue([REQUESTED_BOOKING])
+  })
+
+  // @story: SCRUM-37
+  // @ac: 6
+  it('offers no Approve or Reject without bookings.decide', async () => {
+    signInWith(['venues.view'])
+
+    renderPage()
+
+    await waitFor(() => screen.getByTestId('venue-detail-booking-row-12'))
+    expect(screen.queryByTestId('venue-detail-booking-approve-button-12')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('venue-detail-booking-reject-button-12')).not.toBeInTheDocument()
+  })
+
+  // @story: SCRUM-37
+  // @ac: 7
+  it('offers no Approve or Reject once a booking is decided', async () => {
+    api.listVenueBookings.mockResolvedValue([
+      { ...REQUESTED_BOOKING, status: 'Approved', decision: 'Approved', decided_by: 'venue1', decided_at: '2026-10-08T08:00:00+00:00' },
+    ])
+
+    renderPage()
+
+    await waitFor(() => screen.getByTestId('venue-detail-booking-row-12'))
+    expect(screen.queryByTestId('venue-detail-booking-approve-button-12')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('venue-detail-booking-reject-button-12')).not.toBeInTheDocument()
+  })
+
+  // @story: SCRUM-37
+  // @ac: 2, 4, 9
+  it('approves a booking request with the API response, no reason required', async () => {
+    api.approveBooking.mockResolvedValue({
+      ...REQUESTED_BOOKING,
+      status: 'Approved',
+      decision: 'Approved',
+      decided_by: 'venue1',
+      decided_at: '2026-10-08T08:00:00+00:00',
+    })
+
+    renderPage()
+    await waitFor(() => screen.getByTestId('venue-detail-booking-approve-button-12'))
+    await userEvent.click(screen.getByTestId('venue-detail-booking-approve-button-12'))
+    await userEvent.click(screen.getByTestId('venue-detail-decide-confirm-button'))
+
+    await waitFor(() => {
+      expect(api.approveBooking).toHaveBeenCalledWith('3', 12, '')
+    })
+    expect(screen.getByTestId('venue-detail-banner')).toHaveTextContent('Booking approved')
+    expect(screen.getByTestId('venue-detail-booking-status-12')).toHaveTextContent('Approved')
+    expect(screen.getByTestId('venue-detail-booking-decision-12')).toHaveTextContent('Approved by venue1')
+  })
+
+  // @story: SCRUM-37
+  // @ac: 3, 5
+  it('rejects a booking request with a reason', async () => {
+    api.rejectBooking.mockResolvedValue({
+      ...REQUESTED_BOOKING,
+      status: 'Rejected',
+      decision: 'Rejected',
+      decision_reason: 'Venue under maintenance',
+      decided_by: 'venue1',
+      decided_at: '2026-10-08T08:00:00+00:00',
+    })
+
+    renderPage()
+    await waitFor(() => screen.getByTestId('venue-detail-booking-reject-button-12'))
+    await userEvent.click(screen.getByTestId('venue-detail-booking-reject-button-12'))
+    await userEvent.type(screen.getByTestId('venue-detail-decide-reason-input'), 'Venue under maintenance')
+    await userEvent.click(screen.getByTestId('venue-detail-decide-confirm-button'))
+
+    await waitFor(() => {
+      expect(api.rejectBooking).toHaveBeenCalledWith('3', 12, 'Venue under maintenance')
+    })
+    expect(screen.getByTestId('venue-detail-banner')).toHaveTextContent('Booking rejected')
+    expect(screen.getByTestId('venue-detail-booking-decision-12')).toHaveTextContent(
+      'Rejected by venue1',
+    )
+    expect(screen.getByTestId('venue-detail-booking-decision-12')).toHaveTextContent(
+      'Venue under maintenance',
+    )
+  })
+
+  // @story: SCRUM-37
+  // @ac: 8
+  it('refuses to reject without a reason, sending nothing', async () => {
+    renderPage()
+    await waitFor(() => screen.getByTestId('venue-detail-booking-reject-button-12'))
+    await userEvent.click(screen.getByTestId('venue-detail-booking-reject-button-12'))
+    await userEvent.click(screen.getByTestId('venue-detail-decide-confirm-button'))
+
+    expect(await screen.findByTestId('venue-detail-decide-reason-error')).toBeInTheDocument()
+    expect(api.rejectBooking).not.toHaveBeenCalled()
+  })
+
+  // @story: SCRUM-37
+  // @ac: 10
+  it('leaves another booking row unchanged after deciding one', async () => {
+    api.listVenueBookings.mockResolvedValue([
+      REQUESTED_BOOKING,
+      { ...REQUESTED_BOOKING, id: 13, event_request_name: 'Second Event' },
+    ])
+    api.approveBooking.mockResolvedValue({
+      ...REQUESTED_BOOKING,
+      status: 'Approved',
+      decision: 'Approved',
+      decided_by: 'venue1',
+      decided_at: '2026-10-08T08:00:00+00:00',
+    })
+
+    renderPage()
+    await waitFor(() => screen.getByTestId('venue-detail-booking-approve-button-12'))
+    await userEvent.click(screen.getByTestId('venue-detail-booking-approve-button-12'))
+    await userEvent.click(screen.getByTestId('venue-detail-decide-confirm-button'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('venue-detail-booking-status-12')).toHaveTextContent('Approved')
+    })
+    expect(screen.getByTestId('venue-detail-booking-status-13')).toHaveTextContent('Requested')
+  })
+
+  // @story: SCRUM-37
+  it('closes the decide form on Cancel without deciding', async () => {
+    renderPage()
+    await waitFor(() => screen.getByTestId('venue-detail-booking-approve-button-12'))
+    await userEvent.click(screen.getByTestId('venue-detail-booking-approve-button-12'))
+    await userEvent.click(screen.getByTestId('venue-detail-decide-cancel-button'))
+
+    expect(screen.queryByTestId('venue-detail-decide-confirm-button')).not.toBeInTheDocument()
+    expect(api.approveBooking).not.toHaveBeenCalled()
+  })
+
+  // @story: SCRUM-37
+  it('shows the API refusal in the banner when deciding fails', async () => {
+    api.approveBooking.mockRejectedValue(
+      Object.assign(new Error('This booking request has already been decided (Approved).'), { status: 409 }),
+    )
+
+    renderPage()
+    await waitFor(() => screen.getByTestId('venue-detail-booking-approve-button-12'))
+    await userEvent.click(screen.getByTestId('venue-detail-booking-approve-button-12'))
+    await userEvent.click(screen.getByTestId('venue-detail-decide-confirm-button'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('venue-detail-banner')).toHaveTextContent(
+        'This booking request has already been decided (Approved).',
+      )
+    })
+  })
+
+  // @story: SCRUM-37
+  // @ac: 3
+  it('opening Reject on a booking closes an open Block venue form', async () => {
+    signInWith(['venues.view', 'venues.edit', 'bookings.decide'])
+    renderPage()
+    await waitFor(() => screen.getByTestId('venue-detail-block-button'))
+    await userEvent.click(screen.getByTestId('venue-detail-block-button'))
+    expect(screen.getByTestId('venue-detail-block-confirm-button')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByTestId('venue-detail-booking-reject-button-12'))
+    expect(screen.queryByTestId('venue-detail-block-confirm-button')).not.toBeInTheDocument()
+    expect(screen.getByTestId('venue-detail-decide-confirm-button')).toBeInTheDocument()
   })
 })
