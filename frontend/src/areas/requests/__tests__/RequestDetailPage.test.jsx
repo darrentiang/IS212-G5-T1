@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, RouterProvider, Routes, createMemoryRouter } from 'react-router'
 import * as api from '../api'
@@ -41,8 +41,6 @@ const SUBMITTED = {
   start_time: '19:00',
   end_time: '22:30',
   attendance: 150,
-  venue_requirements: 'Banquet layout',
-  accessibility_needs: 'Step-free access',
   equipment_requirements: 'Sound system',
   registration_needs: 'Guest list supplied',
   status: STATUS.REQUEST.SUBMITTED,
@@ -795,6 +793,45 @@ describe('RequestDetailPage', () => {
     expect(await screen.findByTestId('request-detail-layout')).toHaveTextContent('Theatre')
     expect(screen.getByTestId('request-detail-facilities')).toHaveTextContent('Projector, Sound system')
     expect(screen.getByTestId('request-detail-accessibility-features')).toHaveTextContent('Hearing loop')
+  })
+
+  // @story: SCRUM-42
+  // @ac: 1
+  it("shows the choices under the brief's headings, in place of the free-text fields", async () => {
+    api.getRequest.mockResolvedValue(CHOSEN_DRAFT)
+
+    renderDetail()
+
+    const venue = (await screen.findByRole('heading', { name: 'Venue requirements' })).closest('section')
+    expect(within(venue).getByText('Room layout')).toBeInTheDocument()
+    expect(within(venue).getByText('Facilities')).toBeInTheDocument()
+    expect(venue).toContainElement(screen.getByTestId('request-detail-layout'))
+    expect(venue).toContainElement(screen.getByTestId('request-detail-facilities'))
+    const accessibility = screen.getByRole('heading', { name: 'Accessibility needs' }).closest('section')
+    expect(within(accessibility).getByText('Accessibility features')).toBeInTheDocument()
+    expect(accessibility).toContainElement(screen.getByTestId('request-detail-accessibility-features'))
+    expect(screen.queryByTestId('request-detail-venue-requirements')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('request-detail-accessibility-needs')).not.toBeInTheDocument()
+  })
+
+  // @story: SCRUM-42
+  // @ac: 1
+  it("groups the Draft edit form's choices under the brief's headings", async () => {
+    api.getRequest.mockResolvedValue(CHOSEN_DRAFT)
+    renderDetail()
+    await userEvent.click(await screen.findByTestId('request-detail-edit-button'))
+
+    const venue = screen.getByRole('group', { name: 'Venue requirements' })
+    expect(within(venue).getByLabelText('Room layout')).toBe(screen.getByTestId('request-detail-edit-layout-input'))
+    expect(within(venue).getByRole('group', { name: 'Facilities' })).toContainElement(
+      screen.getByTestId('request-detail-edit-facilities-projector-input'),
+    )
+    const accessibility = screen.getByRole('group', { name: 'Accessibility needs' })
+    expect(within(accessibility).getByRole('group', { name: 'Accessibility features' })).toContainElement(
+      screen.getByTestId('request-detail-edit-accessibility-features-hearing-loop-input'),
+    )
+    expect(screen.queryByTestId('request-detail-edit-venue-requirements-input')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('request-detail-edit-accessibility-needs-input')).not.toBeInTheDocument()
   })
 
   // @story: SCRUM-42

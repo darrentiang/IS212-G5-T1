@@ -17,8 +17,6 @@ VALID_REQUEST = {
     "start_time": "09:00",
     "end_time": "17:00",
     "attendance": 200,
-    "venue_requirements": "Large hall with stage",
-    "accessibility_needs": "Wheelchair access",
     "equipment_requirements": "Projector, microphones",
     "registration_needs": "Online registration with capacity cap",
 }
@@ -115,10 +113,10 @@ def test_direct_submit_with_missing_field_records_nothing(client, app):
 
 def test_submit_draft_missing_field_is_refused(client, app):
     login_as(client, app, "org1")
-    draft_id = make_draft(app, "org1", venue_requirements="")
+    draft_id = make_draft(app, "org1", equipment_requirements="")
     resp = client.post(f"/api/requests/{draft_id}/submit")
     assert resp.status_code == 400
-    assert "venue_requirements" in resp.get_json()["message"]
+    assert "equipment_requirements" in resp.get_json()["message"]
 
 
 # --- Negative: AC7, date cannot be earlier than today ---

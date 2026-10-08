@@ -4,9 +4,10 @@ import { request } from '../../app/http'
 // 200:     [ { id, status, created_by, registration_enabled, submitted_at,
 //              decision, decision_reason, decided_at, decided_by,
 //              name, purpose, description, date, start_time, end_time, attendance,
-//              venue_requirements, accessibility_needs, equipment_requirements,
-//              registration_needs, layout, facilities, accessibility_features } ]
-//          layout: name | null; facilities, accessibility_features: [name] (SCRUM-42)
+//              equipment_requirements, registration_needs,
+//              layout, facilities, accessibility_features } ]
+//          layout: name | null; facilities, accessibility_features: [name] (SCRUM-42);
+//          they replace the free-text venue_requirements and accessibility_needs
 // 403:     { message }
 export const listRequests = () => request('GET', '/api/requests')
 
@@ -18,7 +19,7 @@ export const getRequest = (id) => request('GET', `/api/requests/${id}`)
 
 // POST /api/requests
 // body:    { name, purpose, description, date, start_time, end_time, attendance,
-//            venue_requirements, accessibility_needs, equipment_requirements, registration_needs,
+//            equipment_requirements, registration_needs,
 //            layout, facilities, accessibility_features }
 //          layout: name | null; the lists: [name]; none of the three is required (SCRUM-42)
 // 201:     the created, Submitted request
@@ -43,8 +44,8 @@ export const approveRequest = (id, reason) => request('POST', `/api/requests/${i
 export const rejectRequest = (id, reason) => request('POST', `/api/requests/${id}/reject`, { reason })
 // POST /api/requests/draft
 // body:    { name, purpose, description, date, start_time, end_time, attendance,
-//            venue_requirements, accessibility_needs, equipment_requirements,
-//            registration_needs, layout, facilities, accessibility_features }
+//            equipment_requirements, registration_needs,
+//            layout, facilities, accessibility_features }
 //          — only name is required
 // 201:     the saved Draft
 // 400/403: { message }

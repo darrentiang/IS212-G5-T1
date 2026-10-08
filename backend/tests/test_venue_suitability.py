@@ -35,8 +35,6 @@ REQUEST_FIELDS = {
     "start_time": "10:00",
     "end_time": "16:00",
     "attendance": 100,
-    "venue_requirements": "Any room",
-    "accessibility_needs": "Step-free access",
     "equipment_requirements": "Projector",
     "registration_needs": "Guest list supplied",
 }
@@ -113,7 +111,9 @@ def test_a_submitted_request_carries_its_chosen_requirements_in_list_order(clien
     detail = client.get(f"/api/requests/{body['id']}").get_json()
     assert detail["layout"] == "Theatre"
     assert detail["facilities"] == ["Projector", "Sound system"]
-    assert detail["venue_requirements"] == "Any room"
+    # The choices replace the free-text fields (PO decision, SCRUM-42).
+    assert "venue_requirements" not in detail
+    assert "accessibility_needs" not in detail
 
 
 # @story: SCRUM-42

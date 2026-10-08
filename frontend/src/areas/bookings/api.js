@@ -11,8 +11,10 @@ export const listVenues = () => request('GET', '/api/venues')
 // POST /api/requests/:id/bookings
 // body:    { venue_id }
 // 201:     the created booking request (venue_id, event_request_id, status,
-//          date, start_time, end_time, attendance, venue_requirements,
+//          date, start_time, end_time, attendance, layout, facilities,
 //          raised_by, raised_at)
+//          layout: name | null; facilities: [name]; the event's venue
+//          requirements (SCRUM-42), read from the event, not copied
 // 400/403/404: { message }
 export const raiseBooking = (requestId, venueId) =>
   request('POST', `/api/requests/${requestId}/bookings`, { venue_id: venueId })

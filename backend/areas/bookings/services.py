@@ -85,7 +85,6 @@ def raise_booking(account, event_request_id, data):
         start_time=event_request.start_time,
         end_time=event_request.end_time,
         attendance=event_request.attendance,
-        venue_requirements=event_request.venue_requirements,
         # AC11: who raised it and when.
         raised_by=account,
         raised_at=datetime.now(timezone.utc),
@@ -118,7 +117,10 @@ def booking_to_dict(booking):
         "start_time": booking.start_time,
         "end_time": booking.end_time,
         "attendance": booking.attendance,
-        "venue_requirements": booking.venue_requirements,
+        # AC3's venue requirements: the event's chosen layout and facilities
+        # (SCRUM-42), read through the event (see VenueBookingRequest).
+        "layout": booking.event_request.layout.name if booking.event_request.layout else None,
+        "facilities": [row.name for row in booking.event_request.facilities],
         "raised_by": booking.raised_by.username,
         "raised_at": booking.raised_at.isoformat(),
     }

@@ -59,7 +59,9 @@ export const endVenueBlock = (id, blockId, data) => request('PATCH', `/api/venue
 
 // GET /api/venues/:id/bookings   (SCRUM-36)
 // 200:     [ { id, venue_id, event_request_id, event_request_name, status,
-//              date, start_time, end_time, attendance, venue_requirements,
+//              date, start_time, end_time, attendance, layout, facilities,
 //              raised_by, raised_at } ]
+//          layout: name | null; facilities: [name]: the event's venue
+//          requirements (SCRUM-42)
 // 403/404: { message }
 export const listVenueBookings = (id) => request('GET', `/api/venues/${id}/bookings`)

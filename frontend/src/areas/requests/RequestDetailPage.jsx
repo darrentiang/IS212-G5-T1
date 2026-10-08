@@ -22,9 +22,13 @@ import {
 // request a venue booking; it links to the bookings area's own page
 // (docs/design/frontend.md §2) rather than an inline form.
 // SCRUM-42: the chosen required layout, facilities and accessibility features,
-// shown as on the venue page ("None" when empty), and chosen in the Draft edit form.
+// shown as on the venue page ("None" when empty), and chosen in the Draft edit
+// form. They replace the brief's free-text venue requirements and
+// accessibility needs, so they sit where those were, under the brief's two headings.
 
-// Same order and labels as RequestNewPage's form (ui-guidelines.md §7).
+// Same order and labels as RequestNewPage's form (ui-guidelines.md §7): FIELDS
+// come before the Venue requirements and Accessibility needs groups,
+// FIELDS_AFTER_CHOICES after them.
 const FIELDS = [
   { name: 'name', label: 'Event name' },
   { name: 'purpose', label: 'Purpose' },
@@ -33,8 +37,9 @@ const FIELDS = [
   { name: 'start_time', label: 'Start time', format: formatTime },
   { name: 'end_time', label: 'End time', format: formatTime },
   { name: 'attendance', label: 'Expected attendance' },
-  { name: 'venue_requirements', label: 'Venue requirements' },
-  { name: 'accessibility_needs', label: 'Accessibility needs' },
+]
+
+const FIELDS_AFTER_CHOICES = [
   { name: 'equipment_requirements', label: 'Equipment requirements' },
   { name: 'registration_needs', label: 'Registration needs' },
 ]
@@ -49,8 +54,8 @@ const testId = (name) => `request-detail-${name.replaceAll('_', '-')}`
 // A Draft may be saved with fields still empty, so format only what is there.
 const show = (value, format) => (value == null || value === '' ? '' : format ? format(value) : value)
 // SCRUM-30: the Draft's owner may also edit any field (including the name)
-// or permanently delete it.
-const EDIT_FIELDS = [
+// or permanently delete it. Split around the SCRUM-42 groups as above.
+const EDIT_FIELDS_BEFORE_CHOICES = [
   { name: 'name', label: 'Event name', type: 'text' },
   { name: 'purpose', label: 'Purpose', type: 'text' },
   { name: 'description', label: 'Description', type: 'textarea' },
@@ -58,11 +63,14 @@ const EDIT_FIELDS = [
   { name: 'start_time', label: 'Start time', type: 'time' },
   { name: 'end_time', label: 'End time', type: 'time' },
   { name: 'attendance', label: 'Expected attendance', type: 'number' },
-  { name: 'venue_requirements', label: 'Venue requirements', type: 'textarea' },
-  { name: 'accessibility_needs', label: 'Accessibility needs', type: 'textarea' },
+]
+
+const EDIT_FIELDS_AFTER_CHOICES = [
   { name: 'equipment_requirements', label: 'Equipment requirements', type: 'textarea' },
   { name: 'registration_needs', label: 'Registration needs', type: 'textarea' },
 ]
+
+const EDIT_FIELDS = [...EDIT_FIELDS_BEFORE_CHOICES, ...EDIT_FIELDS_AFTER_CHOICES]
 
 // Short fields share a row of three from tablet up; every other field takes
 // the whole row (docs/design/visual-style.md, Form card).
@@ -70,12 +78,6 @@ const SHORT = new Set(['date', 'start_time', 'end_time', 'attendance'])
 
 const editValuesFrom = (row) =>
   Object.fromEntries(EDIT_FIELDS.map((field) => [field.name, row[field.name] ?? '']))
-
-// SCRUM-42: the requirement choices, after the fields above.
-const CHOICES = [
-  { name: 'facilities', label: 'Required facilities' },
-  { name: 'accessibility_features', label: 'Required accessibility features' },
-]
 
 const list = (values) => (values.length > 0 ? values.join(', ') : 'None')
 
@@ -249,6 +251,59 @@ const openDecision = (action) => {
     }
   }
 
+  const renderValue = (field) => (
+    <div key={field.name}>
+      <dt>{field.label}</dt>
+      <dd className="whitespace-pre-wrap" data-testid={testId(field.name)}>
+        {show(row[field.name], field.format)}
+      </dd>
+    </div>
+  )
+
+  const renderEditField = (field) => (
+    <div key={field.name} className={SHORT.has(field.name) ? undefined : 'md:col-span-3'}>
+      <label htmlFor={`request-detail-edit-${field.name}`} className="label">
+        {field.label}
+      </label>
+      {field.type === 'textarea' ? (
+        <textarea
+          id={`request-detail-edit-${field.name}`}
+          className="input"
+          value={editValues[field.name]}
+          onChange={(event) => setEditValue(field.name, event.target.value)}
+          data-testid={`request-detail-edit-${field.name.replaceAll('_', '-')}-input`}
+        />
+      ) : (
+        <input
+          id={`request-detail-edit-${field.name}`}
+          type={field.type}
+          className="input"
+          value={editValues[field.name]}
+          onChange={(event) => setEditValue(field.name, event.target.value)}
+          data-testid={`request-detail-edit-${field.name.replaceAll('_', '-')}-input`}
+        />
+      )}
+      {field.name === 'name' && editError && (
+        <p className="field-error" data-testid="request-detail-edit-name-error">
+          {editError}
+        </p>
+      )}
+    </div>
+  )
+
+  const renderEditCheckboxes = (name) =>
+    options[name].map((option) => (
+      <label key={option} className="flex items-center gap-2 py-1">
+        <input
+          type="checkbox"
+          checked={editValues[name].includes(option)}
+          onChange={() => setEditValue(name, toggle(editValues[name], option))}
+          data-testid={`request-detail-edit-${name.replaceAll('_', '-')}-${kebab(option)}-input`}
+        />
+        {option}
+      </label>
+    ))
+
   return (
     <div className="space-y-8">
       <div className="space-y-2">
@@ -276,24 +331,35 @@ const openDecision = (action) => {
       {loading || !row ? null : (
         <div className="card space-y-6">
           <dl className="detail-list" data-testid="request-detail-fields">
-            {typeof FIELDS !== 'undefined' && FIELDS.map((field) => (
-              <div key={field.name}>
-                <dt>{field.label}</dt>
-                <dd className="whitespace-pre-wrap" data-testid={testId(field.name)}>
-                  {show(row[field.name], field.format)}
-                </dd>
+            {typeof FIELDS !== 'undefined' && FIELDS.map(renderValue)}
+          </dl>
+
+          <section className="space-y-3">
+            <h2 className="section-title">Venue requirements</h2>
+            <dl className="detail-list">
+              <div>
+                <dt>Room layout</dt>
+                <dd data-testid="request-detail-layout">{row.layout ?? 'None'}</dd>
               </div>
-            ))}
-            <div>
-              <dt>Required room layout</dt>
-              <dd data-testid="request-detail-layout">{row.layout ?? 'None'}</dd>
-            </div>
-            {CHOICES.map((choice) => (
-              <div key={choice.name}>
-                <dt>{choice.label}</dt>
-                <dd data-testid={testId(choice.name)}>{list(row[choice.name])}</dd>
+              <div>
+                <dt>Facilities</dt>
+                <dd data-testid="request-detail-facilities">{list(row.facilities)}</dd>
               </div>
-            ))}
+            </dl>
+          </section>
+
+          <section className="space-y-3">
+            <h2 className="section-title">Accessibility needs</h2>
+            <dl className="detail-list">
+              <div>
+                <dt>Accessibility features</dt>
+                <dd data-testid="request-detail-accessibility-features">{list(row.accessibility_features)}</dd>
+              </div>
+            </dl>
+          </section>
+
+          <dl className="detail-list">
+            {FIELDS_AFTER_CHOICES.map(renderValue)}
             <div>
               <dt>Status</dt>
               <dd data-testid="request-detail-status">
@@ -398,73 +464,41 @@ const openDecision = (action) => {
       {openAction === 'edit' && editValues && (
         <div className="card form-card space-y-4" data-testid="request-detail-edit-form">
           <h2 className="section-title">Edit draft</h2>
-          <div className="grid gap-4 md:grid-cols-3">
-            {EDIT_FIELDS.map((field) => (
-              <div key={field.name} className={SHORT.has(field.name) ? undefined : 'md:col-span-3'}>
-                <label htmlFor={`request-detail-edit-${field.name}`} className="label">
-                  {field.label}
-                </label>
-                {field.type === 'textarea' ? (
-                  <textarea
-                    id={`request-detail-edit-${field.name}`}
-                    className="input"
-                    value={editValues[field.name]}
-                    onChange={(event) => setEditValue(field.name, event.target.value)}
-                    data-testid={`request-detail-edit-${field.name.replaceAll('_', '-')}-input`}
-                  />
-                ) : (
-                  <input
-                    id={`request-detail-edit-${field.name}`}
-                    type={field.type}
-                    className="input"
-                    value={editValues[field.name]}
-                    onChange={(event) => setEditValue(field.name, event.target.value)}
-                    data-testid={`request-detail-edit-${field.name.replaceAll('_', '-')}-input`}
-                  />
-                )}
-                {field.name === 'name' && editError && (
-                  <p className="field-error" data-testid="request-detail-edit-name-error">
-                    {editError}
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-          <div>
-            <label htmlFor="request-detail-edit-layout" className="label">
-              Required room layout
-            </label>
-            <select
-              id="request-detail-edit-layout"
-              className="input"
-              value={editValues.layout}
-              onChange={(event) => setEditValue('layout', event.target.value)}
-              data-testid="request-detail-edit-layout-input"
-            >
-              <option value="">None</option>
-              {options.layouts.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          </div>
-          {CHOICES.map((choice) => (
-            <fieldset key={choice.name}>
-              <legend className="label">{choice.label}</legend>
-              {options[choice.name].map((option) => (
-                <label key={option} className="flex items-center gap-2 py-1">
-                  <input
-                    type="checkbox"
-                    checked={editValues[choice.name].includes(option)}
-                    onChange={() => setEditValue(choice.name, toggle(editValues[choice.name], option))}
-                    data-testid={`request-detail-edit-${choice.name.replaceAll('_', '-')}-${kebab(option)}-input`}
-                  />
-                  {option}
-                </label>
-              ))}
+          <div className="grid gap-4 md:grid-cols-3">{EDIT_FIELDS_BEFORE_CHOICES.map(renderEditField)}</div>
+          <fieldset className="space-y-4">
+            <legend className="section-title">Venue requirements</legend>
+            <div>
+              <label htmlFor="request-detail-edit-layout" className="label">
+                Room layout
+              </label>
+              <select
+                id="request-detail-edit-layout"
+                className="input"
+                value={editValues.layout}
+                onChange={(event) => setEditValue('layout', event.target.value)}
+                data-testid="request-detail-edit-layout-input"
+              >
+                <option value="">None</option>
+                {options.layouts.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <fieldset>
+              <legend className="label">Facilities</legend>
+              {renderEditCheckboxes('facilities')}
             </fieldset>
-          ))}
+          </fieldset>
+          <fieldset className="space-y-4">
+            <legend className="section-title">Accessibility needs</legend>
+            <fieldset>
+              <legend className="label">Accessibility features</legend>
+              {renderEditCheckboxes('accessibility_features')}
+            </fieldset>
+          </fieldset>
+          <div className="grid gap-4 md:grid-cols-3">{EDIT_FIELDS_AFTER_CHOICES.map(renderEditField)}</div>
           <div className="flex flex-wrap justify-end gap-2">
             <button
               type="button"

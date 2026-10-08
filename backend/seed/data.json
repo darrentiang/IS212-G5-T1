@@ -86,8 +86,6 @@
       "start_time": "18:30",
       "end_time": "22:00",
       "attendance": 180,
-      "venue_requirements": "Banquet layout with a stage for speeches",
-      "accessibility_needs": "Step-free access and reserved seating",
       "equipment_requirements": "Sound system and stage lighting",
       "registration_needs": "No registration; the client supplies the guest list",
       "submitted_at": "2026-09-01T10:00:00+00:00",
@@ -113,10 +111,12 @@
       "start_time": "10:00",
       "end_time": "12:00",
       "attendance": 20,
-      "venue_requirements": "Meeting room with whiteboard",
-      "accessibility_needs": "None",
       "equipment_requirements": "Projector",
-      "registration_needs": "Internal sign-up sheet"
+      "registration_needs": "Internal sign-up sheet",
+      "layout": "Boardroom",
+      "facilities": [
+        "Whiteboard"
+      ]
     },
     {
       "name": "Client B Conference",
@@ -130,8 +130,6 @@
       "start_time": "09:00",
       "end_time": "17:00",
       "attendance": 350,
-      "venue_requirements": "Theatre layout with a speaker platform",
-      "accessibility_needs": "Hearing loop and an accessible toilet",
       "equipment_requirements": "Projector, sound system and two microphones",
       "registration_needs": "No public registration; the client supplies the attendee list",
       "submitted_at": "2026-09-02T09:00:00+00:00",
@@ -157,11 +155,13 @@
       "start_time": "10:00",
       "end_time": "16:00",
       "attendance": 250,
-      "venue_requirements": "Open floor with room for exhibition stands",
-      "accessibility_needs": "Step-free access throughout",
       "equipment_requirements": "Projector and sound system",
       "registration_needs": "Public registration through the system, capped at 250 attendees",
-      "submitted_at": "2026-09-03T08:00:00+00:00"
+      "submitted_at": "2026-09-03T08:00:00+00:00",
+      "layout": "Exhibition",
+      "accessibility_features": [
+        "Step-free access"
+      ]
     }
   ],
   "facilities": [

@@ -1,7 +1,8 @@
 """Event-request rules — SCRUM-27 (read access, object rules), SCRUM-28
-(create and submit) and SCRUM-29 (approve or reject).
-(create and submit) and SCRUM-30 (save, edit and delete a Draft).
-SCRUM-42: the optional required layout, facilities and accessibility features.
+(create and submit), SCRUM-29 (approve or reject) and SCRUM-30 (save, edit
+and delete a Draft).
+SCRUM-42: the optional required layout, facilities and accessibility features,
+which replace the free-text venue requirements and accessibility needs.
 
 Object rules from permissions.md / ADR-002 live here next to the query.
 """

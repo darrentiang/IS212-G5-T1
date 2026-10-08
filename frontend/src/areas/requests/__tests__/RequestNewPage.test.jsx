@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import * as api from '../api'
@@ -33,8 +33,6 @@ const VALID = {
   start_time: '09:00',
   end_time: '17:00',
   attendance: '200',
-  venue_requirements: 'Large hall with stage',
-  accessibility_needs: 'Wheelchair access',
   equipment_requirements: 'Projector, microphones',
   registration_needs: 'Online registration with capacity cap',
 }
@@ -66,7 +64,7 @@ describe('RequestNewPage', () => {
   it('renders every required field, marked required', async () => {
     await renderNewPage()
     expect(screen.getByTestId('request-new-name-input')).toHaveAttribute('aria-required', 'true')
-    expect(screen.getByTestId('request-new-venue-requirements-input')).toHaveAttribute('aria-required', 'true')
+    expect(screen.getByTestId('request-new-equipment-requirements-input')).toHaveAttribute('aria-required', 'true')
     expect(screen.getByTestId('request-new-registration-needs-input')).toHaveAttribute('aria-required', 'true')
   })
 
@@ -78,7 +76,7 @@ describe('RequestNewPage', () => {
     await userEvent.click(screen.getByTestId('request-new-submit-button'))
 
     expect(await screen.findByTestId('request-new-name-error')).toBeInTheDocument()
-    expect(screen.getByTestId('request-new-venue-requirements-error')).toBeInTheDocument()
+    expect(screen.getByTestId('request-new-equipment-requirements-error')).toBeInTheDocument()
     expect(api.submitRequest).not.toHaveBeenCalled()
   })
 
@@ -226,6 +224,24 @@ describe('RequestNewPage', () => {
     expect(screen.queryByTestId('request-new-submit-button')).not.toBeInTheDocument()
     resolveOptions(OPTIONS)
     expect(await screen.findByTestId('request-new-layout-input')).toBeInTheDocument()
+  })
+
+  // @story: SCRUM-42
+  // @ac: 1
+  it("groups the choices under the brief's headings, in place of the free-text fields", async () => {
+    await renderNewPage()
+
+    const venue = screen.getByRole('group', { name: 'Venue requirements' })
+    expect(within(venue).getByLabelText('Room layout')).toBe(screen.getByTestId('request-new-layout-input'))
+    expect(within(venue).getByRole('group', { name: 'Facilities' })).toContainElement(
+      screen.getByTestId('request-new-facilities-projector-input'),
+    )
+    const accessibility = screen.getByRole('group', { name: 'Accessibility needs' })
+    expect(within(accessibility).getByRole('group', { name: 'Accessibility features' })).toContainElement(
+      screen.getByTestId('request-new-accessibility-features-hearing-loop-input'),
+    )
+    expect(screen.queryByTestId('request-new-venue-requirements-input')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('request-new-accessibility-needs-input')).not.toBeInTheDocument()
   })
 
   // @story: SCRUM-42

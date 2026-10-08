@@ -20,7 +20,8 @@ from db import db
 # fixed lists they choose from. SCRUM-29 added the approve/reject decision.
 # SCRUM-40 added venue blocks. SCRUM-36 added venue booking requests and
 # Venue.is_active and SCRUM-32 added room layouts. SCRUM-42 added an event
-# request's required layout, facilities and accessibility features.
+# request's required layout, facilities and accessibility features, and dropped
+# the free-text venue_requirements and accessibility_needs they replace.
 SCHEMA_VERSION = 9
 
 
@@ -80,6 +81,10 @@ class EventRequest(db.Model):
     Draft -> Submitted transition. SCRUM-29 added approve/reject.
     SCRUM-42 added the optional required layout, facilities and accessibility
     features, stored as links to the venue lists; never required to submit.
+    They replace the brief's free-text "venue requirements" and "accessibility
+    needs" (PO decision): the brief's venue requirements are what the Venue
+    Catalogue records as layouts and facilities, its accessibility needs what
+    it records as accessibility features.
     Later stories add columns and transitions in their own pull requests.
     """
 
@@ -98,8 +103,6 @@ class EventRequest(db.Model):
         "start_time",
         "end_time",
         "attendance",
-        "venue_requirements",
-        "accessibility_needs",
         "equipment_requirements",
         "registration_needs",
     )
@@ -115,8 +118,6 @@ class EventRequest(db.Model):
     start_time = db.Column(db.String(5))  # HH:MM
     end_time = db.Column(db.String(5))  # HH:MM
     attendance = db.Column(db.Integer)
-    venue_requirements = db.Column(db.Text)
-    accessibility_needs = db.Column(db.Text)
     equipment_requirements = db.Column(db.Text)
     registration_needs = db.Column(db.Text)
 
@@ -320,9 +321,14 @@ class VenueBlock(db.Model):
 class VenueBookingRequest(db.Model):
     """An Event Coordinator's request to book a venue for an event (SCRUM-36).
 
-    date, start_time, end_time, attendance and venue_requirements are copied
-    from the event request at the moment of raising (AC3): a later change to
-    the event does not move the booking request. raised_at is UTC, the same
+    date, start_time, end_time and attendance are copied from the event
+    request at the moment of raising (AC3): a later change to the event does
+    not move the booking request. The event's venue requirements (AC3) are its
+    chosen layout and facilities (SCRUM-42); they are read through
+    event_request, not copied, because today they can change only while the
+    event is a Draft (SCRUM-30) and a booking needs an Approved or Planning
+    event. A future story that lets an event be edited during Planning must
+    decide whether a booking request keeps a snapshot of them. raised_at is UTC, the same
     convention as an event request's submitted_at. Deciding (approve/reject)
     and withdrawing are later stories; nothing here supports them yet.
     """
@@ -340,7 +346,6 @@ class VenueBookingRequest(db.Model):
     start_time = db.Column(db.String(5))  # HH:MM
     end_time = db.Column(db.String(5))  # HH:MM
     attendance = db.Column(db.Integer)
-    venue_requirements = db.Column(db.Text)
 
     raised_by_id = db.Column(db.Integer, db.ForeignKey("accounts.id"), nullable=False)
     raised_at = db.Column(db.DateTime, nullable=False)

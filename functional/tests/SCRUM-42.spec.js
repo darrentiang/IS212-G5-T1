@@ -21,8 +21,6 @@ const DATE = '2026-12-10'
 const TEXT_FIELDS = {
   purpose: 'Client event',
   description: 'An event for SCRUM-42',
-  venue_requirements: 'A room that fits',
-  accessibility_needs: 'As chosen',
   equipment_requirements: 'As chosen',
   registration_needs: 'Guest list supplied',
 }
@@ -117,6 +115,9 @@ test('An Event Organiser chooses a required layout, facilities and accessibility
     attendance: 100,
     ...TEXT_FIELDS,
   })
+  // The choices replace the free-text venue requirements and accessibility needs.
+  await expect(page.getByTestId('request-new-venue-requirements-input')).toHaveCount(0)
+  await expect(page.getByTestId('request-new-accessibility-needs-input')).toHaveCount(0)
   await page.getByTestId('request-new-layout-input').selectOption({ label: 'Theatre' })
   await page.getByTestId('request-new-facilities-projector-input').check()
   await page.getByTestId('request-new-facilities-sound-system-input').check()
@@ -128,9 +129,8 @@ test('An Event Organiser chooses a required layout, facilities and accessibility
   await expect(page.getByTestId('request-detail-layout')).toHaveText('Theatre')
   await expect(page.getByTestId('request-detail-facilities')).toHaveText('Projector, Sound system')
   await expect(page.getByTestId('request-detail-accessibility-features')).toHaveText('Hearing loop')
-  for (const [field, value] of Object.entries(TEXT_FIELDS)) {
-    await expect(page.getByTestId(`request-detail-${field.replaceAll('_', '-')}`)).toHaveText(value)
-  }
+  await expect(page.getByTestId('request-detail-venue-requirements')).toHaveCount(0)
+  await expect(page.getByTestId('request-detail-accessibility-needs')).toHaveCount(0)
 })
 
 // @tc: TC-SCRUM-42-02

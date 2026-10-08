@@ -6,7 +6,9 @@ import { getRequestOptions, saveDraft, submitRequest } from './api'
 // SCRUM-30: or saves it as a Draft (docs/design/state-model.md, '— -> Draft'); only the name is required to save.
 // SCRUM-42: the Organiser may choose a required layout, facilities and
 // accessibility features from the fixed lists; choosing none is allowed.
-const FIELDS = [
+// They replace the brief's free-text venue requirements and accessibility
+// needs, so they sit where those were, under the brief's two headings.
+const FIELDS_BEFORE_CHOICES = [
   { name: 'name', label: 'Event name', type: 'text' },
   { name: 'purpose', label: 'Purpose', type: 'text' },
   { name: 'description', label: 'Description', type: 'textarea' },
@@ -14,11 +16,14 @@ const FIELDS = [
   { name: 'start_time', label: 'Start time', type: 'time' },
   { name: 'end_time', label: 'End time', type: 'time' },
   { name: 'attendance', label: 'Expected attendance', type: 'number' },
-  { name: 'venue_requirements', label: 'Venue requirements', type: 'textarea' },
-  { name: 'accessibility_needs', label: 'Accessibility needs', type: 'textarea' },
+]
+
+const FIELDS_AFTER_CHOICES = [
   { name: 'equipment_requirements', label: 'Equipment requirements', type: 'textarea' },
   { name: 'registration_needs', label: 'Registration needs', type: 'textarea' },
 ]
+
+const FIELDS = [...FIELDS_BEFORE_CHOICES, ...FIELDS_AFTER_CHOICES]
 
 // Short fields share a row of three from tablet up; every other field takes
 // the whole row (docs/design/visual-style.md, Form card).
@@ -108,6 +113,39 @@ export default function RequestNewPage() {
     }
   }
 
+  const renderField = (field) => (
+    <div key={field.name} className={SHORT.has(field.name) ? undefined : 'md:col-span-3'}>
+      <label htmlFor={`request-new-${field.name}`} className="label">
+        {field.label} *
+      </label>
+      {field.type === 'textarea' ? (
+        <textarea
+          id={`request-new-${field.name}`}
+          aria-required="true"
+          className="input"
+          value={values[field.name]}
+          onChange={(event) => setValue(field.name, event.target.value)}
+          data-testid={`request-new-${field.name.replaceAll('_', '-')}-input`}
+        />
+      ) : (
+        <input
+          id={`request-new-${field.name}`}
+          type={field.type}
+          aria-required="true"
+          className="input"
+          value={values[field.name]}
+          onChange={(event) => setValue(field.name, event.target.value)}
+          data-testid={`request-new-${field.name.replaceAll('_', '-')}-input`}
+        />
+      )}
+      {fieldErrors[field.name] && (
+        <p className="field-error" data-testid={`request-new-${field.name.replaceAll('_', '-')}-error`}>
+          {fieldErrors[field.name]}
+        </p>
+      )}
+    </div>
+  )
+
   return (
     <div className="space-y-8">
       <div className="space-y-2">
@@ -133,90 +171,64 @@ export default function RequestNewPage() {
 
       {!loading && (
         <form className="card form-card space-y-4" onSubmit={handleSubmit} noValidate>
-          <div className="grid gap-4 md:grid-cols-3">
-            {FIELDS.map((field) => (
-              <div key={field.name} className={SHORT.has(field.name) ? undefined : 'md:col-span-3'}>
-                <label htmlFor={`request-new-${field.name}`} className="label">
-                  {field.label} *
-                </label>
-                {field.type === 'textarea' ? (
-                  <textarea
-                    id={`request-new-${field.name}`}
-                    aria-required="true"
-                    className="input"
-                    value={values[field.name]}
-                    onChange={(event) => setValue(field.name, event.target.value)}
-                    data-testid={`request-new-${field.name.replaceAll('_', '-')}-input`}
-                  />
-                ) : (
+          <div className="grid gap-4 md:grid-cols-3">{FIELDS_BEFORE_CHOICES.map(renderField)}</div>
+
+          <fieldset className="space-y-4">
+            <legend className="section-title">Venue requirements</legend>
+            <div>
+              <label htmlFor="request-new-layout" className="label">
+                Room layout
+              </label>
+              <select
+                id="request-new-layout"
+                className="input"
+                value={layout}
+                onChange={(event) => setLayout(event.target.value)}
+                data-testid="request-new-layout-input"
+              >
+                <option value="">None</option>
+                {options.layouts.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <fieldset>
+              <legend className="label">Facilities</legend>
+              {options.facilities.map((option) => (
+                <label key={option} className="flex items-center gap-2 py-1">
                   <input
-                    id={`request-new-${field.name}`}
-                    type={field.type}
-                    aria-required="true"
-                    className="input"
-                    value={values[field.name]}
-                    onChange={(event) => setValue(field.name, event.target.value)}
-                    data-testid={`request-new-${field.name.replaceAll('_', '-')}-input`}
+                    type="checkbox"
+                    checked={facilities.includes(option)}
+                    onChange={() => setFacilities(toggle(facilities, option))}
+                    data-testid={`request-new-facilities-${kebab(option)}-input`}
                   />
-                )}
-                {fieldErrors[field.name] && (
-                  <p className="field-error" data-testid={`request-new-${field.name.replaceAll('_', '-')}-error`}>
-                    {fieldErrors[field.name]}
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-
-          <div>
-            <label htmlFor="request-new-layout" className="label">
-              Required room layout
-            </label>
-            <select
-              id="request-new-layout"
-              className="input"
-              value={layout}
-              onChange={(event) => setLayout(event.target.value)}
-              data-testid="request-new-layout-input"
-            >
-              <option value="">None</option>
-              {options.layouts.map((option) => (
-                <option key={option} value={option}>
                   {option}
-                </option>
+                </label>
               ))}
-            </select>
-          </div>
-
-          <fieldset>
-            <legend className="label">Required facilities</legend>
-            {options.facilities.map((option) => (
-              <label key={option} className="flex items-center gap-2 py-1">
-                <input
-                  type="checkbox"
-                  checked={facilities.includes(option)}
-                  onChange={() => setFacilities(toggle(facilities, option))}
-                  data-testid={`request-new-facilities-${kebab(option)}-input`}
-                />
-                {option}
-              </label>
-            ))}
+            </fieldset>
           </fieldset>
 
-          <fieldset>
-            <legend className="label">Required accessibility features</legend>
-            {options.accessibility_features.map((option) => (
-              <label key={option} className="flex items-center gap-2 py-1">
-                <input
-                  type="checkbox"
-                  checked={accessibilityFeatures.includes(option)}
-                  onChange={() => setAccessibilityFeatures(toggle(accessibilityFeatures, option))}
-                  data-testid={`request-new-accessibility-features-${kebab(option)}-input`}
-                />
-                {option}
-              </label>
-            ))}
+          <fieldset className="space-y-4">
+            <legend className="section-title">Accessibility needs</legend>
+            <fieldset>
+              <legend className="label">Accessibility features</legend>
+              {options.accessibility_features.map((option) => (
+                <label key={option} className="flex items-center gap-2 py-1">
+                  <input
+                    type="checkbox"
+                    checked={accessibilityFeatures.includes(option)}
+                    onChange={() => setAccessibilityFeatures(toggle(accessibilityFeatures, option))}
+                    data-testid={`request-new-accessibility-features-${kebab(option)}-input`}
+                  />
+                  {option}
+                </label>
+              ))}
+            </fieldset>
           </fieldset>
+
+          <div className="grid gap-4 md:grid-cols-3">{FIELDS_AFTER_CHOICES.map(renderField)}</div>
 
           <div className="flex flex-wrap justify-end gap-2 pt-2">
             <button
