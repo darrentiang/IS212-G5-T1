@@ -1,7 +1,7 @@
 """Venue rules — SCRUM-31 (Add a Venue), SCRUM-32 (Record supported layouts),
 SCRUM-40 (Block a Venue), SCRUM-75 (Update a Venue),
 SCRUM-79 (End or Remove a Venue Block), SCRUM-33 (Search Venues by Date and
-Capacity).
+Capacity), SCRUM-80 (Record Setup and Turnaround Time).
 
 Every rule the acceptance criteria state lives here, next to the query, and
 refuses by raising ApiRefusal; the route never decides (ADR-002). Retiring a
@@ -10,6 +10,7 @@ A block's own timing rules read the time only through clock.now_local().
 """
 
 from datetime import datetime, timezone
+from decimal import Decimal, InvalidOperation
 
 import clock
 from db import db
@@ -147,6 +148,69 @@ def update_layouts(venue_id, body):
     return venue
 
 
+def update_times(venue_id, body):
+    """Record or change a venue's setup and turnaround times (SCRUM-80).
+
+    The request body must be a JSON object containing both ``setup_time`` and
+    ``turnaround_time`` keys. An explicitly blank or null value normalises to
+    0. Missing keys or a malformed body are refused and neither stored value
+    changes.
+
+    Each value must be a non-negative whole number. Values such as 30.0 that
+    represent an exact whole number are accepted; fractions, booleans and
+    non-numeric strings are refused without rounding or truncation.
+
+    Both values are validated before any database write, so a refusal leaves
+    both stored times unchanged.
+    """
+    venue = get_venue(venue_id)
+
+    if not isinstance(body, dict):
+        raise ApiRefusal(
+            400, "Request body must be a JSON object with setup_time and turnaround_time."
+        )
+    if "setup_time" not in body or "turnaround_time" not in body:
+        raise ApiRefusal(
+            400, "Request body must contain both setup_time and turnaround_time."
+        )
+
+    setup_time = _non_negative_whole_number(body.get("setup_time"), "Setup time")
+    turnaround_time = _non_negative_whole_number(
+        body.get("turnaround_time"), "Turnaround time"
+    )
+
+    venue.setup_time = setup_time
+    venue.turnaround_time = turnaround_time
+    db.session.commit()
+    return venue
+
+
+def _non_negative_whole_number(value, label):
+    """Parse a non-negative whole number, or raise ApiRefusal naming the field.
+
+    None or blank → 0. Exact whole numbers such as 30.0 are accepted.
+    Fractions, booleans and non-numeric strings are refused.
+
+    The text is read as a Decimal, never a float: float('0.99999999999999999')
+    rounds to 1.0, which a float-based check would accept as a whole number
+    (AC2: a fraction must be refused whatever its digits).
+    """
+    if value is None or str(value).strip() == "":
+        return 0
+    if isinstance(value, bool):
+        raise ApiRefusal(400, f"{label} must be a non-negative whole number.")
+    text = str(value).strip()
+    try:
+        number = Decimal(text)
+    except InvalidOperation:
+        raise ApiRefusal(400, f"{label} must be a non-negative whole number.") from None
+    if not number.is_finite() or number != number.to_integral_value():
+        raise ApiRefusal(400, f"{label} must be a non-negative whole number.")
+    if number < 0:
+        raise ApiRefusal(400, f"{label} must be a non-negative whole number.")
+    return int(number)
+
+
 def _required_text(body, field, label):
     value = body.get(field)
     text = str(value).strip() if value is not None else ""
@@ -203,6 +267,8 @@ def venue_to_dict(venue):
         "max_capacity": venue.max_capacity,
         "opening_time": venue.opening_time.strftime(TIME_FORMAT) if venue.opening_time else None,
         "closing_time": venue.closing_time.strftime(TIME_FORMAT) if venue.closing_time else None,
+        "setup_time": venue.setup_time,
+        "turnaround_time": venue.turnaround_time,
         "facilities": [row.name for row in venue.facilities],
         "accessibility_features": [row.name for row in venue.accessibility_features],
         "layouts": [row.name for row in venue.layouts],

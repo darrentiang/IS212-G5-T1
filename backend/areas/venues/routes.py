@@ -4,6 +4,7 @@ SCRUM-31: list, detail, the two fixed lists the form offers, and add a venue.
 SCRUM-40: list a venue's blocks and block a venue.
 SCRUM-75: update a venue.
 SCRUM-79: remove a block that has not started, or end one in progress early.
+SCRUM-80: record setup and turnaround time for a venue.
 Seeing venues and their blocks is venues.view (Event Coordinator and Venue
 Staff); adding a venue, updating one, blocking one, and ending or removing a
 block is venues.edit (Venue Staff only) — docs/design/permissions.md.
@@ -68,6 +69,14 @@ def update_venue(venue_id):
 def update_layouts(venue_id):
     body = request.get_json(silent=True) or {}
     venue = services.update_layouts(venue_id, body)
+    return jsonify(services.venue_to_dict(venue)), 200
+
+
+@bp.patch("/venues/<int:venue_id>/times")
+@require(VENUES_EDIT)
+def update_times(venue_id):
+    body = request.get_json(silent=True) or {}
+    venue = services.update_times(venue_id, body)
     return jsonify(services.venue_to_dict(venue)), 200
 
 

@@ -12,6 +12,7 @@ import {
   removeVenueBlock,
   updateVenue,
   updateVenueLayouts,
+  updateVenueTimes,
 } from './api'
 
 // Operating hours are two values, each through formatTime: format.js has no
@@ -47,6 +48,10 @@ const IN_PROGRESS = 'in_progress'
 const kebab = (name) => name.replaceAll('_', '-')
 const optionKebab = (value) => value.toLowerCase().replaceAll(' ', '-')
 
+// SCRUM-80: setup and turnaround are durations in whole minutes — '0 minutes',
+// '1 minute', '30 minutes'.
+const minutes = (value) => `${value} ${value === 1 ? 'minute' : 'minutes'}`
+
 // The API's order: earliest start first, then id. start is 'YYYY-MM-DDTHH:MM',
 // so comparing the strings compares the moments.
 const byStartThenId = (a, b) => a.start.localeCompare(b.start) || a.id - b.id
@@ -57,6 +62,8 @@ const byStartThenId = (a, b) => a.start.localeCompare(b.start) || a.id - b.id
 // SCRUM-75: an inline form for Venue Staff to update the venue's details.
 // SCRUM-79: for Venue Staff, Remove on a block that has not started and End
 // early, an inline form for a new end, on a block in progress.
+// SCRUM-80: setup time and turnaround time shown for every authorised user,
+// and for Venue Staff an inline form to record or change them.
 export default function VenueDetailPage() {
   const { id } = useParams()
   const routerLocation = useLocation()
@@ -69,9 +76,9 @@ export default function VenueDetailPage() {
   // The success banner shows on the page the user lands on after saving
   // (docs/design/ui-guidelines.md §4), and after blocking or updating the venue here.
   const [success, setSuccess] = useState(routerLocation.state?.banner ?? null)
-  // The inline form that is open: 'update', 'block', 'end' (End early on the
-  // block endingId) or null. One value, so opening any one of the three closes
-  // the other two (ui-guidelines.md §7).
+  // The inline form that is open: 'update', 'times' (SCRUM-80), 'block',
+  // 'end' (End early on the block endingId) or null. One value, so opening
+  // any one of them closes the others (ui-guidelines.md §7).
   const [openForm, setOpenForm] = useState(null)
   const [blockValues, setBlockValues] = useState(EMPTY_BLOCK)
   const [blockErrors, setBlockErrors] = useState({})
@@ -91,6 +98,9 @@ export default function VenueDetailPage() {
   const [endingId, setEndingId] = useState(null)
   const [endValues, setEndValues] = useState(EMPTY_END)
   const [endErrors, setEndErrors] = useState({})
+  // SCRUM-80: two whole-minute durations, not clock times. Either may be
+  // cleared while editing; the API records a blank as 0 (ui-guidelines.md §5).
+  const [timesValues, setTimesValues] = useState({ setup_time: 0, turnaround_time: 0 })
   const [submitting, setSubmitting] = useState(false)
 
   const canBlock = can('venues.edit')
@@ -230,6 +240,48 @@ export default function VenueDetailPage() {
       setRow(updated)
       setOpenForm(null)
       setSuccess('Layouts updated')
+    } catch (error) {
+      setBanner(error.message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  // SCRUM-80: setup time and turnaround time are durations in whole minutes.
+  // The fields are pre-filled with the recorded values, so an unrecorded venue
+  // opens with 0; clearing a field sends a blank, which the API records as 0.
+  const openTimes = () => {
+    setOpenForm('times')
+    setTimesValues({
+      setup_time: row.setup_time,
+      turnaround_time: row.turnaround_time,
+    })
+    setBanner(null)
+    setSuccess(null)
+  }
+
+  const closeTimes = () => {
+    setOpenForm(null)
+  }
+
+  // The page sends exactly what was typed; every rule and every refusal,
+  // including which field is invalid, belongs to the API and shows in the
+  // banner (ui-guidelines.md §5). On a refusal the form stays open with the
+  // typed values, and the stored times are untouched because the API
+  // validates both before writing either.
+  const handleTimes = async (event) => {
+    event.preventDefault()
+    setBanner(null)
+    setSuccess(null)
+    setSubmitting(true)
+    try {
+      const updated = await updateVenueTimes(id, {
+        setup_time: timesValues.setup_time,
+        turnaround_time: timesValues.turnaround_time,
+      })
+      setRow(updated)
+      setOpenForm(null)
+      setSuccess('Times updated')
     } catch (error) {
       setBanner(error.message)
     } finally {
@@ -387,6 +439,15 @@ export default function VenueDetailPage() {
                 <dt>Supported layouts</dt>
                 <dd data-testid="venue-detail-layouts-value">{list(row.layouts)}</dd>
               </div>
+              {/* SCRUM-80: durations in whole minutes; an unrecorded venue reads 0. */}
+              <div>
+                <dt>Setup time</dt>
+                <dd data-testid="venue-detail-setup-time">{minutes(row.setup_time)}</dd>
+              </div>
+              <div>
+                <dt>Turnaround time</dt>
+                <dd data-testid="venue-detail-turnaround-time">{minutes(row.turnaround_time)}</dd>
+              </div>
             </dl>
           </div>
 
@@ -464,6 +525,15 @@ export default function VenueDetailPage() {
               <button
                 type="button"
                 disabled={submitting}
+                onClick={openTimes}
+                className="btn btn-secondary"
+                data-testid="venue-detail-times-button"
+              >
+                Edit times
+              </button>
+              <button
+                type="button"
+                disabled={submitting}
                 onClick={openBlock}
                 className="btn btn-primary"
                 data-testid="venue-detail-block-button"
@@ -471,6 +541,71 @@ export default function VenueDetailPage() {
                 Block venue
               </button>
             </div>
+          )}
+
+          {openForm === 'times' && (
+            <form onSubmit={handleTimes} noValidate className="card form-card space-y-4">
+              <h2 className="section-title">Edit times</h2>
+              <p className="subtitle">Setup time and turnaround time are durations in whole minutes.</p>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label htmlFor="venue-detail-times-setup-time" className="label">
+                    Setup time (minutes)
+                  </label>
+                  <input
+                    id="venue-detail-times-setup-time"
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={timesValues.setup_time}
+                    onChange={(event) =>
+                      setTimesValues((current) => ({ ...current, setup_time: event.target.value }))
+                    }
+                    className="input"
+                    data-testid="venue-detail-times-setup-time-input"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="venue-detail-times-turnaround-time" className="label">
+                    Turnaround time (minutes)
+                  </label>
+                  <input
+                    id="venue-detail-times-turnaround-time"
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={timesValues.turnaround_time}
+                    onChange={(event) =>
+                      setTimesValues((current) => ({ ...current, turnaround_time: event.target.value }))
+                    }
+                    className="input"
+                    data-testid="venue-detail-times-turnaround-time-input"
+                  />
+                </div>
+              </div>
+              <p className="subtitle" data-testid="venue-detail-times-hint">
+                Leave blank for 0 minutes.
+              </p>
+              <div className="flex flex-wrap justify-end gap-2">
+                <button
+                  type="button"
+                  disabled={submitting}
+                  onClick={closeTimes}
+                  className="btn btn-secondary"
+                  data-testid="venue-detail-times-cancel-button"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="btn btn-primary"
+                  data-testid="venue-detail-times-save-button"
+                >
+                  Save
+                </button>
+              </div>
+            </form>
           )}
 
           {openForm === 'update' && (

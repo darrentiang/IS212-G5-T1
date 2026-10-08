@@ -139,6 +139,8 @@ def seed_database(db, data_path=DEFAULT_DATA_PATH):
                     max_capacity=entry["max_capacity"],
                     opening_time=parse_time(entry.get("opening_time")),
                     closing_time=parse_time(entry.get("closing_time")),
+                    setup_time=entry.get("setup_time", 0),
+                    turnaround_time=entry.get("turnaround_time", 0),
                     facilities=[facilities[name] for name in entry.get("facilities", [])],
                     accessibility_features=[
                         accessibility_features[name]

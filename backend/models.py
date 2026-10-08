@@ -17,8 +17,9 @@ from db import db
 # SCRUM-28 added event request columns; SCRUM-31 added venues and the two
 # fixed lists they choose from. SCRUM-29 added the approve/reject decision.
 # SCRUM-40 added venue blocks. SCRUM-36 added venue booking requests and
-# Venue.is_active and SCRUM-32 added room layouts.
-SCHEMA_VERSION = 8
+# Venue.is_active and SCRUM-32 added room layouts. SCRUM-80 added setup_time
+# and turnaround_time to Venue.
+SCHEMA_VERSION = 9
 
 
 account_roles = db.Table(
@@ -225,7 +226,8 @@ class Venue(db.Model):
 
     Name, location and maximum capacity are required; the operating hours and
     the two lists and supported room layouts are optional. Editing is SCRUM-75;
-    retiring is SCRUM-76 and layout assignments are SCRUM-32.
+    retiring is SCRUM-76 and layout assignments are SCRUM-32. SCRUM-80 adds
+    setup_time and turnaround_time in whole minutes, defaulting to 0.
     """
 
     __tablename__ = "venues"
@@ -236,6 +238,8 @@ class Venue(db.Model):
     max_capacity = db.Column(db.Integer, nullable=False)
     opening_time = db.Column(db.Time, nullable=True)
     closing_time = db.Column(db.Time, nullable=True)
+    setup_time = db.Column(db.Integer, nullable=False, default=0)
+    turnaround_time = db.Column(db.Integer, nullable=False, default=0)
     is_active = db.Column(db.Boolean, nullable=False, default=True)
 
     facilities = db.relationship("Facility", secondary=venue_facilities, backref="venues")
