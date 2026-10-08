@@ -31,6 +31,14 @@ export const submitRequest = (data) => request('POST', '/api/requests', data)
 // 400/403/404: { message }
 export const submitDraft = (id) => request('POST', `/api/requests/${id}/submit`)
 
+// POST /api/requests/:id/resubmit   (SCRUM-72)
+// body:    any subset of { name, purpose, description, date, start_time, end_time, attendance,
+//            equipment_requirements, registration_needs, layout, facilities, accessibility_features }
+// 200:     the request, now Submitted, with the new submitted_at and the earlier decision,
+//          decision_reason, decided_at and decided_by still present
+// 400/403/404: { message }   400 when the request is not Rejected or a submit rule is broken
+export const resubmitRequest = (id, data) => request('POST', `/api/requests/${id}/resubmit`, data)
+
 // POST /api/requests/:id/approve   (SCRUM-29)
 // body:    { reason }   optional
 // 200:     the request, now Approved, with decision, decision_reason, decided_at, decided_by

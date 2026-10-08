@@ -6,6 +6,7 @@ SCRUM-29: approve or reject a Submitted request.
 SCRUM-30: save, edit and delete a Draft.
 SCRUM-42: the fixed lists a request's required layout, facilities and
 accessibility features are chosen from.
+SCRUM-72: revise and resubmit a Rejected request.
 """
 
 from flask import Blueprint, g, jsonify, request as flask_request
@@ -76,6 +77,16 @@ def reject_request(request_id):
     data = flask_request.get_json(silent=True) or {}
     updated = services.reject_request(account, request_id, data)
     return jsonify(services.request_detail_dict(updated, account)), 200
+@bp.post("/requests/<int:request_id>/resubmit")
+@require(REQUESTS_EDIT)
+def resubmit_request(request_id):
+    """SCRUM-72: Rejected -> Submitted, with any edited fields."""
+    account = g.account
+    data = flask_request.get_json(silent=True) or {}
+    updated = services.resubmit_request(account, request_id, data)
+    return jsonify(services.request_detail_dict(updated, account)), 200
+
+
 @bp.post("/requests/draft")
 @require(REQUESTS_EDIT)
 def save_draft_request():

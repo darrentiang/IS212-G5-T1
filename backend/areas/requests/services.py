@@ -3,6 +3,7 @@
 and delete a Draft).
 SCRUM-42: the optional required layout, facilities and accessibility features,
 which replace the free-text venue requirements and accessibility needs.
+SCRUM-72: revise and resubmit a Rejected request.
 
 Object rules from permissions.md / ADR-002 live here next to the query.
 """
@@ -353,6 +354,40 @@ def reject_request(account, request_id, data):
     if not reason:
         raise ApiRefusal(400, "A reason is required to reject.")
     return _record_decision(event_request, account, "Rejected", reason)
+
+def resubmit_request(account, request_id, data):
+    """Rejected -> Submitted (state-model.md: 'Revise and resubmit').
+
+    AC1: the creating Organiser may change any field, the SCRUM-42 choices
+    included. AC2: the same rules as submitting, and a refusal leaves the
+    request exactly as it was, Rejected. AC3: status Submitted and a new
+    submission date and time. AC4: the earlier decision, reason, date and
+    decider are left in place until the request is decided again
+    (_record_decision overwrites them; D-17 keeps no history). AC5: only a
+    Rejected request, and only its creator; a request that is not the
+    account's own answers 404, like every other write (permissions.md).
+    """
+    _require_organiser(account)
+    event_request = _get_own_request(account, request_id)
+
+    if event_request.status != "Rejected":
+        raise ApiRefusal(400, "Only a Rejected request can be resubmitted.")
+
+    try:
+        choices = _resolve_choices(data)
+        _apply_fields(event_request, data)
+        _apply_choices(event_request, choices)
+        _refuse_if_incomplete(event_request)
+        _refuse_if_business_rules_violated(event_request)
+    except ApiRefusal:
+        db.session.rollback()
+        raise
+
+    event_request.status = "Submitted"
+    event_request.submitted_at = datetime.now(timezone.utc)
+    db.session.commit()
+    return event_request
+
 
 def update_draft(account, request_id, data):
     """Edit any field of an own Draft, including the name (AC3)."""
