@@ -1,14 +1,18 @@
-"""Venue booking request rules — SCRUM-36 (Request Venue Booking) and
-SCRUM-42 (Warn When a Requested Venue Appears Unsuitable).
+"""Venue booking request rules — SCRUM-36 (Request Venue Booking), SCRUM-37
+(Approve or Reject a Venue Booking Request) and SCRUM-42 (Warn When a
+Requested Venue Appears Unsuitable).
 
 Every rule the acceptance criteria state lives here, next to the query, and
-refuses by raising ApiRefusal; the route never decides (ADR-002). Approving,
-rejecting and withdrawing are later stories, so nothing here changes a
-booking request once it is Requested.
+refuses by raising ApiRefusal; the route never decides (ADR-002). Withdrawing
+is a later story, so nothing here supports it yet.
 
-AC8's "assigned coordinator" is not enforced: no story has built coordinator
-assignment yet (docs/design/permissions.md, the bookings.edit Rule). Any
-Event Coordinator may raise for any Approved or Planning event.
+AC8 of SCRUM-36 ("assigned coordinator") is not enforced: no story has built
+coordinator assignment yet (docs/design/permissions.md, the bookings.edit
+Rule). Any Event Coordinator may raise for any Approved or Planning event.
+
+state-model.md no longer qualifies Approve with "(conflict check passes)":
+no story (this one included) has ever defined what a conflict is, so SCRUM-37
+approves unconditionally while the request is Requested.
 """
 
 from datetime import datetime, timezone
@@ -105,8 +109,72 @@ def list_bookings_for_venue(venue_id):
     )
 
 
+def _get_booking(venue_id, booking_id):
+    """One booking request of the venue, or refuse 404 for an unknown venue or booking.
+
+    A booking that belongs to another venue is not found either: the address
+    names both, and they must agree (the same rule as a venue's block).
+    """
+    venue = _get_venue(venue_id)
+    booking = db.session.get(VenueBookingRequest, booking_id)
+    if booking is None or booking.venue_id != venue.id:
+        raise ApiRefusal(404, "Booking request not found.")
+    return booking
+
+
+def _optional_reason(data):
+    raw = (data or {}).get("reason")
+    if raw is None:
+        return None
+    trimmed = str(raw).strip()
+    return trimmed or None
+
+
+def _already_decided_message(booking):
+    return f"This booking request has already been decided ({booking.status})."
+
+
+def _get_decidable_booking(venue_id, booking_id):
+    """A Requested booking of the venue the Venue Staff may decide, else refuse (AC7).
+
+    An already-decided or withdrawn booking is refused with its current
+    status, nothing changed. The route's require(BOOKINGS_DECIDE) has already
+    refused anyone who is not Venue Staff (AC6).
+    """
+    booking = _get_booking(venue_id, booking_id)
+    if booking.status != AWAITING_DECISION:
+        raise ApiRefusal(409, _already_decided_message(booking))
+    return booking
+
+
+def _record_decision(booking, account, decision, reason):
+    booking.status = decision
+    booking.decision = decision
+    booking.decision_reason = reason
+    booking.decided_at = datetime.now(timezone.utc)
+    booking.decided_by_id = account.id
+    db.session.commit()
+    return booking
+
+
+def approve_booking(venue_id, booking_id, account, data):
+    """Requested -> Approved (state-model.md). Reason is optional (AC2, AC4, AC9, AC10)."""
+    booking = _get_decidable_booking(venue_id, booking_id)
+    return _record_decision(booking, account, "Approved", _optional_reason(data))
+
+
+def reject_booking(venue_id, booking_id, account, data):
+    """Requested -> Rejected (state-model.md). Reason is required (AC3, AC4, AC8, AC9, AC10)."""
+    booking = _get_decidable_booking(venue_id, booking_id)
+    reason = _optional_reason(data)
+    if not reason:
+        raise ApiRefusal(400, "A reason is required to reject.")
+    return _record_decision(booking, account, "Rejected", reason)
+
+
 def booking_to_dict(booking):
-    """Public JSON for a booking request: the event it is for and its own fields."""
+    """Public JSON for a booking request: the event it is for, its own fields,
+    and its decision once made (SCRUM-37 AC4, AC5)."""
     return {
         "id": booking.id,
         "venue_id": booking.venue_id,
@@ -123,6 +191,10 @@ def booking_to_dict(booking):
         "facilities": [row.name for row in booking.event_request.facilities],
         "raised_by": booking.raised_by.username,
         "raised_at": booking.raised_at.isoformat(),
+        "decision": booking.decision,
+        "decision_reason": booking.decision_reason,
+        "decided_at": booking.decided_at.isoformat() if booking.decided_at else None,
+        "decided_by": booking.decided_by.username if booking.decided_by else None,
     }
 
 

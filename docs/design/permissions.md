@@ -50,6 +50,7 @@ Keys used in `backend/permissions.py` and on API routes / `features` from `/api/
 | internal_notes.view | No | Yes | No | No | No |
 | notifications.view | Yes | Yes | Yes | Yes | Yes |
 | bookings.edit | No | Yes | No | No | No |
+| bookings.decide | No | No | Yes | No | No |
 
 | Version | Date | Change | Reason |
 |---|---|---|---|
@@ -63,3 +64,4 @@ Keys used in `backend/permissions.py` and on API routes / `features` from `/api/
 | 1.7 | 07-10-2026 | `bookings.edit` for Event Coordinators; "Raise or withdraw a venue booking request" row marked \* (unenforced "assigned coordinator"), with a Rule explaining why | SCRUM-36: raising a booking needs a key of its own, and is the first story to hit the fact that coordinator assignment itself does not exist yet |
 | 1.8 | 08-10-2026 | `venues.search` for Event Coordinators; "Search venues" row | SCRUM-33: searching venues for an event needs a key of its own; `venues.view` is also held by Venue Staff, who cannot open event requests and so have no event to search for |
 | 1.9 | 08-10-2026 | Venue-suitability warnings row, under `bookings.edit`, marked \* like raising; no new feature key. The fixed lists an event request's requirements are chosen from (`GET /api/request-options`) sit under `requests.edit`, covered by the existing create/edit row | SCRUM-42: the check is part of raising a venue booking request; Event Organisers choose requirements but do not hold `venues.view` |
+| 1.10 | 08-10-2026 | `bookings.decide` for Venue Staff | SCRUM-37: approving or rejecting a venue booking request needs a key of its own; the "Approve or reject a venue booking" row already named Venue Staff only |

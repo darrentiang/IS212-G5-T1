@@ -6,7 +6,8 @@ venues with their facilities, accessibility features and layouts. SCRUM-40: venu
 blocks. SCRUM-36: venue booking requests, and a venue's is_active flag
 (retiring one is SCRUM-76; this story only needed somewhere to check).
 SCRUM-42: an event request's required layout, facilities and accessibility
-features, chosen from the same fixed lists as a venue's.
+features, chosen from the same fixed lists as a venue's. SCRUM-37: a venue
+booking request's approve/reject decision.
 No permission logic here — see backend/permissions.py.
 """
 
@@ -24,8 +25,10 @@ from db import db
 # the free-text venue_requirements and accessibility_needs they replace.
 # SCRUM-80 added setup_time and turnaround_time to Venue. SCRUM-42 and SCRUM-80
 # each raised the version to 9 on their own branch; the merged schema differs
-# from both, so it is 10.
-SCHEMA_VERSION = 10
+# from both, so it is 10. SCRUM-37 added a venue booking request's own
+# approve/reject decision (decision, decision_reason, decided_at,
+# decided_by), so 11.
+SCHEMA_VERSION = 11
 
 
 account_roles = db.Table(
@@ -325,7 +328,8 @@ class VenueBlock(db.Model):
 
 
 class VenueBookingRequest(db.Model):
-    """An Event Coordinator's request to book a venue for an event (SCRUM-36).
+    """An Event Coordinator's request to book a venue for an event (SCRUM-36),
+    which Venue Staff approve or reject (SCRUM-37).
 
     date, start_time, end_time and attendance are copied from the event
     request at the moment of raising (AC3): a later change to the event does
@@ -334,9 +338,10 @@ class VenueBookingRequest(db.Model):
     event_request, not copied, because today they can change only while the
     event is a Draft (SCRUM-30) and a booking needs an Approved or Planning
     event. A future story that lets an event be edited during Planning must
-    decide whether a booking request keeps a snapshot of them. raised_at is UTC, the same
-    convention as an event request's submitted_at. Deciding (approve/reject)
-    and withdrawing are later stories; nothing here supports them yet.
+    decide whether a booking request keeps a snapshot of them. raised_at and
+    decided_at are UTC, the same convention as an event request's
+    submitted_at/decided_at. Withdrawing is a later story; nothing here
+    supports it yet.
     """
 
     __tablename__ = "venue_booking_requests"
@@ -356,9 +361,15 @@ class VenueBookingRequest(db.Model):
     raised_by_id = db.Column(db.Integer, db.ForeignKey("accounts.id"), nullable=False)
     raised_at = db.Column(db.DateTime, nullable=False)
 
+    decision = db.Column(db.String(32), nullable=True)
+    decision_reason = db.Column(db.Text, nullable=True)
+    decided_at = db.Column(db.DateTime, nullable=True)
+    decided_by_id = db.Column(db.Integer, db.ForeignKey("accounts.id"), nullable=True)
+
     venue = db.relationship("Venue", backref="booking_requests")
     event_request = db.relationship("EventRequest", backref="booking_requests")
-    raised_by = db.relationship("Account")
+    raised_by = db.relationship("Account", foreign_keys=[raised_by_id])
+    decided_by = db.relationship("Account", foreign_keys=[decided_by_id])
 
     def __repr__(self):
         return f"<VenueBookingRequest {self.id} venue {self.venue_id} event {self.event_request_id} {self.status}>"

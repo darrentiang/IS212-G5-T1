@@ -82,11 +82,27 @@ export const searchVenues = (eventRequestId, location, accessibilityFeatures = [
   return request('GET', `/api/venues/search?${params}`)
 }
 
-// GET /api/venues/:id/bookings   (SCRUM-36)
+// GET /api/venues/:id/bookings   (SCRUM-36, SCRUM-37)
 // 200:     [ { id, venue_id, event_request_id, event_request_name, status,
 //              date, start_time, end_time, attendance, layout, facilities,
-//              raised_by, raised_at } ]
+//              raised_by, raised_at, decision, decision_reason, decided_at, decided_by } ]
 //          layout: name | null; facilities: [name]: the event's venue
 //          requirements (SCRUM-42)
+//          decision, decided_at, decided_by: null until decided; decision_reason:
+//          null unless one was given (SCRUM-37)
 // 403/404: { message }
 export const listVenueBookings = (id) => request('GET', `/api/venues/${id}/bookings`)
+
+// POST /api/venues/:id/bookings/:booking_id/approve   (SCRUM-37)
+// body:    { reason }   optional
+// 200:     the booking, now Approved
+// 403/404/409: { message }   409 when the booking is not Requested or already decided
+export const approveBooking = (id, bookingId, reason) =>
+  request('POST', `/api/venues/${id}/bookings/${bookingId}/approve`, { reason })
+
+// POST /api/venues/:id/bookings/:booking_id/reject   (SCRUM-37)
+// body:    { reason }   required
+// 200:     the booking, now Rejected
+// 400/403/404/409: { message }   400 when the reason is empty
+export const rejectBooking = (id, bookingId, reason) =>
+  request('POST', `/api/venues/${id}/bookings/${bookingId}/reject`, { reason })
