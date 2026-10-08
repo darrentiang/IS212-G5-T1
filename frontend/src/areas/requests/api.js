@@ -7,7 +7,7 @@ import { request } from '../../app/http'
 //              equipment_requirements, registration_needs,
 //              layout, facilities, accessibility_features } ]
 //          layout: name | null; facilities, accessibility_features: [name] (SCRUM-42);
-//          they replace the free-text venue_requirements and accessibility_needs
+//          they replace the brief's free-text venue requirements and accessibility needs
 // 403:     { message }
 export const listRequests = () => request('GET', '/api/requests')
 

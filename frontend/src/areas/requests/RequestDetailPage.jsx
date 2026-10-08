@@ -25,6 +25,8 @@ import {
 // shown as on the venue page ("None" when empty), and chosen in the Draft edit
 // form. They replace the brief's free-text venue requirements and
 // accessibility needs, so they sit where those were, under the brief's two headings.
+// SCRUM-33: for the same two statuses, an Event Coordinator may also search the
+// venues free for the event; that page belongs to the venues area.
 
 // Same order and labels as RequestNewPage's form (ui-guidelines.md §7): FIELDS
 // come before the Venue requirements and Accessibility needs groups,
@@ -193,6 +195,10 @@ const openDecision = (action) => {
   const canDecide = Boolean(can?.('requests.decide')) && row?.status === STATUS.REQUEST.SUBMITTED
   const canRaiseBooking =
     Boolean(can?.('bookings.edit')) &&
+    [STATUS.REQUEST.APPROVED, STATUS.REQUEST.PLANNING].includes(row?.status)
+  // SCRUM-33: venue search is offered for the same two statuses.
+  const canSearchVenues =
+    Boolean(can?.('venues.search')) &&
     [STATUS.REQUEST.APPROVED, STATUS.REQUEST.PLANNING].includes(row?.status)
 
   // The lists are needed only to edit, so they load when Edit is opened.
@@ -445,16 +451,28 @@ const openDecision = (action) => {
             </div>
           )}
 
-          {/* SCRUM-36: an Approved or Planning event may have a venue booking requested. */}
-          {canRaiseBooking && (
-            <div className="flex justify-end">
-              <Link
-                to={`/requests/${id}/bookings/new`}
-                className="btn btn-primary"
-                data-testid="request-detail-raise-booking-button"
-              >
-                Request venue booking
-              </Link>
+          {/* SCRUM-36: an Approved or Planning event may have a venue booking requested.
+              SCRUM-33: and the venues free for it searched. */}
+          {(canSearchVenues || canRaiseBooking) && (
+            <div className="flex flex-wrap justify-end gap-2">
+              {canSearchVenues && (
+                <Link
+                  to={`/requests/${id}/venues/search`}
+                  className="btn btn-secondary"
+                  data-testid="request-detail-search-venues-button"
+                >
+                  Search venues
+                </Link>
+              )}
+              {canRaiseBooking && (
+                <Link
+                  to={`/requests/${id}/bookings/new`}
+                  className="btn btn-primary"
+                  data-testid="request-detail-raise-booking-button"
+                >
+                  Request venue booking
+                </Link>
+              )}
             </div>
           )}
         </div>

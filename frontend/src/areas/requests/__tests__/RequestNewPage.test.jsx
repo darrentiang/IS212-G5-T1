@@ -103,7 +103,9 @@ describe('RequestNewPage', () => {
     await waitFor(() => {
       expect(screen.getByTestId('request-detail-banner')).toHaveTextContent('Request submitted')
     })
-    expect(screen.getByTestId('request-detail-status')).toHaveTextContent('Submitted')
+    // The banner comes from the navigation state and can show before the
+    // request has loaded; the status shows only once it has.
+    expect(await screen.findByTestId('request-detail-status')).toHaveTextContent('Submitted')
   })
 
   // @story: SCRUM-28

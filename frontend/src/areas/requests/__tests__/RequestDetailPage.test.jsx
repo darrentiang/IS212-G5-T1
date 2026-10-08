@@ -911,4 +911,75 @@ describe('RequestDetailPage', () => {
     expect(await screen.findByTestId('request-detail-banner')).toHaveTextContent('Something went wrong')
     expect(screen.queryByTestId('request-detail-edit-form')).not.toBeInTheDocument()
   })
+
+  // @story: SCRUM-33
+  // @ac: 1
+  it.each(['Approved', 'Planning'])(
+    'offers Search venues on an %s event to an Event Coordinator',
+    async (status) => {
+      signInWith(['venues.search'])
+      api.getRequest.mockResolvedValue({
+        id: 1,
+        name: 'Tech Fair 2026',
+        status,
+        created_by: 'org1',
+        registration_enabled: false,
+        ...NO_CHOICES,
+      })
+
+      renderDetail()
+
+      await waitFor(() => {
+        expect(screen.getByTestId('request-detail-search-venues-button')).toHaveAttribute(
+          'href',
+          '/requests/1/venues/search',
+        )
+      })
+    },
+  )
+
+  // @story: SCRUM-33
+  // @ac: 1
+  it.each([
+    STATUS.REQUEST.DRAFT,
+    STATUS.REQUEST.SUBMITTED,
+    STATUS.REQUEST.REJECTED,
+    STATUS.REQUEST.CONFIRMED,
+    STATUS.REQUEST.COMPLETED,
+    STATUS.REQUEST.CANCELLED,
+  ])('hides Search venues on a %s event', async (status) => {
+    signInWith(['venues.search'])
+    api.getRequest.mockResolvedValue({
+      id: 1,
+      name: 'Tech Fair 2026',
+      status,
+      created_by: 'org1',
+      registration_enabled: false,
+      ...NO_CHOICES,
+    })
+
+    renderDetail()
+
+    await waitFor(() => screen.getByTestId('request-detail-name'))
+    expect(screen.queryByTestId('request-detail-search-venues-button')).not.toBeInTheDocument()
+  })
+
+  // @story: SCRUM-33
+  // @ac: 1
+  it('hides Search venues without venues.search', async () => {
+    signInWith(['bookings.edit'])
+    api.getRequest.mockResolvedValue({
+      id: 1,
+      name: 'Tech Fair 2026',
+      status: 'Approved',
+      created_by: 'org1',
+      registration_enabled: false,
+      ...NO_CHOICES,
+    })
+
+    renderDetail()
+
+    await waitFor(() => screen.getByTestId('request-detail-raise-booking-button'))
+    expect(screen.queryByTestId('request-detail-search-venues-button')).not.toBeInTheDocument()
+  })
 })

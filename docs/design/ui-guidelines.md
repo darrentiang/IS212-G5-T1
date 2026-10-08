@@ -14,7 +14,8 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | 1.7 | 06-10-2026 | §7 the venue page's per-block Remove and End early buttons and the inline end-block form's test ids; one inline form open at a time across Update venue, Block venue and End early | SCRUM-79 lets Venue Staff remove a block that has not started or end one in progress early |
 | 1.8 | 07-10-2026 | §7 venue supported-layout display and selection test ids | SCRUM-32 records the layouts a venue supports |
 | 1.8 | 07-10-2026 | §1 `/requests/:id/bookings/new`; §7 the request page's Request venue booking button and the venue page's Booking requests section; §12 Requested and Withdrawn added to the status-colour table | SCRUM-36 lets an Event Coordinator raise a venue booking request from an event, and lists the venue's booking requests on its page the same way as Blocks |
-| 1.9 | 08-10-2026 | §5 an optional single choice is a select whose first option is None; §7 the request's required layout, facilities and accessibility features on the new-request page, the request page and the Draft edit form, grouped under the headings Venue requirements and Accessibility needs in place of the free-text fields of those names (`request-new-venue-requirements-input`, `request-new-accessibility-needs-input`, their `request-detail-edit-…` inputs and `request-detail-venue-requirements`, `request-detail-accessibility-needs` are removed); the booking-new page's venue-suitability warnings | SCRUM-42 lets an Event Organiser choose an event's requirements from the venue lists, and warns an Event Coordinator when a chosen venue does not match them; the PO decided the choices replace the brief's free-text venue requirements and accessibility needs, which are what the Venue Catalogue records as layouts and facilities, and as accessibility features |
+| 1.9 | 08-10-2026 | §1 `/requests/:id/venues/search`; §7 the request page's Search venues button and the venue-search page | SCRUM-33 lets an Event Coordinator find venues that are free on an event's dates and large enough for its attendance |
+| 1.10 | 08-10-2026 | §5 an optional single choice is a select whose first option is None; §7 the request's required layout, facilities and accessibility features on the new-request page, the request page and the Draft edit form, grouped under the headings Venue requirements and Accessibility needs in place of the free-text fields of those names (`request-new-venue-requirements-input`, `request-new-accessibility-needs-input`, their `request-detail-edit-…` inputs and `request-detail-venue-requirements`, `request-detail-accessibility-needs` are removed); the booking-new page's venue-suitability warnings | SCRUM-42 lets an Event Organiser choose an event's requirements from the venue lists, and warns an Event Coordinator when a chosen venue does not match them; the PO decided the choices replace the brief's free-text venue requirements and accessibility needs, which are what the Venue Catalogue records as layouts and facilities, and as accessibility features |
 
 ## 1. Pages
 
@@ -28,6 +29,7 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | `/venues/new` | `venue-new` | Feature per `permissions.md` |
 | `/venues/:id` | `venue-detail` | Feature per `permissions.md` |
 | `/requests/:id/bookings/new` | `booking-new` | Feature per `permissions.md` |
+| `/requests/:id/venues/search` | `venue-search` | Feature per `permissions.md` |
 | — (shown in place of a refused page) | `not-permitted` | Anyone whose account lacks the page's feature |
 
 - Not logged in → any page sends the user to `/login`.
@@ -212,6 +214,30 @@ The booking-new page (`booking-new`): a venue picker (`select`, the active venue
 | Missing layout | `booking-new-warning-layout-<kebab-option>` | The venue does not record the Theatre layout. |
 | Missing facility | `booking-new-warning-facility-<kebab-option>` | The venue does not record the facility Sound system. |
 | Missing accessibility feature | `booking-new-warning-accessibility-feature-<kebab-option>` | The venue does not record the accessibility feature Hearing loop. |
+
+**Venue search** (SCRUM-33). On the request page, an Event Coordinator sees a Search venues button when the event's status is Approved or Planning, next to Request venue booking; it links to `/requests/:id/venues/search`. For any other status the button is not shown.
+
+| Element | `data-testid` |
+|---|---|
+| Search venues button (only with `venues.search`, status Approved or Planning) | `request-detail-search-venues-button` |
+
+The venue-search page (`venue-search`) shows the event's own values, an optional location filter and the venues that fit. The filter is a text input and an Apply button, not a form that leaves the page: Apply searches again with the typed location, and an empty input applies no location restriction. A venue's location must match the typed text exactly. The results are a table per §6 whose first cell links to the venue's page; no results is one sentence instead of the table, never an error.
+
+| Element | `data-testid` |
+|---|---|
+| Back link | `venue-search-back-link` |
+| Title | `venue-search-title` |
+| Banner | `venue-search-banner` |
+| Event name | `venue-search-event-name` |
+| Event date and times | `venue-search-period` |
+| Expected attendance | `venue-search-attendance` |
+| Location input | `venue-search-location-input` |
+| Apply button | `venue-search-apply-button` |
+| Result row | `venue-search-row-<id>` |
+| Venue name (link) | `venue-search-name-<id>` |
+| Venue location | `venue-search-location-<id>` |
+| Venue maximum capacity | `venue-search-capacity-<id>` |
+| No results | `venue-search-empty` |
 
 ## 8. Not-permitted page
 
