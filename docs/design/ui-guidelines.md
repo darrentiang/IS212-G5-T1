@@ -18,6 +18,7 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | 1.10 | 08-10-2026 | §7 the venue-search page's accessibility feature checkboxes, with the one shared Apply | SCRUM-34 narrows the SCRUM-33 search by accessibility features |
 | 1.10 | 08-10-2026 | §5 an optional single choice is a select whose first option is None; §7 the request's required layout, facilities and accessibility features on the new-request page, the request page and the Draft edit form, grouped under the headings Venue requirements and Accessibility needs in place of the free-text fields of those names (`request-new-venue-requirements-input`, `request-new-accessibility-needs-input`, their `request-detail-edit-…` inputs and `request-detail-venue-requirements`, `request-detail-accessibility-needs` are removed); the booking-new page's venue-suitability warnings | SCRUM-42 lets an Event Organiser choose an event's requirements from the venue lists, and warns an Event Coordinator when a chosen venue does not match them; the PO decided the choices replace the brief's free-text venue requirements and accessibility needs, which are what the Venue Catalogue records as layouts and facilities, and as accessibility features |
 | 1.11 | 08-10-2026 | §7 the venue page's setup-time and turnaround-time display and the inline Edit times form test ids; one inline form open at a time across Update venue, Edit times, Block venue and End early | SCRUM-80 lets Venue Staff record how long a venue needs before and after an event |
+| 1.12 | 09-10-2026 | §7 the venue-search page's Room layout select and Facilities checkboxes, with the same one Apply | SCRUM-35 narrows the SCRUM-33 search by room layout and facilities |
 
 ## 1. Pages
 
@@ -234,7 +235,7 @@ The booking-new page (`booking-new`): a venue picker (`select`, the active venue
 |---|---|
 | Search venues button (only with `venues.search`, status Approved or Planning) | `request-detail-search-venues-button` |
 
-The venue-search page (`venue-search`) shows the event's own values, an optional location filter and the venues that fit. The filters are a text input for the location, a group of checkboxes for accessibility features (SCRUM-34) and one Apply button, not a form that leaves the page: Apply searches again with the typed location and the ticked features together. An empty location input applies no location restriction, and no feature ticked applies no accessibility restriction; nothing is ticked when the page opens, and the event's own accessibility needs never tick a box. A venue's location must match the typed text exactly, and a venue is shown only if it records every feature ticked. Clearing the accessibility filter is unticking every box and pressing Apply; the location and the event's own criteria still apply. The results are a table per §6 whose first cell links to the venue's page; no results is one sentence instead of the table, never an error.
+The venue-search page (`venue-search`) shows the event's own values, an optional location filter and the venues that fit. The filters are a text input for the location, a "Room layout" select (None, then the layouts; SCRUM-35), a group of checkboxes for facilities (SCRUM-35), a group of checkboxes for accessibility features (SCRUM-34) and one Apply button, not a form that leaves the page: Apply searches again with everything typed, chosen and ticked together. An empty location input applies no location restriction, the layout on None applies no layout restriction, and no facility or accessibility feature ticked applies no restriction for that list; nothing is chosen or ticked when the page opens, and the event's own required layout, facilities and accessibility needs never choose or tick anything. A venue's location must match the typed text exactly; a venue is shown only if it records the chosen layout as supported (a venue with no layouts recorded does not) and records every facility and every accessibility feature ticked. Clearing a filter is setting the layout back to None or unticking every box of one group and pressing Apply; only that restriction goes, and the other filters and the event's own criteria still apply. The results are a table per §6 whose first cell links to the venue's page; no results is one sentence instead of the table, never an error.
 
 | Element | `data-testid` |
 |---|---|
@@ -245,8 +246,10 @@ The venue-search page (`venue-search`) shows the event's own values, an optional
 | Event date and times | `venue-search-period` |
 | Expected attendance | `venue-search-attendance` |
 | Location input | `venue-search-location-input` |
+| Room layout select (None first) | `venue-search-layout-input` |
+| Facility checkbox | `venue-search-facilities-<kebab-option>-input` (e.g. `venue-search-facilities-wi-fi-input`) |
 | Accessibility feature checkbox | `venue-search-accessibility-features-<kebab-option>-input` (e.g. `venue-search-accessibility-features-hearing-loop-input`) |
-| Apply button (location and features together) | `venue-search-apply-button` |
+| Apply button (every filter together) | `venue-search-apply-button` |
 | Result row | `venue-search-row-<id>` |
 | Venue name (link) | `venue-search-name-<id>` |
 | Venue location | `venue-search-location-<id>` |

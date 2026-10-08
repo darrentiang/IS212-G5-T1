@@ -7,6 +7,9 @@ import { getVenueOptions, searchVenues } from './api'
 // (docs/design/ui-guidelines.md §5).
 const kebab = (value) => value.toLowerCase().replaceAll(' ', '-')
 
+// No filter selected: the search is then the SCRUM-33 search as it stands.
+const NO_FILTERS = { location: '', accessibilityFeatures: [], layout: '', facilities: [] }
+
 // SCRUM-33: an Event Coordinator finds the venues that are free on an
 // Approved or Planning event's date and times and large enough for its
 // attendance (docs/design/ui-guidelines.md §7). The API reads the event's own
@@ -14,24 +17,25 @@ const kebab = (value) => value.toLowerCase().replaceAll(' ', '-')
 // location is an optional text filter, matched exactly by the API, and an
 // empty one applies no restriction.
 // SCRUM-34: the coordinator may also tick accessibility features; a venue is
-// shown only if it records every one ticked. Nothing is ticked at first, and
-// the event's own accessibility needs are never ticked for them. One Apply
-// sends the location and the ticked features together, so clearing the
-// features is unticking them all and applying again.
+// shown only if it records every one ticked.
+// SCRUM-35: and choose one room layout and tick facilities; a venue is shown
+// only if it supports that layout and records every facility ticked.
+// Nothing is chosen at first, and the event's own requirements are never chosen
+// for the coordinator. One Apply sends every filter together, so clearing one is
+// emptying it and applying again: only that restriction goes.
 export default function VenueSearchPage() {
   const { id } = useParams()
-  // What is typed or ticked is not applied until Apply, so editing never searches.
-  const [typed, setTyped] = useState('')
-  const [typedFeatures, setTypedFeatures] = useState([])
-  const [filters, setFilters] = useState({ location: '', features: [] })
-  const [featureOptions, setFeatureOptions] = useState([])
+  // What is typed or ticked (draft) is not applied until Apply, so editing never searches.
+  const [draft, setDraft] = useState(NO_FILTERS)
+  const [filters, setFilters] = useState(NO_FILTERS)
+  const [options, setOptions] = useState({ layouts: [], facilities: [], accessibility_features: [] })
   const [result, setResult] = useState(null)
   const [banner, setBanner] = useState(null)
 
-  // The recognised features are fetched once; nothing here can race another fetch.
+  // The recognised options are fetched once; nothing here can race another fetch.
   useEffect(() => {
     getVenueOptions()
-      .then((data) => setFeatureOptions(data.accessibility_features))
+      .then((data) => setOptions(data))
       .catch((error) => setBanner(error.message))
   }, [])
 
@@ -40,7 +44,7 @@ export default function VenueSearchPage() {
   // ignored (docs/design/frontend.md section 7).
   useEffect(() => {
     let active = true
-    searchVenues(id, filters.location, filters.features)
+    searchVenues(id, filters)
       .then((data) => {
         if (active) {
           setResult(data)
@@ -55,14 +59,19 @@ export default function VenueSearchPage() {
     }
   }, [id, filters])
 
-  const toggleFeature = (name) =>
-    setTypedFeatures((current) =>
-      current.includes(name) ? current.filter((feature) => feature !== name) : [...current, name],
-    )
+  const setField = (name, value) => setDraft((current) => ({ ...current, [name]: value }))
+
+  const toggle = (field, name) =>
+    setDraft((current) => ({
+      ...current,
+      [field]: current[field].includes(name)
+        ? current[field].filter((chosen) => chosen !== name)
+        : [...current[field], name],
+    }))
 
   const handleApply = (event) => {
     event.preventDefault()
-    setFilters({ location: typed, features: typedFeatures })
+    setFilters(draft)
   }
 
   return (
@@ -114,19 +123,52 @@ export default function VenueSearchPage() {
                 id="venue-search-location"
                 type="text"
                 className="input"
-                value={typed}
-                onChange={(event) => setTyped(event.target.value)}
+                value={draft.location}
+                onChange={(event) => setField('location', event.target.value)}
                 data-testid="venue-search-location-input"
               />
             </div>
+            <div>
+              <label htmlFor="venue-search-layout" className="label">
+                Room layout
+              </label>
+              <select
+                id="venue-search-layout"
+                className="input"
+                value={draft.layout}
+                onChange={(event) => setField('layout', event.target.value)}
+                data-testid="venue-search-layout-input"
+              >
+                <option value="">None</option>
+                {options.layouts.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </div>
             <fieldset>
-              <legend className="label">Accessibility features</legend>
-              {featureOptions.map((option) => (
+              <legend className="label">Facilities</legend>
+              {options.facilities.map((option) => (
                 <label key={option} className="flex items-center gap-2 py-1">
                   <input
                     type="checkbox"
-                    checked={typedFeatures.includes(option)}
-                    onChange={() => toggleFeature(option)}
+                    checked={draft.facilities.includes(option)}
+                    onChange={() => toggle('facilities', option)}
+                    data-testid={`venue-search-facilities-${kebab(option)}-input`}
+                  />
+                  {option}
+                </label>
+              ))}
+            </fieldset>
+            <fieldset>
+              <legend className="label">Accessibility features</legend>
+              {options.accessibility_features.map((option) => (
+                <label key={option} className="flex items-center gap-2 py-1">
+                  <input
+                    type="checkbox"
+                    checked={draft.accessibilityFeatures.includes(option)}
+                    onChange={() => toggle('accessibilityFeatures', option)}
                     data-testid={`venue-search-accessibility-features-${kebab(option)}-input`}
                   />
                   {option}

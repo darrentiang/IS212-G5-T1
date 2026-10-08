@@ -10,8 +10,23 @@ vi.mock('../api')
 // The five recognised accessibility features, in the fixed list's order.
 const FEATURES = ['Step-free access', 'Hearing loop', 'Accessible toilet', 'Lift access', 'Reserved seating']
 
+// The recognised room layouts and facilities, in the fixed lists' order.
+const LAYOUTS = ['Classroom', 'Theatre', 'Boardroom', 'Banquet', 'Exhibition']
+const FACILITIES = ['Projector', 'Stage lighting', 'Sound system', 'Whiteboard', 'Catering kitchen', 'Wi-Fi']
+
+// What the page sends the search for the event in the address (id 5): every filter empty
+// unless the test names it.
+const searchArgs = (filters = {}) => [
+  '5',
+  { location: '', accessibilityFeatures: [], layout: '', facilities: [], ...filters },
+]
+
 beforeEach(() => {
-  api.getVenueOptions.mockResolvedValue({ facilities: [], accessibility_features: FEATURES })
+  api.getVenueOptions.mockResolvedValue({
+    layouts: LAYOUTS,
+    facilities: FACILITIES,
+    accessibility_features: FEATURES,
+  })
 })
 
 afterEach(() => {
@@ -73,7 +88,7 @@ describe('VenueSearchPage', () => {
     expect(await screen.findByTestId('venue-search-event-name')).toHaveTextContent('Search Test A')
     expect(screen.getByTestId('venue-search-period')).toHaveTextContent('15 Dec 2026, 10:00–12:00')
     expect(screen.getByTestId('venue-search-attendance')).toHaveTextContent('50')
-    expect(api.searchVenues).toHaveBeenCalledWith('5', '', [])
+    expect(api.searchVenues).toHaveBeenCalledWith(...searchArgs())
     expect(screen.getByTestId('venue-search-back-link')).toHaveAttribute('href', '/requests/5')
   })
 
@@ -143,7 +158,7 @@ describe('VenueSearchPage', () => {
       expect(screen.queryByTestId('venue-search-row-1')).not.toBeInTheDocument()
     })
     expect(screen.getByTestId('venue-search-row-2')).toBeInTheDocument()
-    expect(api.searchVenues).toHaveBeenLastCalledWith('5', 'Block C Level 1', [])
+    expect(api.searchVenues).toHaveBeenLastCalledWith(...searchArgs({ location: 'Block C Level 1' }))
   })
 
   // @story: SCRUM-33
@@ -154,14 +169,14 @@ describe('VenueSearchPage', () => {
     await screen.findByTestId('venue-search-row-2')
     await applyLocation('Block C Level 1')
     await waitFor(() => {
-      expect(api.searchVenues).toHaveBeenLastCalledWith('5', 'Block C Level 1', [])
+      expect(api.searchVenues).toHaveBeenLastCalledWith(...searchArgs({ location: 'Block C Level 1' }))
     })
 
     api.searchVenues.mockResolvedValue(found([SEMINAR_ROOM_1, AUDITORIUM]))
     await applyLocation('')
 
     expect(await screen.findByTestId('venue-search-row-1')).toBeInTheDocument()
-    expect(api.searchVenues).toHaveBeenLastCalledWith('5', '', [])
+    expect(api.searchVenues).toHaveBeenLastCalledWith(...searchArgs())
   })
 
   // @story: SCRUM-33
@@ -249,10 +264,11 @@ describe('VenueSearchPage', () => {
       await screen.findByTestId('venue-search-row-1')
       await screen.findByTestId('venue-search-accessibility-features-hearing-loop-input')
 
-      const boxes = screen.getAllByRole('checkbox')
+      const group = screen.getByRole('group', { name: 'Accessibility features' })
+      const boxes = Array.from(group.querySelectorAll('input[type="checkbox"]'))
       expect(boxes.map((box) => box.parentElement.textContent)).toEqual(FEATURES)
       boxes.forEach((box) => expect(box).not.toBeChecked())
-      expect(api.searchVenues).toHaveBeenCalledWith('5', '', [])
+      expect(api.searchVenues).toHaveBeenCalledWith(...searchArgs())
     })
 
     // @story: SCRUM-34
@@ -274,7 +290,7 @@ describe('VenueSearchPage', () => {
         expect(screen.queryByTestId('venue-search-row-1')).not.toBeInTheDocument()
       })
       expect(screen.getByTestId('venue-search-row-2')).toBeInTheDocument()
-      expect(api.searchVenues).toHaveBeenLastCalledWith('5', '', ['Hearing loop'])
+      expect(api.searchVenues).toHaveBeenLastCalledWith(...searchArgs({ accessibilityFeatures: ['Hearing loop'] }))
     })
 
     // @story: SCRUM-34
@@ -289,7 +305,9 @@ describe('VenueSearchPage', () => {
       await apply()
 
       await waitFor(() => {
-        expect(api.searchVenues).toHaveBeenLastCalledWith('5', '', ['Step-free access', 'Lift access'])
+        expect(api.searchVenues).toHaveBeenLastCalledWith(
+          ...searchArgs({ accessibilityFeatures: ['Step-free access', 'Lift access'] }),
+        )
       })
     })
 
@@ -304,7 +322,9 @@ describe('VenueSearchPage', () => {
       await applyLocation('Block C Level 1')
 
       await waitFor(() => {
-        expect(api.searchVenues).toHaveBeenLastCalledWith('5', 'Block C Level 1', ['Step-free access'])
+        expect(api.searchVenues).toHaveBeenLastCalledWith(
+          ...searchArgs({ location: 'Block C Level 1', accessibilityFeatures: ['Step-free access'] }),
+        )
       })
     })
 
@@ -317,7 +337,9 @@ describe('VenueSearchPage', () => {
       tick('Hearing loop')
       await applyLocation('Block A Level 2')
       await waitFor(() => {
-        expect(api.searchVenues).toHaveBeenLastCalledWith('5', 'Block A Level 2', ['Hearing loop'])
+        expect(api.searchVenues).toHaveBeenLastCalledWith(
+          ...searchArgs({ location: 'Block A Level 2', accessibilityFeatures: ['Hearing loop'] }),
+        )
       })
 
       api.searchVenues.mockResolvedValue(found([SEMINAR_ROOM_1]))
@@ -326,7 +348,7 @@ describe('VenueSearchPage', () => {
       await apply()
 
       expect(await screen.findByTestId('venue-search-row-1')).toBeInTheDocument()
-      expect(api.searchVenues).toHaveBeenLastCalledWith('5', 'Block A Level 2', [])
+      expect(api.searchVenues).toHaveBeenLastCalledWith(...searchArgs({ location: 'Block A Level 2' }))
       expect(screen.getByTestId('venue-search-location-input')).toHaveValue('Block A Level 2')
     })
 
@@ -358,6 +380,175 @@ describe('VenueSearchPage', () => {
 
       expect(await screen.findByTestId('venue-search-banner')).toHaveTextContent(
         'Choose each accessibility feature from the list.',
+      )
+      expect(screen.getByTestId('venue-search-row-1')).toBeInTheDocument()
+    })
+  })
+  describe('layout and facilities filters', () => {
+    const layoutSelect = () => screen.getByTestId('venue-search-layout-input')
+    const facilityBox = (name) =>
+      screen.getByTestId(`venue-search-facilities-${name.toLowerCase().replaceAll(' ', '-')}-input`)
+    const chooseLayout = (name) => fireEvent.change(layoutSelect(), { target: { value: name } })
+    const tickFacility = (name) => fireEvent.click(facilityBox(name))
+    const apply = () => userEvent.click(screen.getByTestId('venue-search-apply-button'))
+    const ready = () => screen.findByTestId('venue-search-facilities-wi-fi-input')
+
+    // @story: SCRUM-35
+    // @ac: 1, 2, 3
+    it('offers None then every recognised layout, and every recognised facility, none chosen', async () => {
+      api.searchVenues.mockResolvedValue(found([SEMINAR_ROOM_1, AUDITORIUM]))
+
+      renderPage()
+      await ready()
+
+      expect(Array.from(layoutSelect().options).map((option) => option.textContent)).toEqual([
+        'None',
+        ...LAYOUTS,
+      ])
+      expect(layoutSelect()).toHaveValue('')
+      const facilityGroup = screen.getByRole('group', { name: 'Facilities' })
+      const boxes = Array.from(facilityGroup.querySelectorAll('input[type="checkbox"]'))
+      expect(boxes.map((box) => box.parentElement.textContent)).toEqual(FACILITIES)
+      boxes.forEach((box) => expect(box).not.toBeChecked())
+      expect(api.searchVenues).toHaveBeenCalledWith(...searchArgs())
+    })
+
+    // @story: SCRUM-35
+    // @ac: 1
+    it('sends the chosen layout only when Apply is pressed, and shows the narrowed results', async () => {
+      api.searchVenues.mockResolvedValue(found([SEMINAR_ROOM_1, AUDITORIUM]))
+      renderPage()
+      await ready()
+
+      chooseLayout('Classroom')
+      expect(layoutSelect()).toHaveValue('Classroom')
+      expect(api.searchVenues).toHaveBeenCalledTimes(1)
+
+      api.searchVenues.mockResolvedValue(found([AUDITORIUM]))
+      await apply()
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('venue-search-row-1')).not.toBeInTheDocument()
+      })
+      expect(screen.getByTestId('venue-search-row-2')).toBeInTheDocument()
+      expect(api.searchVenues).toHaveBeenLastCalledWith(...searchArgs({ layout: 'Classroom' }))
+    })
+
+    // @story: SCRUM-35
+    // @ac: 2
+    it('sends every facility ticked, in the order ticked', async () => {
+      api.searchVenues.mockResolvedValue(found([AUDITORIUM]))
+      renderPage()
+      await ready()
+
+      tickFacility('Stage lighting')
+      tickFacility('Projector')
+      expect(facilityBox('Projector')).toBeChecked()
+      await apply()
+
+      await waitFor(() => {
+        expect(api.searchVenues).toHaveBeenLastCalledWith(
+          ...searchArgs({ facilities: ['Stage lighting', 'Projector'] }),
+        )
+      })
+    })
+
+    // @story: SCRUM-35
+    // @ac: 1, 2, 4
+    it('sends the layout, the facilities, the accessibility features and the location in one search', async () => {
+      api.searchVenues.mockResolvedValue(found([SEMINAR_ROOM_1]))
+      renderPage()
+      await ready()
+
+      chooseLayout('Classroom')
+      tickFacility('Wi-Fi')
+      fireEvent.click(screen.getByTestId('venue-search-accessibility-features-step-free-access-input'))
+      fireEvent.change(screen.getByTestId('venue-search-location-input'), {
+        target: { value: 'Block D Level 1' },
+      })
+      await apply()
+
+      await waitFor(() => {
+        expect(api.searchVenues).toHaveBeenLastCalledWith(
+          ...searchArgs({
+            location: 'Block D Level 1',
+            layout: 'Classroom',
+            facilities: ['Wi-Fi'],
+            accessibilityFeatures: ['Step-free access'],
+          }),
+        )
+      })
+    })
+
+    // @story: SCRUM-35
+    // @ac: 5
+    it('clears only the layout when it is set back to None, keeping the facilities and the location', async () => {
+      api.searchVenues.mockResolvedValue(found([]))
+      renderPage()
+      await ready()
+      chooseLayout('Classroom')
+      tickFacility('Wi-Fi')
+      fireEvent.change(screen.getByTestId('venue-search-location-input'), {
+        target: { value: 'Block D Level 1' },
+      })
+      await apply()
+      await waitFor(() => {
+        expect(api.searchVenues).toHaveBeenLastCalledWith(
+          ...searchArgs({ location: 'Block D Level 1', layout: 'Classroom', facilities: ['Wi-Fi'] }),
+        )
+      })
+
+      api.searchVenues.mockResolvedValue(found([SEMINAR_ROOM_1]))
+      chooseLayout('')
+      await apply()
+
+      expect(await screen.findByTestId('venue-search-row-1')).toBeInTheDocument()
+      expect(api.searchVenues).toHaveBeenLastCalledWith(
+        ...searchArgs({ location: 'Block D Level 1', facilities: ['Wi-Fi'] }),
+      )
+      expect(facilityBox('Wi-Fi')).toBeChecked()
+      expect(screen.getByTestId('venue-search-location-input')).toHaveValue('Block D Level 1')
+    })
+
+    // @story: SCRUM-35
+    // @ac: 5
+    it('clears only the facilities when every one is unticked, keeping the layout', async () => {
+      api.searchVenues.mockResolvedValue(found([]))
+      renderPage()
+      await ready()
+      chooseLayout('Classroom')
+      tickFacility('Wi-Fi')
+      await apply()
+      await waitFor(() => {
+        expect(api.searchVenues).toHaveBeenLastCalledWith(
+          ...searchArgs({ layout: 'Classroom', facilities: ['Wi-Fi'] }),
+        )
+      })
+
+      api.searchVenues.mockResolvedValue(found([AUDITORIUM]))
+      tickFacility('Wi-Fi')
+      expect(facilityBox('Wi-Fi')).not.toBeChecked()
+      await apply()
+
+      expect(await screen.findByTestId('venue-search-row-2')).toBeInTheDocument()
+      expect(api.searchVenues).toHaveBeenLastCalledWith(...searchArgs({ layout: 'Classroom' }))
+      expect(layoutSelect()).toHaveValue('Classroom')
+    })
+
+    // @story: SCRUM-35
+    // @ac: 1, 2
+    it('shows the API refusal for an unrecognised layout in the banner and keeps the earlier results', async () => {
+      api.searchVenues.mockResolvedValueOnce(found([SEMINAR_ROOM_1, AUDITORIUM]))
+      renderPage()
+      await ready()
+      await screen.findByTestId('venue-search-row-1')
+
+      api.searchVenues.mockRejectedValue(refusal('Choose the layout from the list.'))
+      chooseLayout('Classroom')
+      await apply()
+
+      expect(await screen.findByTestId('venue-search-banner')).toHaveTextContent(
+        'Choose the layout from the list.',
       )
       expect(screen.getByTestId('venue-search-row-1')).toBeInTheDocument()
     })

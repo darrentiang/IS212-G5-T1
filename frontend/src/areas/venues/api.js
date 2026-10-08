@@ -67,17 +67,26 @@ export const removeVenueBlock = (id, blockId) => request('DELETE', `/api/venues/
 // 400/403/404: { message }
 export const endVenueBlock = (id, blockId, data) => request('PATCH', `/api/venues/${id}/blocks/${blockId}`, data)
 
-// GET /api/venues/search?event_request_id=:id[&location=:text][&accessibility_features=:name ...]   (SCRUM-33, SCRUM-34)
+// GET /api/venues/search?event_request_id=:id[&location=:text][&layout=:name]
+//     [&facilities=:name ...][&accessibility_features=:name ...]   (SCRUM-33, SCRUM-34, SCRUM-35)
 // The API reads the event's own date, times and attendance; the caller sends only which event.
 // 200:     { event: { id, name, date, start_time, end_time, attendance },
 //            venues: [ { id, name, location, max_capacity, ... } ] }   venues may be []
 //          location, when given, must match a venue's recorded location exactly
-//          accessibility_features is repeated, one per feature selected; a venue is kept only
-//          when it records every one. None sent means accessibility restricts nothing.
-// 400/403/404: { message }   400 when the event is not Approved or Planning, or a feature is not recognised
-export const searchVenues = (eventRequestId, location, accessibilityFeatures = []) => {
+//          layout, when given, is one recognised layout; a venue is kept only if it records
+//          that layout as supported (a venue with no layouts recorded is not)
+//          facilities and accessibility_features are each repeated, one per name selected; a
+//          venue is kept only when it records every one. None sent restricts nothing.
+// 400/403/404: { message }   400 when the event is not Approved or Planning, or a layout,
+//          facility or accessibility feature is not recognised
+export const searchVenues = (
+  eventRequestId,
+  { location = '', accessibilityFeatures = [], layout = '', facilities = [] } = {},
+) => {
   const params = new URLSearchParams({ event_request_id: eventRequestId })
   if (location) params.set('location', location)
+  if (layout) params.set('layout', layout)
+  facilities.forEach((name) => params.append('facilities', name))
   accessibilityFeatures.forEach((name) => params.append('accessibility_features', name))
   return request('GET', `/api/venues/search?${params}`)
 }
