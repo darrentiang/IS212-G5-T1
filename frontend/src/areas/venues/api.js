@@ -33,6 +33,16 @@ export const updateVenue = (id, data) => request('PUT', `/api/venues/${id}`, dat
 // 400/403/404: { message }
 export const updateVenueLayouts = (id, data) => request('PATCH', `/api/venues/${id}/layouts`, data)
 
+// PATCH /api/venues/:id/times   (SCRUM-80)
+// body:    { setup_time, turnaround_time }   both keys required; durations in WHOLE MINUTES,
+//          not clock times. An explicitly blank/null value normalises to 0; a missing key
+//          or malformed body is refused without changing either stored value.
+//          Values must be non-negative whole numbers (30.0 accepted as exact whole;
+//          fractions, booleans and non-numeric strings refused).
+// 200:     the updated venue with setup_time and turnaround_time as canonical integers
+// 400/403/404: { message }   400 message identifies the invalid field
+export const updateVenueTimes = (id, data) => request('PATCH', `/api/venues/${id}/times`, data)
+
 // GET /api/venues/:id/blocks
 // 200:     [ { id, venue_id, start, end, reason, created_by, created_at, phase } ]   start/end '2026-10-20T09:00', local time
 //          phase: 'upcoming' | 'in_progress' | 'ended', derived by the API from the current Singapore time

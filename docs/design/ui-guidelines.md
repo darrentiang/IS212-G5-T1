@@ -16,6 +16,7 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | 1.8 | 07-10-2026 | §1 `/requests/:id/bookings/new`; §7 the request page's Request venue booking button and the venue page's Booking requests section; §12 Requested and Withdrawn added to the status-colour table | SCRUM-36 lets an Event Coordinator raise a venue booking request from an event, and lists the venue's booking requests on its page the same way as Blocks |
 | 1.9 | 08-10-2026 | §1 `/requests/:id/venues/search`; §7 the request page's Search venues button and the venue-search page | SCRUM-33 lets an Event Coordinator find venues that are free on an event's dates and large enough for its attendance |
 | 1.10 | 08-10-2026 | §5 an optional single choice is a select whose first option is None; §7 the request's required layout, facilities and accessibility features on the new-request page, the request page and the Draft edit form, grouped under the headings Venue requirements and Accessibility needs in place of the free-text fields of those names (`request-new-venue-requirements-input`, `request-new-accessibility-needs-input`, their `request-detail-edit-…` inputs and `request-detail-venue-requirements`, `request-detail-accessibility-needs` are removed); the booking-new page's venue-suitability warnings | SCRUM-42 lets an Event Organiser choose an event's requirements from the venue lists, and warns an Event Coordinator when a chosen venue does not match them; the PO decided the choices replace the brief's free-text venue requirements and accessibility needs, which are what the Venue Catalogue records as layouts and facilities, and as accessibility features |
+| 1.11 | 08-10-2026 | §7 the venue page's setup-time and turnaround-time display and the inline Edit times form test ids; one inline form open at a time across Update venue, Edit times, Block venue and End early | SCRUM-80 lets Venue Staff record how long a venue needs before and after an event |
 
 ## 1. Pages
 
@@ -155,7 +156,7 @@ SCRUM-32 adds the venue's supported layouts. An empty list is shown as `None`, a
 | Layout checkbox | `venue-detail-layouts-<kebab-option>-input` |
 | Save and Cancel layout buttons | `venue-detail-layouts-save-button`, `venue-detail-layouts-cancel-button` |
 
-SCRUM-79 adds an action cell to each block row, only with `venues.edit`. Which action a block offers follows its `phase` from the API (not a status, so no badge): a block that has not started offers Remove, which acts at once; a block in progress offers End early, which opens an inline end-block form below the Blocks table (new end date and time, End and Cancel); a block that has ended offers neither. The update form, the block form and the end-block form are all inline forms, so only one of the three is open at a time: opening any one closes the other two.
+SCRUM-79 adds an action cell to each block row, only with `venues.edit`. Which action a block offers follows its `phase` from the API (not a status, so no badge): a block that has not started offers Remove, which acts at once; a block in progress offers End early, which opens an inline end-block form below the Blocks table (new end date and time, End and Cancel); a block that has ended offers neither. The update form, the times form, the block form and the end-block form are all inline forms, so only one of them is open at a time: opening any one closes the others.
 
 | Element | `data-testid` |
 |---|---|
@@ -164,6 +165,17 @@ SCRUM-79 adds an action cell to each block row, only with `venues.edit`. Which a
 | End-block form inputs | `venue-detail-end-block-end-date-input`, `venue-detail-end-block-end-time-input` |
 | Message under an empty field | `venue-detail-end-block-<field>-error` (e.g. `venue-detail-end-block-end-time-error`) |
 | End (confirm) and Cancel buttons | `venue-detail-end-block-confirm-button`, `venue-detail-end-block-cancel-button` |
+
+SCRUM-80 records two durations in whole minutes for the venue — setup time, the minutes needed before an event, and turnaround time, the minutes needed after it. They are never clock times. Both are shown on the venue page to anyone who may view it, as `0 minutes` when they have never been recorded and `1 minute` for a single minute. Only an account with `venues.edit` is offered **Edit times**, which opens an inline form: the two minute fields, the hint `Leave blank for 0 minutes.` (a field left blank when saving is recorded as zero), and Save and Cancel. It is an inline form, so it obeys the one-form-at-a-time rule with Update venue, Block venue and End early. A refusal from the API appears in the banner and names the field that was invalid; the form stays open with what was typed, and neither stored time changes.
+
+| Element | `data-testid` |
+|---|---|
+| Setup time value | `venue-detail-setup-time` |
+| Turnaround time value | `venue-detail-turnaround-time` |
+| Edit times button (only with `venues.edit`) | `venue-detail-times-button` |
+| Inline times form inputs | `venue-detail-times-setup-time-input`, `venue-detail-times-turnaround-time-input` |
+| Blank-is-zero hint | `venue-detail-times-hint` |
+| Save and Cancel times buttons | `venue-detail-times-save-button`, `venue-detail-times-cancel-button` |
 
 **Booking requests** (SCRUM-36) is a second related-records section on the venue page, below Blocks, read-only: raising one happens from the event's own page (below), not here. Status as the exact state-model.md word, as a badge (§12).
 
