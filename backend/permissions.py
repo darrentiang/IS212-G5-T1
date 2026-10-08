@@ -1,4 +1,4 @@
-"""Role → feature matrix — SCRUM-27, SCRUM-31, SCRUM-29, SCRUM-36 (ADR-002).
+"""Role → feature matrix — SCRUM-27, SCRUM-31, SCRUM-29, SCRUM-36, SCRUM-37 (ADR-002).
 
 Direct transcription of docs/design/permissions.md. An account may hold
 several roles (Q-06, D-09); it may do anything any of its roles allows.
@@ -18,6 +18,7 @@ REQUESTS_DECIDE = "requests.decide"  # SCRUM-29: approve or reject a Submitted r
 VENUES_VIEW = "venues.view"
 VENUES_EDIT = "venues.edit"  # SCRUM-31: maintain venue records (Venue Staff)
 BOOKINGS_EDIT = "bookings.edit"  # SCRUM-36: raise a venue booking request (Event Coordinator)
+BOOKINGS_DECIDE = "bookings.decide"  # SCRUM-37: approve or reject one (Venue Staff)
 EQUIPMENT_VIEW = "equipment.view"
 REGISTRATION_VIEW = "registration.view"
 INTERNAL_NOTES_VIEW = "internal_notes.view"
@@ -31,6 +32,7 @@ ALL_FEATURES = frozenset(
         VENUES_VIEW,
         VENUES_EDIT,
         BOOKINGS_EDIT,
+        BOOKINGS_DECIDE,
         EQUIPMENT_VIEW,
         REGISTRATION_VIEW,
         INTERNAL_NOTES_VIEW,
@@ -58,6 +60,7 @@ ROLE_FEATURES = {
     "Venue Staff": {
         VENUES_VIEW,
         VENUES_EDIT,
+        BOOKINGS_DECIDE,
         # Cannot view or edit event requests (permissions.md).
         NOTIFICATIONS_VIEW,
     },

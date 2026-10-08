@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation, useParams } from 'react-router'
 import { useAuth } from '../../app/auth'
-import { formatDateTimePeriod, formatPeriod, formatTime, statusBadgeClass } from '../../app/format'
+import { formatDateTime, formatDateTimePeriod, formatPeriod, formatTime, statusBadgeClass } from '../../app/format'
 import {
+  approveBooking,
   blockVenue,
   endVenueBlock,
   getVenue,
   getVenueOptions,
   listVenueBlocks,
   listVenueBookings,
+  rejectBooking,
   removeVenueBlock,
   updateVenue,
   updateVenueLayouts,
@@ -46,6 +48,21 @@ const IN_PROGRESS = 'in_progress'
 
 const kebab = (name) => name.replaceAll('_', '-')
 const optionKebab = (value) => value.toLowerCase().replaceAll(' ', '-')
+
+// SCRUM-37: a Requested row is undecided; the Decision cell is blank until
+// Approve or Reject is confirmed.
+const REQUESTED = 'Requested'
+const DECIDE_ACTIONS = {
+  approve: { label: 'Approve', send: approveBooking, banner: 'Booking approved', reasonRequired: false },
+  reject: { label: 'Reject', send: rejectBooking, banner: 'Booking rejected', reasonRequired: true },
+}
+
+function bookingDecisionText(booking) {
+  if (!booking.decision) return ''
+  const when = formatDateTime(booking.decided_at)
+  const base = `${booking.decision} by ${booking.decided_by} (${when})`
+  return booking.decision_reason ? `${base}: ${booking.decision_reason}` : base
+}
 
 // The API's order: earliest start first, then id. start is 'YYYY-MM-DDTHH:MM',
 // so comparing the strings compares the moments.
@@ -91,9 +108,17 @@ export default function VenueDetailPage() {
   const [endingId, setEndingId] = useState(null)
   const [endValues, setEndValues] = useState(EMPTY_END)
   const [endErrors, setEndErrors] = useState({})
+  // SCRUM-37: which booking row is being decided, and with which action
+  // ('approve' or 'reject'). openForm === 'decide' is what actually shows
+  // the inline form, the same one-at-a-time rule as the other three.
+  const [decidingBookingId, setDecidingBookingId] = useState(null)
+  const [decidingAction, setDecidingAction] = useState(null)
+  const [decideReason, setDecideReason] = useState('')
+  const [decideReasonError, setDecideReasonError] = useState(null)
   const [submitting, setSubmitting] = useState(false)
 
   const canBlock = can('venues.edit')
+  const canDecideBookings = can('bookings.decide')
 
   // Keyed to id: a reply for the venue the user has left can
   // arrive after the current one, so a stale reply is ignored
@@ -298,6 +323,47 @@ export default function VenueDetailPage() {
   }
 
   const ending = openForm === 'end' ? blocks.find((block) => block.id === endingId) : undefined
+
+  const openDecide = (booking, action) => {
+    setOpenForm('decide')
+    setDecidingBookingId(booking.id)
+    setDecidingAction(action)
+    setDecideReason('')
+    setDecideReasonError(null)
+    setBanner(null)
+    setSuccess(null)
+  }
+
+  const closeDecide = () => {
+    setOpenForm(null)
+    setDecideReasonError(null)
+  }
+
+  const deciding = openForm === 'decide' ? bookings.find((booking) => booking.id === decidingBookingId) : undefined
+
+  // Reason is required to reject, optional to approve, the same rule as
+  // deciding an event request (request-detail's decide form).
+  const handleDecide = async (event) => {
+    event.preventDefault()
+    const action = DECIDE_ACTIONS[decidingAction]
+    if (action.reasonRequired && decideReason.trim() === '') {
+      setDecideReasonError('Reason is required.')
+      return
+    }
+    setDecideReasonError(null)
+
+    setSubmitting(true)
+    try {
+      const updated = await action.send(id, decidingBookingId, decideReason)
+      setBookings((current) => current.map((booking) => (booking.id === updated.id ? updated : booking)))
+      setOpenForm(null)
+      setSuccess(action.banner)
+    } catch (error) {
+      setBanner(error.message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   // The page checks only that each field is filled; every other rule is the
   // API's and shows in the banner (ui-guidelines.md §5).
@@ -817,7 +883,8 @@ export default function VenueDetailPage() {
             )}
           </section>
 
-          {/* SCRUM-36: booking requests raised against this venue, read-only here. */}
+          {/* SCRUM-36: booking requests raised against this venue.
+              SCRUM-37: Venue Staff decide a Requested one from its row. */}
           <section className="space-y-4">
             <h2 className="section-title">Booking requests</h2>
             {bookings.length === 0 ? (
@@ -834,7 +901,11 @@ export default function VenueDetailPage() {
                       <tr>
                         <th>Event</th>
                         <th>Period</th>
+                        <th>Attendance</th>
+                        <th>Venue requirements</th>
                         <th>Status</th>
+                        <th>Decision</th>
+                        {canDecideBookings && <th>Actions</th>}
                       </tr>
                     </thead>
                     <tbody>
@@ -846,15 +917,102 @@ export default function VenueDetailPage() {
                           <td data-testid={`venue-detail-booking-period-${booking.id}`}>
                             {formatPeriod(booking.date, booking.start_time, booking.end_time)}
                           </td>
+                          <td data-testid={`venue-detail-booking-attendance-${booking.id}`}>
+                            {booking.attendance}
+                          </td>
+                          <td
+                            className="whitespace-pre-wrap"
+                            data-testid={`venue-detail-booking-venue-requirements-${booking.id}`}
+                          >
+                            {booking.venue_requirements}
+                          </td>
                           <td data-testid={`venue-detail-booking-status-${booking.id}`}>
                             <span className={statusBadgeClass(booking.status)}>{booking.status}</span>
                           </td>
+                          <td
+                            className="whitespace-pre-wrap"
+                            data-testid={`venue-detail-booking-decision-${booking.id}`}
+                          >
+                            {bookingDecisionText(booking)}
+                          </td>
+                          {canDecideBookings && (
+                            <td>
+                              {booking.status === REQUESTED && (
+                                <div className="flex flex-wrap gap-2">
+                                  <button
+                                    type="button"
+                                    disabled={submitting}
+                                    onClick={() => openDecide(booking, 'reject')}
+                                    className="btn btn-secondary"
+                                    data-testid={`venue-detail-booking-reject-button-${booking.id}`}
+                                  >
+                                    Reject
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={submitting}
+                                    onClick={() => openDecide(booking, 'approve')}
+                                    className="btn btn-primary"
+                                    data-testid={`venue-detail-booking-approve-button-${booking.id}`}
+                                  >
+                                    Approve
+                                  </button>
+                                </div>
+                              )}
+                            </td>
+                          )}
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
               </div>
+            )}
+
+            {deciding && (
+              <form onSubmit={handleDecide} noValidate className="card form-card space-y-4">
+                <h2 className="section-title">{DECIDE_ACTIONS[decidingAction].label} booking request</h2>
+                <p className="subtitle">
+                  {deciding.event_request_name} — {formatPeriod(deciding.date, deciding.start_time, deciding.end_time)}
+                </p>
+                <div>
+                  <label htmlFor="venue-detail-decide-reason" className="label">
+                    {DECIDE_ACTIONS[decidingAction].reasonRequired ? 'Reason *' : 'Reason'}
+                  </label>
+                  <textarea
+                    id="venue-detail-decide-reason"
+                    value={decideReason}
+                    onChange={(event) => setDecideReason(event.target.value)}
+                    aria-required={DECIDE_ACTIONS[decidingAction].reasonRequired ? 'true' : undefined}
+                    className="input"
+                    data-testid="venue-detail-decide-reason-input"
+                  />
+                  {decideReasonError && (
+                    <p className="field-error" data-testid="venue-detail-decide-reason-error">
+                      {decideReasonError}
+                    </p>
+                  )}
+                </div>
+                <div className="flex flex-wrap justify-end gap-2">
+                  <button
+                    type="button"
+                    disabled={submitting}
+                    onClick={closeDecide}
+                    className="btn btn-secondary"
+                    data-testid="venue-detail-decide-cancel-button"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="btn btn-primary"
+                    data-testid="venue-detail-decide-confirm-button"
+                  >
+                    {DECIDE_ACTIONS[decidingAction].label}
+                  </button>
+                </div>
+              </form>
             )}
           </section>
         </>

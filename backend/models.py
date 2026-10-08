@@ -5,6 +5,7 @@ read access. SCRUM-28: event request creation and submission. SCRUM-31:
 venues with their facilities, accessibility features and layouts. SCRUM-40: venue
 blocks. SCRUM-36: venue booking requests, and a venue's is_active flag
 (retiring one is SCRUM-76; this story only needed somewhere to check).
+SCRUM-37: approve/reject a venue booking request.
 No permission logic here — see backend/permissions.py.
 """
 
@@ -17,8 +18,9 @@ from db import db
 # SCRUM-28 added event request columns; SCRUM-31 added venues and the two
 # fixed lists they choose from. SCRUM-29 added the approve/reject decision.
 # SCRUM-40 added venue blocks. SCRUM-36 added venue booking requests and
-# Venue.is_active and SCRUM-32 added room layouts.
-SCHEMA_VERSION = 8
+# Venue.is_active and SCRUM-32 added room layouts. SCRUM-37 added the venue
+# booking request's own approve/reject decision.
+SCHEMA_VERSION = 9
 
 
 account_roles = db.Table(
@@ -278,13 +280,14 @@ class VenueBlock(db.Model):
 
 
 class VenueBookingRequest(db.Model):
-    """An Event Coordinator's request to book a venue for an event (SCRUM-36).
+    """An Event Coordinator's request to book a venue for an event (SCRUM-36),
+    which Venue Staff approve or reject (SCRUM-37).
 
     date, start_time, end_time, attendance and venue_requirements are copied
     from the event request at the moment of raising (AC3): a later change to
-    the event does not move the booking request. raised_at is UTC, the same
-    convention as an event request's submitted_at. Deciding (approve/reject)
-    and withdrawing are later stories; nothing here supports them yet.
+    the event does not move the booking request. raised_at and decided_at are
+    UTC, the same convention as an event request's submitted_at/decided_at.
+    Withdrawing is a later story; nothing here supports it yet.
     """
 
     __tablename__ = "venue_booking_requests"
@@ -305,9 +308,15 @@ class VenueBookingRequest(db.Model):
     raised_by_id = db.Column(db.Integer, db.ForeignKey("accounts.id"), nullable=False)
     raised_at = db.Column(db.DateTime, nullable=False)
 
+    decision = db.Column(db.String(32), nullable=True)
+    decision_reason = db.Column(db.Text, nullable=True)
+    decided_at = db.Column(db.DateTime, nullable=True)
+    decided_by_id = db.Column(db.Integer, db.ForeignKey("accounts.id"), nullable=True)
+
     venue = db.relationship("Venue", backref="booking_requests")
     event_request = db.relationship("EventRequest", backref="booking_requests")
-    raised_by = db.relationship("Account")
+    raised_by = db.relationship("Account", foreign_keys=[raised_by_id])
+    decided_by = db.relationship("Account", foreign_keys=[decided_by_id])
 
     def __repr__(self):
         return f"<VenueBookingRequest {self.id} venue {self.venue_id} event {self.event_request_id} {self.status}>"

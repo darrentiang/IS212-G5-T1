@@ -14,6 +14,7 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | 1.7 | 06-10-2026 | §7 the venue page's per-block Remove and End early buttons and the inline end-block form's test ids; one inline form open at a time across Update venue, Block venue and End early | SCRUM-79 lets Venue Staff remove a block that has not started or end one in progress early |
 | 1.8 | 07-10-2026 | §7 venue supported-layout display and selection test ids | SCRUM-32 records the layouts a venue supports |
 | 1.8 | 07-10-2026 | §1 `/requests/:id/bookings/new`; §7 the request page's Request venue booking button and the venue page's Booking requests section; §12 Requested and Withdrawn added to the status-colour table | SCRUM-36 lets an Event Coordinator raise a venue booking request from an event, and lists the venue's booking requests on its page the same way as Blocks |
+| 1.9 | 08-10-2026 | §7 the venue page's Booking requests section gains attendance, venue requirements and a decision cell, plus per-row Approve/Reject and an inline decide form | SCRUM-37 lets Venue Staff decide a booking request from the venue's own page |
 
 ## 1. Pages
 
@@ -161,7 +162,7 @@ SCRUM-79 adds an action cell to each block row, only with `venues.edit`. Which a
 | Message under an empty field | `venue-detail-end-block-<field>-error` (e.g. `venue-detail-end-block-end-time-error`) |
 | End (confirm) and Cancel buttons | `venue-detail-end-block-confirm-button`, `venue-detail-end-block-cancel-button` |
 
-**Booking requests** (SCRUM-36) is a second related-records section on the venue page, below Blocks, read-only: raising one happens from the event's own page (below), not here. Status as the exact state-model.md word, as a badge (§12).
+**Booking requests** (SCRUM-36) is a second related-records section on the venue page, below Blocks: raising one happens from the event's own page (below), not here. Status as the exact state-model.md word, as a badge (§12). SCRUM-37 adds the event's expected attendance and venue requirements, so Venue Staff can decide without leaving the page (AC1), the decision once made (AC5), and a Venue Staff-only action cell per row, the same action-cell pattern as Blocks (§7 above): a Requested row offers Approve and Reject, any other status offers neither.
 
 | Element | `data-testid` |
 |---|---|
@@ -169,7 +170,21 @@ SCRUM-79 adds an action cell to each block row, only with `venues.edit`. Which a
 | Booking status | `venue-detail-booking-status-<id>` |
 | Booking period | `venue-detail-booking-period-<id>` |
 | Booking event name | `venue-detail-booking-event-<id>` |
+| Booking attendance | `venue-detail-booking-attendance-<id>` |
+| Booking venue requirements | `venue-detail-booking-venue-requirements-<id>` |
+| Booking decision (blank until decided) | `venue-detail-booking-decision-<id>` |
 | No booking requests | `venue-detail-bookings-empty` |
+| Approve button (Requested row, only with `bookings.decide`) | `venue-detail-booking-approve-button-<id>` |
+| Reject button (Requested row, only with `bookings.decide`) | `venue-detail-booking-reject-button-<id>` |
+
+**Deciding a booking request** opens an inline form below the Booking requests table, the same pattern as End block early: only one of Update venue, Block venue, End early and this is open at a time. Reason is required to reject, optional to approve (the same rule as deciding an event request, `ui-guidelines.md` existing request-detail reject/approve pattern). Its test ids use the action as `<field>`, the same convention as request-detail's decide form.
+
+| Element | `data-testid` |
+|---|---|
+| Reason input | `venue-detail-decide-reason-input` |
+| Message under an empty required reason | `venue-detail-decide-reason-error` |
+| Confirm button (labelled with the action, e.g. Reject) | `venue-detail-decide-confirm-button` |
+| Cancel button | `venue-detail-decide-cancel-button` |
 
 On the request page (`request-detail`), SCRUM-36: an Event Coordinator sees a Request venue booking button when the event's status is Approved or Planning; it links to `/requests/:id/bookings/new`, not an inline form, since raising starts a new record the bookings area owns (`docs/design/frontend.md` §2).
 
