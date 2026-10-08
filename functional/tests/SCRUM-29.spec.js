@@ -42,8 +42,6 @@ async function submitAsOrg1(name) {
       start_time: '10:00',
       end_time: '12:00',
       attendance: 80,
-      venue_requirements: 'Seminar room',
-      accessibility_needs: 'Step-free access',
       equipment_requirements: 'Projector',
       registration_needs: 'Guest list supplied',
     },
@@ -83,8 +81,6 @@ test('coordinator sees every submitted field, the submission date and time and t
     'start-time',
     'end-time',
     'attendance',
-    'venue-requirements',
-    'accessibility-needs',
     'equipment-requirements',
     'registration-needs',
   ]) {

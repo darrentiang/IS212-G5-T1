@@ -4,6 +4,8 @@ SCRUM-27: read-only list and detail with role rules.
 SCRUM-28: create a request and submit it (direct or from Draft).
 SCRUM-29: approve or reject a Submitted request.
 SCRUM-30: save, edit and delete a Draft.
+SCRUM-42: the fixed lists a request's required layout, facilities and
+accessibility features are chosen from.
 """
 
 from flask import Blueprint, g, jsonify, request as flask_request
@@ -20,6 +22,13 @@ def list_requests():
     account = g.account
     rows = services.visible_requests(account)
     return jsonify([services.request_to_dict(row) for row in rows])
+
+
+@bp.get("/request-options")
+@require(REQUESTS_EDIT)
+def request_options():
+    """SCRUM-42: the same lists as /api/venue-options, for Event Organisers."""
+    return jsonify(services.request_options())
 
 
 @bp.get("/requests/<int:request_id>")

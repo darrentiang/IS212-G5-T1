@@ -301,6 +301,24 @@
     background-color: color-mix(in srgb, var(--color-success) 8%, transparent);
   }
 
+  /* Warnings that do not stop an action (SCRUM-42): banner shape, warning colour */
+  .warning-list {
+    padding: 12px 16px;
+    border-radius: var(--radius-card);
+    border-left: 3px solid var(--color-warning);
+    background-color: color-mix(in srgb, var(--color-warning) 8%, transparent);
+    font-size: 14px;
+    color: var(--color-text);
+  }
+  .warning-list > p {
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .warning-list ul {
+    list-style: disc;
+    padding-left: 20px;
+  }
+
   .empty-state {
     padding: 48px 0;
     text-align: center;

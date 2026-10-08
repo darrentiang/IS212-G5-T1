@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 import pytest
 
 from db import db
-from models import Account, EventRequest, Venue, VenueBookingRequest
+from models import Account, EventRequest, Facility, RoomLayout, Venue, VenueBookingRequest
 
 EVENT_DEFAULTS = {
     "name": "Tech Fair 2026",
@@ -28,8 +28,6 @@ EVENT_DEFAULTS = {
     "start_time": "09:00",
     "end_time": "17:00",
     "attendance": 200,
-    "venue_requirements": "Large hall with stage",
-    "accessibility_needs": "Wheelchair access",
     "equipment_requirements": "Projector, microphones",
     "registration_needs": "Online registration with capacity cap",
 }
@@ -137,6 +135,7 @@ def test_booking_against_an_unknown_event_is_refused(client):
 
 
 # --- AC3: the request carries the event's date, times, attendance and venue requirements ---
+# The event's venue requirements are its chosen layout and facilities (SCRUM-42).
 
 
 # @story: SCRUM-36
@@ -145,7 +144,8 @@ def test_booking_carries_the_events_own_fields(client):
     login(client)
     event = make_event(
         date="2026-12-04", start_time="10:00", end_time="12:00", attendance=20,
-        venue_requirements="Meeting room with whiteboard",
+        layout=db.session.query(RoomLayout).filter_by(name="Boardroom").one(),
+        facilities=[db.session.query(Facility).filter_by(name="Whiteboard").one()],
     )
 
     resp = post_booking(client, event)
@@ -155,7 +155,8 @@ def test_booking_carries_the_events_own_fields(client):
     assert body["start_time"] == "10:00"
     assert body["end_time"] == "12:00"
     assert body["attendance"] == 20
-    assert body["venue_requirements"] == "Meeting room with whiteboard"
+    assert body["layout"] == "Boardroom"
+    assert body["facilities"] == ["Whiteboard"]
 
 
 # @story: SCRUM-36

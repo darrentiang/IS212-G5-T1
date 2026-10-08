@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, afterEach } from 'vitest'
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, RouterProvider, Routes, createMemoryRouter } from 'react-router'
 import * as api from '../api'
@@ -10,6 +10,19 @@ import RequestsPage from '../RequestsPage'
 
 vi.mock('../api')
 vi.mock('../../../app/auth')
+
+// What the API sends for a request with no requirement chosen (SCRUM-42).
+const NO_CHOICES = { layout: null, facilities: [], accessibility_features: [] }
+
+const OPTIONS = {
+  layouts: ['Classroom', 'Theatre'],
+  facilities: ['Projector', 'Sound system', 'Whiteboard'],
+  accessibility_features: ['Step-free access', 'Hearing loop'],
+}
+
+beforeEach(() => {
+  api.getRequestOptions.mockResolvedValue(OPTIONS)
+})
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -28,12 +41,11 @@ const SUBMITTED = {
   start_time: '19:00',
   end_time: '22:30',
   attendance: 150,
-  venue_requirements: 'Banquet layout',
-  accessibility_needs: 'Step-free access',
   equipment_requirements: 'Sound system',
   registration_needs: 'Guest list supplied',
   status: STATUS.REQUEST.SUBMITTED,
   created_by: 'org1',
+  ...NO_CHOICES,
   registration_enabled: false,
   submitted_at: '2026-09-01T10:00:00',
   decision: null,
@@ -71,6 +83,7 @@ describe('RequestDetailPage', () => {
       name: 'Annual Dinner',
       status: 'Submitted',
       created_by: 'org1',
+      ...NO_CHOICES,
       registration_enabled: false,
     })
 
@@ -99,6 +112,7 @@ describe('RequestDetailPage', () => {
         name: 'Design Workshop',
         status: 'Submitted',
         created_by: 'org1',
+        ...NO_CHOICES,
         registration_enabled: false,
       })
     const router = createMemoryRouter([{ path: '/requests/:id', element: <RequestDetailPage /> }], {
@@ -116,6 +130,7 @@ describe('RequestDetailPage', () => {
         name: 'Annual Dinner',
         status: 'Submitted',
         created_by: 'org1',
+        ...NO_CHOICES,
         registration_enabled: false,
       }),
     )
@@ -138,6 +153,7 @@ describe('RequestDetailPage', () => {
         name: 'Design Workshop',
         status: 'Submitted',
         created_by: 'org1',
+        ...NO_CHOICES,
         registration_enabled: false,
       })
     const router = createMemoryRouter([{ path: '/requests/:id', element: <RequestDetailPage /> }], {
@@ -180,6 +196,7 @@ describe('RequestDetailPage', () => {
       name: 'Annual Dinner',
       status: 'Submitted',
       created_by: 'org1',
+      ...NO_CHOICES,
       registration_enabled: false,
       coordinator_notes: 'Internal: venue shortlist pending.',
     })
@@ -199,6 +216,7 @@ describe('RequestDetailPage', () => {
       name: 'Design Workshop',
       status: 'Draft',
       created_by: 'org1',
+      ...NO_CHOICES,
       registration_enabled: false,
     })
 
@@ -217,6 +235,7 @@ describe('RequestDetailPage', () => {
       name: 'Design Workshop',
       status: 'Draft',
       created_by: 'org1',
+      ...NO_CHOICES,
       registration_enabled: false,
     })
     api.submitDraft.mockResolvedValue({
@@ -224,6 +243,7 @@ describe('RequestDetailPage', () => {
       name: 'Design Workshop',
       status: 'Submitted',
       created_by: 'org1',
+      ...NO_CHOICES,
       registration_enabled: false,
     })
 
@@ -246,6 +266,7 @@ describe('RequestDetailPage', () => {
       name: 'Design Workshop',
       status: 'Draft',
       created_by: 'org1',
+      ...NO_CHOICES,
       registration_enabled: false,
     })
     api.submitDraft.mockRejectedValue(
@@ -463,6 +484,7 @@ describe('RequestDetailPage', () => {
       name: 'Design Workshop',
       status: 'Draft',
       created_by: 'org1',
+      ...NO_CHOICES,
       registration_enabled: false,
     })
 
@@ -482,6 +504,7 @@ describe('RequestDetailPage', () => {
       name: 'Old name',
       status: 'Draft',
       created_by: 'org1',
+      ...NO_CHOICES,
       registration_enabled: false,
     })
     api.updateDraft.mockResolvedValue({
@@ -489,6 +512,7 @@ describe('RequestDetailPage', () => {
       name: 'New name',
       status: 'Draft',
       created_by: 'org1',
+      ...NO_CHOICES,
       registration_enabled: false,
     })
 
@@ -523,6 +547,7 @@ describe('RequestDetailPage', () => {
       name: 'Design Workshop',
       status: 'Draft',
       created_by: 'org1',
+      ...NO_CHOICES,
       registration_enabled: false,
     })
 
@@ -546,6 +571,7 @@ describe('RequestDetailPage', () => {
       name: 'Design Workshop',
       status: 'Draft',
       created_by: 'org1',
+      ...NO_CHOICES,
       registration_enabled: false,
     })
     api.updateDraft.mockRejectedValue(
@@ -570,6 +596,7 @@ describe('RequestDetailPage', () => {
       name: 'Design Workshop',
       status: 'Draft',
       created_by: 'org1',
+      ...NO_CHOICES,
       registration_enabled: false,
     })
 
@@ -590,6 +617,7 @@ describe('RequestDetailPage', () => {
       name: 'Design Workshop',
       status: 'Draft',
       created_by: 'org1',
+      ...NO_CHOICES,
       registration_enabled: false,
     })
     api.deleteDraft.mockResolvedValue()
@@ -618,6 +646,7 @@ describe('RequestDetailPage', () => {
       name: 'Design Workshop',
       status: 'Draft',
       created_by: 'org1',
+      ...NO_CHOICES,
       registration_enabled: false,
     })
     api.deleteDraft.mockRejectedValue(
@@ -642,6 +671,7 @@ describe('RequestDetailPage', () => {
       name: 'Design Workshop',
       status: 'Draft',
       created_by: 'org1',
+      ...NO_CHOICES,
       registration_enabled: false,
     })
 
@@ -662,13 +692,14 @@ describe('RequestDetailPage', () => {
       name: 'Design Workshop',
       status: 'Draft',
       created_by: 'org1',
+      ...NO_CHOICES,
       registration_enabled: false,
     })
 
     renderDetail()
     await waitFor(() => screen.getByTestId('request-detail-edit-button'))
     await userEvent.click(screen.getByTestId('request-detail-edit-button'))
-    expect(screen.getByTestId('request-detail-edit-form')).toBeInTheDocument()
+    expect(await screen.findByTestId('request-detail-edit-form')).toBeInTheDocument()
 
     await userEvent.click(screen.getByTestId('request-detail-delete-button'))
     expect(screen.queryByTestId('request-detail-edit-form')).not.toBeInTheDocument()
@@ -686,6 +717,7 @@ describe('RequestDetailPage', () => {
         name: 'Tech Fair 2026',
         status,
         created_by: 'org1',
+        ...NO_CHOICES,
         registration_enabled: false,
       })
 
@@ -709,6 +741,7 @@ describe('RequestDetailPage', () => {
       name: 'Tech Fair 2026',
       status: 'Approved',
       created_by: 'org1',
+      ...NO_CHOICES,
       registration_enabled: false,
     })
 
@@ -727,6 +760,7 @@ describe('RequestDetailPage', () => {
       name: 'Tech Fair 2026',
       status: 'Confirmed',
       created_by: 'org1',
+      ...NO_CHOICES,
       registration_enabled: false,
     })
 
@@ -734,6 +768,148 @@ describe('RequestDetailPage', () => {
 
     await waitFor(() => screen.getByTestId('request-detail-name'))
     expect(screen.queryByTestId('request-detail-raise-booking-button')).not.toBeInTheDocument()
+  })
+
+  // --- SCRUM-42: the chosen required layout, facilities and accessibility features ---
+
+  const CHOSEN_DRAFT = {
+    id: 1,
+    name: 'TC42 Draft',
+    status: 'Draft',
+    created_by: 'org1',
+    registration_enabled: false,
+    layout: 'Theatre',
+    facilities: ['Projector', 'Sound system'],
+    accessibility_features: ['Hearing loop'],
+  }
+
+  // @story: SCRUM-42
+  // @ac: 1
+  it('shows the chosen layout, facilities and accessibility features', async () => {
+    api.getRequest.mockResolvedValue(CHOSEN_DRAFT)
+
+    renderDetail()
+
+    expect(await screen.findByTestId('request-detail-layout')).toHaveTextContent('Theatre')
+    expect(screen.getByTestId('request-detail-facilities')).toHaveTextContent('Projector, Sound system')
+    expect(screen.getByTestId('request-detail-accessibility-features')).toHaveTextContent('Hearing loop')
+  })
+
+  // @story: SCRUM-42
+  // @ac: 1
+  it("shows the choices under the brief's headings, in place of the free-text fields", async () => {
+    api.getRequest.mockResolvedValue(CHOSEN_DRAFT)
+
+    renderDetail()
+
+    const venue = (await screen.findByRole('heading', { name: 'Venue requirements' })).closest('section')
+    expect(within(venue).getByText('Room layout')).toBeInTheDocument()
+    expect(within(venue).getByText('Facilities')).toBeInTheDocument()
+    expect(venue).toContainElement(screen.getByTestId('request-detail-layout'))
+    expect(venue).toContainElement(screen.getByTestId('request-detail-facilities'))
+    const accessibility = screen.getByRole('heading', { name: 'Accessibility needs' }).closest('section')
+    expect(within(accessibility).getByText('Accessibility features')).toBeInTheDocument()
+    expect(accessibility).toContainElement(screen.getByTestId('request-detail-accessibility-features'))
+    expect(screen.queryByTestId('request-detail-venue-requirements')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('request-detail-accessibility-needs')).not.toBeInTheDocument()
+  })
+
+  // @story: SCRUM-42
+  // @ac: 1
+  it("groups the Draft edit form's choices under the brief's headings", async () => {
+    api.getRequest.mockResolvedValue(CHOSEN_DRAFT)
+    renderDetail()
+    await userEvent.click(await screen.findByTestId('request-detail-edit-button'))
+
+    const venue = screen.getByRole('group', { name: 'Venue requirements' })
+    expect(within(venue).getByLabelText('Room layout')).toBe(screen.getByTestId('request-detail-edit-layout-input'))
+    expect(within(venue).getByRole('group', { name: 'Facilities' })).toContainElement(
+      screen.getByTestId('request-detail-edit-facilities-projector-input'),
+    )
+    const accessibility = screen.getByRole('group', { name: 'Accessibility needs' })
+    expect(within(accessibility).getByRole('group', { name: 'Accessibility features' })).toContainElement(
+      screen.getByTestId('request-detail-edit-accessibility-features-hearing-loop-input'),
+    )
+    expect(screen.queryByTestId('request-detail-edit-venue-requirements-input')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('request-detail-edit-accessibility-needs-input')).not.toBeInTheDocument()
+  })
+
+  // @story: SCRUM-42
+  // @ac: 1
+  it('shows None for each requirement not chosen', async () => {
+    api.getRequest.mockResolvedValue({ ...SUBMITTED, ...NO_CHOICES })
+
+    renderDetail()
+
+    expect(await screen.findByTestId('request-detail-layout')).toHaveTextContent('None')
+    expect(screen.getByTestId('request-detail-facilities')).toHaveTextContent('None')
+    expect(screen.getByTestId('request-detail-accessibility-features')).toHaveTextContent('None')
+  })
+
+  // @story: SCRUM-42
+  // @ac: 1
+  it('changes the chosen requirements while editing a draft', async () => {
+    api.getRequest.mockResolvedValue(CHOSEN_DRAFT)
+    api.updateDraft.mockResolvedValue({
+      ...CHOSEN_DRAFT,
+      layout: null,
+      facilities: ['Whiteboard'],
+      accessibility_features: ['Hearing loop', 'Step-free access'],
+    })
+    renderDetail()
+    await userEvent.click(await screen.findByTestId('request-detail-edit-button'))
+
+    expect(api.getRequestOptions).toHaveBeenCalled()
+    expect(screen.getByTestId('request-detail-edit-layout-input')).toHaveValue('Theatre')
+    expect(screen.getByTestId('request-detail-edit-facilities-projector-input')).toBeChecked()
+    await userEvent.selectOptions(screen.getByTestId('request-detail-edit-layout-input'), '')
+    await userEvent.click(screen.getByTestId('request-detail-edit-facilities-projector-input'))
+    await userEvent.click(screen.getByTestId('request-detail-edit-facilities-sound-system-input'))
+    await userEvent.click(screen.getByTestId('request-detail-edit-facilities-whiteboard-input'))
+    await userEvent.click(screen.getByTestId('request-detail-edit-accessibility-features-step-free-access-input'))
+    await userEvent.click(screen.getByTestId('request-detail-edit-confirm-button'))
+
+    await waitFor(() => {
+      expect(api.updateDraft).toHaveBeenCalledWith(
+        '1',
+        expect.objectContaining({
+          layout: null,
+          facilities: ['Whiteboard'],
+          accessibility_features: ['Hearing loop', 'Step-free access'],
+        }),
+      )
+    })
+    expect(await screen.findByTestId('request-detail-facilities')).toHaveTextContent('Whiteboard')
+    expect(screen.getByTestId('request-detail-layout')).toHaveTextContent('None')
+  })
+
+  // @story: SCRUM-42
+  // @ac: 1
+  it('sends a newly chosen layout when editing a draft', async () => {
+    api.getRequest.mockResolvedValue({ ...CHOSEN_DRAFT, ...NO_CHOICES })
+    api.updateDraft.mockResolvedValue({ ...CHOSEN_DRAFT, layout: 'Classroom' })
+    renderDetail()
+    await userEvent.click(await screen.findByTestId('request-detail-edit-button'))
+
+    await userEvent.selectOptions(await screen.findByTestId('request-detail-edit-layout-input'), 'Classroom')
+    await userEvent.click(screen.getByTestId('request-detail-edit-confirm-button'))
+
+    await waitFor(() => {
+      expect(api.updateDraft).toHaveBeenCalledWith('1', expect.objectContaining({ layout: 'Classroom' }))
+    })
+  })
+
+  // @story: SCRUM-42
+  // @ac: 1
+  it('shows the refusal and keeps the edit form closed when the option lists fail to load', async () => {
+    api.getRequest.mockResolvedValue(CHOSEN_DRAFT)
+    api.getRequestOptions.mockRejectedValue(Object.assign(new Error('Something went wrong'), { status: 500 }))
+    renderDetail()
+
+    await userEvent.click(await screen.findByTestId('request-detail-edit-button'))
+
+    expect(await screen.findByTestId('request-detail-banner')).toHaveTextContent('Something went wrong')
+    expect(screen.queryByTestId('request-detail-edit-form')).not.toBeInTheDocument()
   })
 
   // @story: SCRUM-33
@@ -748,6 +924,7 @@ describe('RequestDetailPage', () => {
         status,
         created_by: 'org1',
         registration_enabled: false,
+        ...NO_CHOICES,
       })
 
       renderDetail()
@@ -778,6 +955,7 @@ describe('RequestDetailPage', () => {
       status,
       created_by: 'org1',
       registration_enabled: false,
+      ...NO_CHOICES,
     })
 
     renderDetail()
@@ -796,6 +974,7 @@ describe('RequestDetailPage', () => {
       status: 'Approved',
       created_by: 'org1',
       registration_enabled: false,
+      ...NO_CHOICES,
     })
 
     renderDetail()

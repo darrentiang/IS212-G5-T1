@@ -98,6 +98,25 @@ def seed_database(db, data_path=DEFAULT_DATA_PATH):
 
         db.session.flush()
 
+        # The fixed lists come first: event requests (SCRUM-42) and venues link to them.
+        facilities = {}
+        for name in data.get("facilities", []):
+            facility = Facility(name=name)
+            facilities[name] = facility
+            db.session.add(facility)
+
+        accessibility_features = {}
+        for name in data.get("accessibility_features", []):
+            feature = AccessibilityFeature(name=name)
+            accessibility_features[name] = feature
+            db.session.add(feature)
+
+        layouts = {}
+        for name in data.get("layouts", []):
+            layout = RoomLayout(name=name)
+            layouts[name] = layout
+            db.session.add(layout)
+
         for entry in data.get("event_requests", []):
             owner = accounts[entry["created_by"]]
             optional_fields = {
@@ -112,24 +131,16 @@ def seed_database(db, data_path=DEFAULT_DATA_PATH):
                     registration_enabled=bool(entry.get("registration_enabled", False)),
                     coordinator_notes=entry.get("coordinator_notes"),
                     submitted_at=parse_datetime(entry.get("submitted_at")),
+                    # SCRUM-42: the optional requirements chosen from the fixed lists.
+                    layout=layouts[entry["layout"]] if entry.get("layout") else None,
+                    facilities=[facilities[name] for name in entry.get("facilities", [])],
+                    accessibility_features=[
+                        accessibility_features[name]
+                        for name in entry.get("accessibility_features", [])
+                    ],
                     **{k: v for k, v in optional_fields.items() if k not in ("name", "purpose")},
                 )
             )
-
-        facilities = {}
-        for name in data.get("facilities", []):
-            facility = Facility(name=name)
-            facilities[name] = facility
-            db.session.add(facility)
-
-        accessibility_features = {}
-        for name in data.get("accessibility_features", []):
-            feature = AccessibilityFeature(name=name)
-            accessibility_features[name] = feature
-            db.session.add(feature)
-
-        for name in data.get("layouts", []):
-            db.session.add(RoomLayout(name=name))
 
         for entry in data.get("venues", []):
             db.session.add(

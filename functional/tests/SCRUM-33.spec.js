@@ -77,8 +77,6 @@ async function submittedEvent(name, overrides = {}) {
       start_time: '10:00',
       end_time: '12:00',
       attendance: 50,
-      venue_requirements: 'Any hall',
-      accessibility_needs: 'None',
       equipment_requirements: 'None',
       registration_needs: 'None',
       ...overrides,

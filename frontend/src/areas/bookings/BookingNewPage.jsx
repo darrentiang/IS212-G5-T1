@@ -1,11 +1,48 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
-import { listVenues, raiseBooking } from './api'
+import { formatTime } from '../../app/format'
+import { checkVenue, listVenues, raiseBooking } from './api'
+
+// SCRUM-42: one line per mismatch, with the values AC3 names. The test id
+// suffix is the warning's type, plus the missing option for a named one
+// (docs/design/ui-guidelines.md §7).
+const kebab = (value) => value.toLowerCase().replaceAll(' ', '-')
+const hours = (warning) => `${formatTime(warning.opening_time)} to ${formatTime(warning.closing_time)}`
+
+const WARNINGS = {
+  capacity: {
+    key: () => 'capacity',
+    text: (w) => `Expected attendance ${w.attendance} is above the venue's maximum capacity of ${w.max_capacity}.`,
+  },
+  start_time: {
+    key: () => 'start-time',
+    text: (w) => `Start time ${formatTime(w.start_time)} is outside the venue's operating hours, ${hours(w)}.`,
+  },
+  end_time: {
+    key: () => 'end-time',
+    text: (w) => `End time ${formatTime(w.end_time)} is outside the venue's operating hours, ${hours(w)}.`,
+  },
+  layout: {
+    key: (w) => `layout-${kebab(w.name)}`,
+    text: (w) => `The venue does not record the ${w.name} layout.`,
+  },
+  facility: {
+    key: (w) => `facility-${kebab(w.name)}`,
+    text: (w) => `The venue does not record the facility ${w.name}.`,
+  },
+  accessibility_feature: {
+    key: (w) => `accessibility-feature-${kebab(w.name)}`,
+    text: (w) => `The venue does not record the accessibility feature ${w.name}.`,
+  },
+}
 
 // SCRUM-36: an Event Coordinator raises a booking request for one venue
 // against one event (docs/design/state-model.md, '— -> Requested'). Lands on
 // the venue's own page, where the new request appears in Booking requests
 // (ui-guidelines.md §7) — this page has no detail view of its own.
+// SCRUM-42: choosing or changing the venue checks it against the event and
+// shows a warning per mismatch above Raise; the coordinator may still raise,
+// or go back to the request (the back link is the Cancel, AC5).
 export default function BookingNewPage() {
   const { requestId } = useParams()
   const navigate = useNavigate()
@@ -15,6 +52,7 @@ export default function BookingNewPage() {
   const [venueId, setVenueId] = useState('')
   const [fieldError, setFieldError] = useState(null)
   const [submitting, setSubmitting] = useState(false)
+  const [warnings, setWarnings] = useState([])
 
   useEffect(() => {
     listVenues()
@@ -24,6 +62,24 @@ export default function BookingNewPage() {
       .catch((error) => setBanner(error.message))
       .finally(() => setLoading(false))
   }, [])
+
+  // Keyed to the chosen venue: a reply for a venue the user has moved away
+  // from can arrive after the current one, so a stale reply is ignored
+  // (docs/design/frontend.md §7).
+  useEffect(() => {
+    if (!venueId) return undefined
+    let active = true
+    checkVenue(requestId, venueId)
+      .then((data) => {
+        if (active) setWarnings(data)
+      })
+      .catch((error) => {
+        if (active) setBanner(error.message)
+      })
+    return () => {
+      active = false
+    }
+  }, [requestId, venueId])
 
   const handleSubmit = async (event) => {
     event.preventDefault()
@@ -76,7 +132,11 @@ export default function BookingNewPage() {
               aria-required="true"
               className="input"
               value={venueId}
-              onChange={(event) => setVenueId(event.target.value)}
+              onChange={(event) => {
+                // Warnings belong to one venue: a new choice clears them.
+                setWarnings([])
+                setVenueId(event.target.value)
+              }}
               data-testid="booking-new-venue-input"
             >
               <option value="">Select a venue</option>
@@ -92,6 +152,23 @@ export default function BookingNewPage() {
               </p>
             )}
           </div>
+
+          {warnings.length > 0 && (
+            <div className="warning-list" aria-live="polite" data-testid="booking-new-warnings">
+              <p>This venue may not suit the event</p>
+              <ul className="space-y-1">
+                {warnings.map((warning) => {
+                  const kind = WARNINGS[warning.type]
+                  const key = kind.key(warning)
+                  return (
+                    <li key={key} data-testid={`booking-new-warning-${key}`}>
+                      {kind.text(warning)}
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+          )}
 
           <div className="flex justify-end">
             <button
