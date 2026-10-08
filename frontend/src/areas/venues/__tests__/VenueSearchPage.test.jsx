@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router'
@@ -7,8 +7,16 @@ import VenueSearchPage from '../VenueSearchPage'
 
 vi.mock('../api')
 
+// The five recognised accessibility features, in the fixed list's order.
+const FEATURES = ['Step-free access', 'Hearing loop', 'Accessible toilet', 'Lift access', 'Reserved seating']
+
+beforeEach(() => {
+  api.getVenueOptions.mockResolvedValue({ facilities: [], accessibility_features: FEATURES })
+})
+
 afterEach(() => {
   api.searchVenues.mockReset()
+  api.getVenueOptions.mockReset()
 })
 
 const EVENT = {
@@ -65,7 +73,7 @@ describe('VenueSearchPage', () => {
     expect(await screen.findByTestId('venue-search-event-name')).toHaveTextContent('Search Test A')
     expect(screen.getByTestId('venue-search-period')).toHaveTextContent('15 Dec 2026, 10:00–12:00')
     expect(screen.getByTestId('venue-search-attendance')).toHaveTextContent('50')
-    expect(api.searchVenues).toHaveBeenCalledWith('5', '')
+    expect(api.searchVenues).toHaveBeenCalledWith('5', '', [])
     expect(screen.getByTestId('venue-search-back-link')).toHaveAttribute('href', '/requests/5')
   })
 
@@ -135,7 +143,7 @@ describe('VenueSearchPage', () => {
       expect(screen.queryByTestId('venue-search-row-1')).not.toBeInTheDocument()
     })
     expect(screen.getByTestId('venue-search-row-2')).toBeInTheDocument()
-    expect(api.searchVenues).toHaveBeenLastCalledWith('5', 'Block C Level 1')
+    expect(api.searchVenues).toHaveBeenLastCalledWith('5', 'Block C Level 1', [])
   })
 
   // @story: SCRUM-33
@@ -146,14 +154,14 @@ describe('VenueSearchPage', () => {
     await screen.findByTestId('venue-search-row-2')
     await applyLocation('Block C Level 1')
     await waitFor(() => {
-      expect(api.searchVenues).toHaveBeenLastCalledWith('5', 'Block C Level 1')
+      expect(api.searchVenues).toHaveBeenLastCalledWith('5', 'Block C Level 1', [])
     })
 
     api.searchVenues.mockResolvedValue(found([SEMINAR_ROOM_1, AUDITORIUM]))
     await applyLocation('')
 
     expect(await screen.findByTestId('venue-search-row-1')).toBeInTheDocument()
-    expect(api.searchVenues).toHaveBeenLastCalledWith('5', '')
+    expect(api.searchVenues).toHaveBeenLastCalledWith('5', '', [])
   })
 
   // @story: SCRUM-33
@@ -224,5 +232,134 @@ describe('VenueSearchPage', () => {
 
     expect(screen.queryByTestId('venue-search-banner')).not.toBeInTheDocument()
     expect(screen.getByTestId('venue-search-row-2')).toBeInTheDocument()
+  })
+
+  describe('accessibility filter', () => {
+    const featureBox = (name) =>
+      screen.getByTestId(`venue-search-accessibility-features-${name.toLowerCase().replaceAll(' ', '-')}-input`)
+    const tick = (name) => fireEvent.click(featureBox(name))
+    const apply = () => userEvent.click(screen.getByTestId('venue-search-apply-button'))
+
+    // @story: SCRUM-34
+    // @ac: 1, 3
+    it('offers exactly the recognised features, none ticked, and searches without any at first', async () => {
+      api.searchVenues.mockResolvedValue(found([SEMINAR_ROOM_1, AUDITORIUM]))
+
+      renderPage()
+      await screen.findByTestId('venue-search-row-1')
+      await screen.findByTestId('venue-search-accessibility-features-hearing-loop-input')
+
+      const boxes = screen.getAllByRole('checkbox')
+      expect(boxes.map((box) => box.parentElement.textContent)).toEqual(FEATURES)
+      boxes.forEach((box) => expect(box).not.toBeChecked())
+      expect(api.searchVenues).toHaveBeenCalledWith('5', '', [])
+    })
+
+    // @story: SCRUM-34
+    // @ac: 1, 2
+    it('sends the ticked features only when Apply is pressed, and shows the narrowed results', async () => {
+      api.searchVenues.mockResolvedValue(found([SEMINAR_ROOM_1, AUDITORIUM]))
+      renderPage()
+      await screen.findByTestId('venue-search-row-2')
+      await screen.findByTestId('venue-search-accessibility-features-hearing-loop-input')
+
+      tick('Hearing loop')
+      expect(featureBox('Hearing loop')).toBeChecked()
+      expect(api.searchVenues).toHaveBeenCalledTimes(1)
+
+      api.searchVenues.mockResolvedValue(found([AUDITORIUM]))
+      await apply()
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('venue-search-row-1')).not.toBeInTheDocument()
+      })
+      expect(screen.getByTestId('venue-search-row-2')).toBeInTheDocument()
+      expect(api.searchVenues).toHaveBeenLastCalledWith('5', '', ['Hearing loop'])
+    })
+
+    // @story: SCRUM-34
+    // @ac: 2
+    it('sends every feature ticked, in the order ticked', async () => {
+      api.searchVenues.mockResolvedValue(found([SEMINAR_ROOM_1]))
+      renderPage()
+      await screen.findByTestId('venue-search-accessibility-features-lift-access-input')
+
+      tick('Step-free access')
+      tick('Lift access')
+      await apply()
+
+      await waitFor(() => {
+        expect(api.searchVenues).toHaveBeenLastCalledWith('5', '', ['Step-free access', 'Lift access'])
+      })
+    })
+
+    // @story: SCRUM-34
+    // @ac: 4
+    it('sends the location and the ticked features together in one search', async () => {
+      api.searchVenues.mockResolvedValue(found([AUDITORIUM]))
+      renderPage()
+      await screen.findByTestId('venue-search-accessibility-features-step-free-access-input')
+
+      tick('Step-free access')
+      await applyLocation('Block C Level 1')
+
+      await waitFor(() => {
+        expect(api.searchVenues).toHaveBeenLastCalledWith('5', 'Block C Level 1', ['Step-free access'])
+      })
+    })
+
+    // @story: SCRUM-34
+    // @ac: 5
+    it('clears only the accessibility restriction when every feature is unticked, keeping the location', async () => {
+      api.searchVenues.mockResolvedValue(found([]))
+      renderPage()
+      await screen.findByTestId('venue-search-accessibility-features-hearing-loop-input')
+      tick('Hearing loop')
+      await applyLocation('Block A Level 2')
+      await waitFor(() => {
+        expect(api.searchVenues).toHaveBeenLastCalledWith('5', 'Block A Level 2', ['Hearing loop'])
+      })
+
+      api.searchVenues.mockResolvedValue(found([SEMINAR_ROOM_1]))
+      tick('Hearing loop')
+      expect(featureBox('Hearing loop')).not.toBeChecked()
+      await apply()
+
+      expect(await screen.findByTestId('venue-search-row-1')).toBeInTheDocument()
+      expect(api.searchVenues).toHaveBeenLastCalledWith('5', 'Block A Level 2', [])
+      expect(screen.getByTestId('venue-search-location-input')).toHaveValue('Block A Level 2')
+    })
+
+    // @story: SCRUM-34
+    // @ac: 1
+    it('shows the API refusal in the banner when the recognised features cannot be loaded', async () => {
+      api.getVenueOptions.mockRejectedValue(refusal('You do not have permission to perform this action.', 403))
+      api.searchVenues.mockResolvedValue(found([SEMINAR_ROOM_1]))
+
+      renderPage()
+
+      expect(await screen.findByTestId('venue-search-banner')).toHaveTextContent(
+        'You do not have permission to perform this action.',
+      )
+      expect(screen.queryAllByRole('checkbox')).toHaveLength(0)
+    })
+
+    // @story: SCRUM-34
+    // @ac: 1
+    it('shows the API refusal for an unrecognised feature in the banner and keeps the earlier results', async () => {
+      api.searchVenues.mockResolvedValueOnce(found([SEMINAR_ROOM_1, AUDITORIUM]))
+      renderPage()
+      await screen.findByTestId('venue-search-accessibility-features-hearing-loop-input')
+      await screen.findByTestId('venue-search-row-1')
+
+      api.searchVenues.mockRejectedValue(refusal('Choose each accessibility feature from the list.'))
+      tick('Hearing loop')
+      await apply()
+
+      expect(await screen.findByTestId('venue-search-banner')).toHaveTextContent(
+        'Choose each accessibility feature from the list.',
+      )
+      expect(screen.getByTestId('venue-search-row-1')).toBeInTheDocument()
+    })
   })
 })

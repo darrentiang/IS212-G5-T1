@@ -1,7 +1,8 @@
 """Venue rules — SCRUM-31 (Add a Venue), SCRUM-32 (Record supported layouts),
 SCRUM-40 (Block a Venue), SCRUM-75 (Update a Venue),
 SCRUM-79 (End or Remove a Venue Block), SCRUM-33 (Search Venues by Date and
-Capacity), SCRUM-80 (Record Setup and Turnaround Time).
+Capacity), SCRUM-34 (Filter Venue Results by Accessibility Requirements),
+SCRUM-80 (Record Setup and Turnaround Time).
 
 Every rule the acceptance criteria state lives here, next to the query, and
 refuses by raising ApiRefusal; the route never decides (ADR-002). Retiring a
@@ -424,8 +425,9 @@ def block_to_dict(block):
     }
 
 
-def search_venues(event_request_id, location):
-    """Venues that are free for an event and large enough for it (SCRUM-33).
+def search_venues(event_request_id, location, accessibility_features=()):
+    """Venues that are free for an event and large enough for it (SCRUM-33),
+    narrowed by the accessibility features the coordinator selected (SCRUM-34).
 
     AC1: the event must be Approved or in Planning, and the search uses the
     event's own date, start time, end time and expected attendance, read here
@@ -436,6 +438,14 @@ def search_venues(event_request_id, location):
     Approved never leaves a venue out. AC6: a location, when given, must match
     the venue's recorded location exactly; none given means no restriction.
     AC8: nothing matching is an empty list, not a refusal.
+
+    SCRUM-34 AC1-AC3: each accessibility feature selected must be one the
+    fixed list recognises (else 400), and a venue is kept only when it records
+    every one of them; none selected means accessibility restricts nothing, and
+    the event's own required features are never read here. AC4: this is one more
+    condition on the same search, so it can only remove venues, never bring back
+    one the other rules left out. AC5: leaving the features out again is all
+    "clearing" means; location, capacity and availability still apply.
 
     A retired venue is left out as well. The criteria do not say so, but a
     retired venue cannot be booked (SCRUM-36 AC10), so offering it to
@@ -449,6 +459,8 @@ def search_venues(event_request_id, location):
     if event.status not in SEARCHABLE_STATUSES:
         raise ApiRefusal(400, "Venue search is available only for an Approved or Planning event.")
 
+    required_features = _recognised_features(accessibility_features)
+
     starts_at = _moment(event.date, event.start_time)
     ends_at = _moment(event.date, event.end_time)
 
@@ -460,9 +472,23 @@ def search_venues(event_request_id, location):
     venues = [
         venue
         for venue in query.order_by(Venue.id).all()
-        if _is_free(venue, starts_at, ends_at)
+        if _is_free(venue, starts_at, ends_at) and _has_every_feature(venue, required_features)
     ]
     return event, venues
+
+
+def _recognised_features(names):
+    """The selected accessibility feature names as a set, refusing 400 for any the fixed list lacks."""
+    selected = set(names)
+    recognised = {row.name for row in db.session.query(AccessibilityFeature).all()}
+    if not selected <= recognised:
+        raise ApiRefusal(400, "Choose each accessibility feature from the list.")
+    return selected
+
+
+def _has_every_feature(venue, required_features):
+    """True when the venue records every required feature (vacuously true when none are required)."""
+    return required_features <= {feature.name for feature in venue.accessibility_features}
 
 
 def _moment(date_text, time_text):

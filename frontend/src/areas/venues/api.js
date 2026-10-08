@@ -67,15 +67,18 @@ export const removeVenueBlock = (id, blockId) => request('DELETE', `/api/venues/
 // 400/403/404: { message }
 export const endVenueBlock = (id, blockId, data) => request('PATCH', `/api/venues/${id}/blocks/${blockId}`, data)
 
-// GET /api/venues/search?event_request_id=:id[&location=:text]   (SCRUM-33)
+// GET /api/venues/search?event_request_id=:id[&location=:text][&accessibility_features=:name ...]   (SCRUM-33, SCRUM-34)
 // The API reads the event's own date, times and attendance; the caller sends only which event.
 // 200:     { event: { id, name, date, start_time, end_time, attendance },
 //            venues: [ { id, name, location, max_capacity, ... } ] }   venues may be []
 //          location, when given, must match a venue's recorded location exactly
-// 400/403/404: { message }   400 when the event is not Approved or Planning
-export const searchVenues = (eventRequestId, location) => {
+//          accessibility_features is repeated, one per feature selected; a venue is kept only
+//          when it records every one. None sent means accessibility restricts nothing.
+// 400/403/404: { message }   400 when the event is not Approved or Planning, or a feature is not recognised
+export const searchVenues = (eventRequestId, location, accessibilityFeatures = []) => {
   const params = new URLSearchParams({ event_request_id: eventRequestId })
   if (location) params.set('location', location)
+  accessibilityFeatures.forEach((name) => params.append('accessibility_features', name))
   return request('GET', `/api/venues/search?${params}`)
 }
 

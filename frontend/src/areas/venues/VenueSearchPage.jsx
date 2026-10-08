@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { formatPeriod } from '../../app/format'
-import { searchVenues } from './api'
+import { getVenueOptions, searchVenues } from './api'
+
+// The test id of one checkbox is the option's name in kebab-case
+// (docs/design/ui-guidelines.md §5).
+const kebab = (value) => value.toLowerCase().replaceAll(' ', '-')
 
 // SCRUM-33: an Event Coordinator finds the venues that are free on an
 // Approved or Planning event's date and times and large enough for its
@@ -9,20 +13,34 @@ import { searchVenues } from './api'
 // values and decides every rule; this page only shows what it returns. The
 // location is an optional text filter, matched exactly by the API, and an
 // empty one applies no restriction.
+// SCRUM-34: the coordinator may also tick accessibility features; a venue is
+// shown only if it records every one ticked. Nothing is ticked at first, and
+// the event's own accessibility needs are never ticked for them. One Apply
+// sends the location and the ticked features together, so clearing the
+// features is unticking them all and applying again.
 export default function VenueSearchPage() {
   const { id } = useParams()
-  // What is typed is not applied until Apply, so typing never searches.
+  // What is typed or ticked is not applied until Apply, so editing never searches.
   const [typed, setTyped] = useState('')
-  const [location, setLocation] = useState('')
+  const [typedFeatures, setTypedFeatures] = useState([])
+  const [filters, setFilters] = useState({ location: '', features: [] })
+  const [featureOptions, setFeatureOptions] = useState([])
   const [result, setResult] = useState(null)
   const [banner, setBanner] = useState(null)
 
-  // Keyed to the event and the applied location: a reply for a search the user
+  // The recognised features are fetched once; nothing here can race another fetch.
+  useEffect(() => {
+    getVenueOptions()
+      .then((data) => setFeatureOptions(data.accessibility_features))
+      .catch((error) => setBanner(error.message))
+  }, [])
+
+  // Keyed to the event and the applied filters: a reply for a search the user
   // has since replaced can arrive after the current one, so a stale reply is
   // ignored (docs/design/frontend.md section 7).
   useEffect(() => {
     let active = true
-    searchVenues(id, location)
+    searchVenues(id, filters.location, filters.features)
       .then((data) => {
         if (active) {
           setResult(data)
@@ -35,11 +53,16 @@ export default function VenueSearchPage() {
     return () => {
       active = false
     }
-  }, [id, location])
+  }, [id, filters])
+
+  const toggleFeature = (name) =>
+    setTypedFeatures((current) =>
+      current.includes(name) ? current.filter((feature) => feature !== name) : [...current, name],
+    )
 
   const handleApply = (event) => {
     event.preventDefault()
-    setLocation(typed)
+    setFilters({ location: typed, features: typedFeatures })
   }
 
   return (
@@ -96,6 +119,20 @@ export default function VenueSearchPage() {
                 data-testid="venue-search-location-input"
               />
             </div>
+            <fieldset>
+              <legend className="label">Accessibility features</legend>
+              {featureOptions.map((option) => (
+                <label key={option} className="flex items-center gap-2 py-1">
+                  <input
+                    type="checkbox"
+                    checked={typedFeatures.includes(option)}
+                    onChange={() => toggleFeature(option)}
+                    data-testid={`venue-search-accessibility-features-${kebab(option)}-input`}
+                  />
+                  {option}
+                </label>
+              ))}
+            </fieldset>
             <div className="flex justify-end">
               <button type="submit" className="btn btn-primary" data-testid="venue-search-apply-button">
                 Apply
