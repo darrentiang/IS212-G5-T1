@@ -1,8 +1,7 @@
 import { test, expect, request as playwrightRequest } from '@playwright/test'
 
-// SCRUM-77 Withdraw a Venue Booking Request. No curated test-case sheet rows
-// exist for this story (built directly from the Jira ACs); @tc is omitted
-// rather than invented. Seeded Seminar Room 1 (/venues/1) and Auditorium
+// SCRUM-77 Withdraw a Venue Booking Request. TC-SCRUM-77-01 through 05
+// (test-case sheet). Seeded Seminar Room 1 (/venues/1) and Auditorium
 // (/venues/2) are read and booked against, never retired or renamed. Every
 // event and booking a test withdraws it creates itself through the API,
 // under its own name, so the booking is Requested before the UI step under
@@ -78,6 +77,7 @@ async function openVenue(page, venueId, name) {
   await expect(page.getByTestId('venue-detail-name')).toHaveText(name)
 }
 
+// @tc: TC-SCRUM-77-01
 // @test: the raising Coordinator withdraws their own Requested booking
 // @story: SCRUM-77
 // @ac: 1
@@ -94,6 +94,7 @@ test('the raising Coordinator withdraws their own Requested booking', async ({ p
   await expect(page.getByTestId(`venue-detail-booking-withdraw-button-${bookingId}`)).toHaveCount(0)
 })
 
+// @tc: TC-SCRUM-77-02
 // @test: a withdrawn request no longer offers Approve or Reject to Venue Staff
 // @story: SCRUM-77
 // @ac: 2
@@ -112,6 +113,7 @@ test('a withdrawn request no longer offers Approve or Reject to Venue Staff', as
   await expect(page.getByTestId(`venue-detail-booking-reject-button-${bookingId}`)).toHaveCount(0)
 })
 
+// @tc: TC-SCRUM-77-03
 // @test: an already-approved request cannot be withdrawn
 // @story: SCRUM-77
 // @ac: 3
@@ -132,6 +134,7 @@ test('an already-approved request cannot be withdrawn', async ({ page }) => {
   await expect(page.getByTestId(`venue-detail-booking-withdraw-button-${bookingId}`)).toHaveCount(0)
 })
 
+// @tc: TC-SCRUM-77-04
 // @test: a different Event Coordinator does not see a Withdraw action on someone else's booking
 // @story: SCRUM-77
 // @ac: 4
@@ -146,6 +149,7 @@ test("a different Event Coordinator does not see a Withdraw action on someone el
   await expect(page.getByTestId(`venue-detail-booking-withdraw-button-${bookingId}`)).toHaveCount(0)
 })
 
+// @tc: TC-SCRUM-77-05
 // @test: withdrawing one booking request leaves the event's other booking requests unchanged
 // @story: SCRUM-77
 // @ac: 5
