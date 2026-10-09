@@ -10,6 +10,7 @@ import {
   getVenueOptions,
   listVenueBlocks,
   listVenueBookings,
+  listVenues,
   rejectBooking,
   removeVenueBlock,
   updateVenue,
@@ -61,6 +62,20 @@ const REQUESTED = 'Requested'
 const DECIDE_ACTIONS = {
   approve: { label: 'Approve', send: approveBooking, banner: 'Booking approved', reasonRequired: false },
   reject: { label: 'Reject', send: rejectBooking, banner: 'Booking rejected', reasonRequired: true },
+}
+
+// SCRUM-78: rejecting may carry a suggested venue, a suggested period or both.
+// The period is three fields that stand or fall together (the API's rule).
+const SUGGESTED_PERIOD_FIELDS = [
+  { name: 'suggested_date', label: 'Suggested date', type: 'date' },
+  { name: 'suggested_start_time', label: 'Suggested start time', type: 'time' },
+  { name: 'suggested_end_time', label: 'Suggested end time', type: 'time' },
+]
+const EMPTY_SUGGESTION = {
+  suggested_venue_id: '',
+  suggested_date: '',
+  suggested_start_time: '',
+  suggested_end_time: '',
 }
 
 function bookingDecisionText(booking) {
@@ -127,6 +142,11 @@ export default function VenueDetailPage() {
   const [decidingAction, setDecidingAction] = useState(null)
   const [decideReason, setDecideReason] = useState('')
   const [decideReasonError, setDecideReasonError] = useState(null)
+  // SCRUM-78: the optional suggestion on the reject form. The venues to choose
+  // from load the first time Reject is opened.
+  const [suggestion, setSuggestion] = useState(EMPTY_SUGGESTION)
+  const [suggestionErrors, setSuggestionErrors] = useState({})
+  const [suggestableVenues, setSuggestableVenues] = useState(null)
   const [submitting, setSubmitting] = useState(false)
 
   const canBlock = can('venues.edit')
@@ -386,14 +406,30 @@ export default function VenueDetailPage() {
     setDecidingAction(action)
     setDecideReason('')
     setDecideReasonError(null)
+    setSuggestion(EMPTY_SUGGESTION)
+    setSuggestionErrors({})
     setBanner(null)
     setSuccess(null)
+    if (action === 'reject' && suggestableVenues === null) loadSuggestableVenues()
+  }
+
+  // Only active venues can be suggested: a retired one cannot be booked.
+  const loadSuggestableVenues = async () => {
+    try {
+      const venues = (await listVenues()) ?? []
+      setSuggestableVenues(venues.filter((venue) => venue.is_active))
+    } catch (error) {
+      setBanner(error.message)
+    }
   }
 
   const closeDecide = () => {
     setOpenForm(null)
     setDecideReasonError(null)
+    setSuggestionErrors({})
   }
+
+  const setSuggestionValue = (name, value) => setSuggestion((current) => ({ ...current, [name]: value }))
 
 
   // Reason is required to reject, optional to approve, the same rule as
@@ -401,15 +437,37 @@ export default function VenueDetailPage() {
   const handleDecide = async (event) => {
     event.preventDefault()
     const action = DECIDE_ACTIONS[decidingAction]
-    if (action.reasonRequired && decideReason.trim() === '') {
-      setDecideReasonError('Reason is required.')
-      return
-    }
-    setDecideReasonError(null)
+    const reasonMissing = action.reasonRequired && decideReason.trim() === ''
+    // The page checks only that a period is whole; every other rule about the
+    // suggestion is the API's and shows in the banner (ui-guidelines.md §5).
+    const rejecting = decidingAction === 'reject'
+    const periodGiven = SUGGESTED_PERIOD_FIELDS.filter((field) => suggestion[field.name].trim() !== '')
+    const periodIncomplete =
+      rejecting && periodGiven.length > 0 && periodGiven.length < SUGGESTED_PERIOD_FIELDS.length
+    setDecideReasonError(reasonMissing ? 'Reason is required.' : null)
+    setSuggestionErrors(
+      periodIncomplete
+        ? Object.fromEntries(
+            SUGGESTED_PERIOD_FIELDS.filter((field) => suggestion[field.name].trim() === '').map((field) => [
+              field.name,
+              `${field.label} is required.`,
+            ]),
+          )
+        : {},
+    )
+    if (reasonMissing || periodIncomplete) return
+
+    // Sent only when something was suggested, so a plain rejection is the same call as before.
+    const suggested = Object.fromEntries(
+      Object.entries(suggestion)
+        .filter(([, value]) => value.trim() !== '')
+        .map(([name, value]) => [name, name === 'suggested_venue_id' ? Number(value) : value.trim()]),
+    )
+    const extra = rejecting && Object.keys(suggested).length > 0 ? [suggested] : []
 
     setSubmitting(true)
     try {
-      const updated = await action.send(id, decidingBookingId, decideReason)
+      const updated = await action.send(id, decidingBookingId, decideReason, ...extra)
       setBookings((current) => current.map((booking) => (booking.id === updated.id ? updated : booking)))
       setOpenForm(null)
       setSuccess(action.banner)
@@ -1078,6 +1136,7 @@ export default function VenueDetailPage() {
                         <th>Facilities</th>
                         <th>Status</th>
                         <th>Decision</th>
+                        <th>Suggestion</th>
                         {(canDecideBookings || canWithdraw) && <th>Actions</th>}
                       </tr>
                     </thead>
@@ -1110,6 +1169,29 @@ export default function VenueDetailPage() {
                               data-testid={`venue-detail-booking-decision-${booking.id}`}
                             >
                               {bookingDecisionText(booking)}
+                            </td>
+                            {/* SCRUM-78: what Venue Staff suggested when they rejected, beside the reason. */}
+                            <td data-testid={`venue-detail-booking-suggestion-${booking.id}`}>
+                              {booking.suggested_venue && (
+                                <p>
+                                  Venue:{' '}
+                                  <span data-testid={`venue-detail-booking-suggested-venue-${booking.id}`}>
+                                    {booking.suggested_venue}
+                                  </span>
+                                </p>
+                              )}
+                              {booking.suggested_date && (
+                                <p>
+                                  Period:{' '}
+                                  <span data-testid={`venue-detail-booking-suggested-period-${booking.id}`}>
+                                    {formatPeriod(
+                                      booking.suggested_date,
+                                      booking.suggested_start_time,
+                                      booking.suggested_end_time,
+                                    )}
+                                  </span>
+                                </p>
+                              )}
                             </td>
                             {(canDecideBookings || canWithdraw) && (
                               <td>
@@ -1157,7 +1239,7 @@ export default function VenueDetailPage() {
                             <tr>
                               {/* canDecideBookings is always true here: only the Approve/Reject
                                   buttons this form answers to are gated by it. */}
-                              <td colSpan={8} className="p-0">
+                              <td colSpan={9} className="p-0">
                                 <form
                                   onSubmit={handleDecide}
                                   noValidate
@@ -1186,6 +1268,57 @@ export default function VenueDetailPage() {
                                       </p>
                                     )}
                                   </div>
+                                  {decidingAction === 'reject' && (
+                                    <fieldset className="space-y-4">
+                                      <legend className="label">Suggest an alternative (optional)</legend>
+                                      <div>
+                                        <label htmlFor="venue-detail-decide-suggested-venue" className="label">
+                                          Suggested venue
+                                        </label>
+                                        <select
+                                          id="venue-detail-decide-suggested-venue"
+                                          className="input"
+                                          value={suggestion.suggested_venue_id}
+                                          onChange={(event) =>
+                                            setSuggestionValue('suggested_venue_id', event.target.value)
+                                          }
+                                          data-testid="venue-detail-decide-suggested-venue-input"
+                                        >
+                                          <option value="">None</option>
+                                          {(suggestableVenues ?? []).map((venue) => (
+                                            <option key={venue.id} value={venue.id}>
+                                              {venue.name}
+                                            </option>
+                                          ))}
+                                        </select>
+                                      </div>
+                                      <div className="grid gap-4 md:grid-cols-3">
+                                        {SUGGESTED_PERIOD_FIELDS.map((field) => (
+                                          <div key={field.name}>
+                                            <label htmlFor={`venue-detail-decide-${field.name}`} className="label">
+                                              {field.label}
+                                            </label>
+                                            <input
+                                              id={`venue-detail-decide-${field.name}`}
+                                              type={field.type}
+                                              className="input"
+                                              value={suggestion[field.name]}
+                                              onChange={(event) => setSuggestionValue(field.name, event.target.value)}
+                                              data-testid={`venue-detail-decide-${kebab(field.name)}-input`}
+                                            />
+                                            {suggestionErrors[field.name] && (
+                                              <p
+                                                className="field-error"
+                                                data-testid={`venue-detail-decide-${kebab(field.name)}-error`}
+                                              >
+                                                {suggestionErrors[field.name]}
+                                              </p>
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </fieldset>
+                                  )}
                                   <div className="flex flex-wrap justify-end gap-2">
                                     <button
                                       type="button"

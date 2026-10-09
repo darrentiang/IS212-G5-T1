@@ -8,8 +8,10 @@ bookings.decide (Venue Staff); listing reuses venues.view (Event Coordinator
 and Venue Staff), since a venue's booking requests are shown on its own page
 — docs/design/permissions.md. SCRUM-42: the warnings for a venue chosen for
 an event, before raising; bookings.edit, since only whoever may raise needs
-them. Rules are in services.py; the contract is
-frontend/src/areas/bookings/api.js.
+them. SCRUM-78: rejecting may carry a suggested venue and/or period
+(suggested_venue_id, suggested_date, suggested_start_time, suggested_end_time),
+recorded with the rejection and returned with every booking request. Rules
+are in services.py; the contract is frontend/src/areas/bookings/api.js.
 """
 
 from flask import Blueprint, g, jsonify, request
@@ -54,7 +56,12 @@ def approve_booking(venue_id, booking_id):
 @bp.post("/venues/<int:venue_id>/bookings/<int:booking_id>/reject")
 @require(BOOKINGS_DECIDE)
 def reject_booking(venue_id, booking_id):
-    """SCRUM-37: Requested -> Rejected; reason required."""
+    """SCRUM-37: Requested -> Rejected; reason required.
+
+    SCRUM-78: the body may also carry a suggested venue (suggested_venue_id), a
+    suggested period (suggested_date, suggested_start_time, suggested_end_time)
+    or both; a refused suggestion refuses the whole rejection.
+    """
     body = request.get_json(silent=True) or {}
     updated = services.reject_booking(venue_id, booking_id, g.account, body)
     return jsonify(services.booking_to_dict(updated)), 200
