@@ -27,6 +27,7 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | 1.18 | 09-10-2026 | §7 the venue page's Booking requests section gains a Withdraw button, own-record scoped to the raising Coordinator, acting at once | SCRUM-77 lets the Coordinator who raised a booking pull it back before Venue Staff decide it |
 | 1.19 | 09-10-2026 | §7 the venue page's Occupied periods section and Current clashes section and their test ids; the warnings and the approval refusal speak of the event's occupied period, widened by the venue's setup and turnaround time (a block keeps its own period) | SCRUM-41 reserves setup and turnaround time either side of a booking, so what holds a venue is its occupied period, not its published one |
 | 1.20 | 09-10-2026 | §7 a successful duration save always closes the form and says `Times updated`; a list whose reload refuses afterwards shows an unavailable notice with a Reload control (`venue-detail-occupied-unavailable`/`-reload-button`, `venue-detail-clashes-unavailable`/`-reload-button`, `venue-detail-bookings-unavailable`/`-reload-button`) instead of its previous rows | SCRUM-41 review: a failed refresh must not leave stale occupied periods or a stale clash list on the page as though they were current |
+| 1.21 | 09-10-2026 | §7 the venue page's Booking requests section gains a Suggestion column, and the Reject form gains an optional suggested venue and suggested period, with their test ids | SCRUM-78 lets Venue Staff suggest another venue or period when they reject a booking request, and the Event Coordinator reads it beside the reason |
 
 ## 1. Pages
 
@@ -228,6 +229,9 @@ A duration save and the refresh it triggers are two separate outcomes. **Save** 
 | Booking facilities (comma-separated, `None` when none chosen) | `venue-detail-booking-facilities-<id>` |
 | Unavailable notice and its Reload control (after a refused reload) | `venue-detail-bookings-unavailable`, `venue-detail-bookings-reload-button` |
 | Booking decision (blank until decided) | `venue-detail-booking-decision-<id>` |
+| Booking suggestion cell (SCRUM-78; empty when nothing was suggested) | `venue-detail-booking-suggestion-<id>` |
+| Suggested venue's name, inside that cell | `venue-detail-booking-suggested-venue-<id>` |
+| Suggested period, inside that cell, `11 Dec 2026, 09:00–12:00` | `venue-detail-booking-suggested-period-<id>` |
 | No booking requests | `venue-detail-bookings-empty` |
 | Approve button (Requested row, only with `bookings.decide`) | `venue-detail-booking-approve-button-<id>` |
 | Reject button (Requested row, only with `bookings.decide`) | `venue-detail-booking-reject-button-<id>` |
@@ -243,6 +247,11 @@ SCRUM-77 adds Withdraw to a Requested row's action cell, for the Coordinator who
 | Message under an empty required reason | `venue-detail-decide-reason-error` |
 | Confirm button (labelled with the action, e.g. Reject) | `venue-detail-decide-confirm-button` |
 | Cancel button | `venue-detail-decide-cancel-button` |
+| Suggested venue select, Reject only; first option None, then the active venues (SCRUM-78) | `venue-detail-decide-suggested-venue-input` |
+| Suggested date, start time and end time, Reject only (SCRUM-78) | `venue-detail-decide-suggested-date-input`, `venue-detail-decide-suggested-start-time-input`, `venue-detail-decide-suggested-end-time-input` |
+| Message under an empty part of a started period (SCRUM-78) | `venue-detail-decide-suggested-date-error`, `venue-detail-decide-suggested-start-time-error`, `venue-detail-decide-suggested-end-time-error` |
+
+**Suggesting an alternative when rejecting (SCRUM-78).** Only the Reject form, never Approve, offers an optional suggested venue and an optional suggested period (date, start time and end time). The reason stays required; a suggestion cannot replace it. If any part of a period is filled the other two are required, with a message under each empty one (§5) and nothing sent. Every other rule is the API's and shows in `venue-detail-banner` with the form left open and its entries kept: the venue must exist, the start must be before the end, and the suggestion must change the venue or the period from what was requested. A refused suggestion refuses the whole rejection, so the booking stays Requested. Once rejected, the Suggestion column shows `Venue: <name>` and `Period: <period>` for whichever was suggested, to Venue Staff and every Event Coordinator who can open the venue page. A suggestion is only text: it creates no booking and holds nothing.
 
 On the request page (`request-detail`), SCRUM-36: an Event Coordinator sees a Request venue booking button when the event's status is Approved or Planning; it links to `/requests/:id/bookings/new`, not an inline form, since raising starts a new record the bookings area owns (`docs/design/frontend.md` §2).
 

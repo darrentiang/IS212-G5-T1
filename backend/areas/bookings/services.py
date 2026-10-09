@@ -1,8 +1,9 @@
 """Venue booking request rules — SCRUM-36 (Request Venue Booking), SCRUM-37
 (Approve or Reject a Venue Booking Request), SCRUM-38 (Prevent Double-Booking
 of a Venue), SCRUM-41 (Reserve Setup and Turnaround Time Around a Booking),
-SCRUM-42 (Warn When a Requested Venue Appears Unsuitable) and SCRUM-77
-(Withdraw a Venue Booking Request).
+SCRUM-42 (Warn When a Requested Venue Appears Unsuitable), SCRUM-77
+(Withdraw a Venue Booking Request) and SCRUM-78 (Suggest an Alternative When
+Rejecting a Venue Booking).
 
 Every rule the acceptance criteria state lives here, next to the query, and
 refuses by raising ApiRefusal; the route never decides (ADR-002).
@@ -174,14 +175,97 @@ def _get_decidable_booking(venue_id, booking_id):
     return booking
 
 
-def _record_decision(booking, account, decision, reason):
+def _record_decision(booking, account, decision, reason, suggestion=None):
     booking.status = decision
     booking.decision = decision
     booking.decision_reason = reason
     booking.decided_at = datetime.now(timezone.utc)
     booking.decided_by_id = account.id
+    for column, value in (suggestion or {}).items():
+        setattr(booking, column, value)
     db.session.commit()
     return booking
+
+
+def _text(data, key):
+    """A field's trimmed text, or None when it is absent or blank."""
+    raw = data.get(key)
+    if raw is None:
+        return None
+    return str(raw).strip() or None
+
+
+def _suggested_venue(data):
+    """The venue suggested, or None when none was (SCRUM-78 AC2: an existing venue)."""
+    raw = _text(data, "suggested_venue_id")
+    if raw is None:
+        return None
+    try:
+        venue_id = int(raw)
+    except ValueError:
+        venue_id = None
+    venue = db.session.get(Venue, venue_id) if venue_id is not None else None
+    if venue is None:
+        raise ApiRefusal(400, "The suggested venue must be an existing venue.")
+    return venue
+
+
+def _suggested_period(data):
+    """(date, start, end) as ISO text, or None when no part of a period was given.
+
+    SCRUM-78 AC2: a period needs all three parts, real ones, with the start
+    before the end. The values are stored in the one form the booking itself
+    uses, so '9:00' and '09:00' compare equal.
+    """
+    given = [_text(data, key) for key in ("suggested_date", "suggested_start_time", "suggested_end_time")]
+    if all(part is None for part in given):
+        return None
+    if any(part is None for part in given):
+        raise ApiRefusal(400, "A suggested period needs a date, a start time and an end time.")
+    try:
+        day = datetime.strptime(given[0], "%Y-%m-%d").date()
+    except ValueError:
+        raise ApiRefusal(400, "The suggested date must be a valid date.")
+    try:
+        start = datetime.strptime(given[1], TIME_FORMAT)
+        end = datetime.strptime(given[2], TIME_FORMAT)
+    except ValueError:
+        raise ApiRefusal(400, "The suggested start and end time must be valid times.")
+    if start >= end:
+        raise ApiRefusal(400, "The suggested start time must be before the end time.")
+    return day.isoformat(), start.strftime(TIME_FORMAT), end.strftime(TIME_FORMAT)
+
+
+def _suggestion_columns(booking, data):
+    """What to store for the suggestion sent with a rejection, all checked before anything is written.
+
+    SCRUM-78 AC1: a suggested venue, a suggested period, both or neither.
+    AC2: it must change at least the venue or the period from what was
+    requested, so a suggestion that repeats the request is refused.
+    """
+    venue = _suggested_venue(data)
+    period = _suggested_period(data)
+    if venue is None and period is None:
+        return {}
+
+    changes_venue = venue is not None and venue.id != booking.venue_id
+    changes_period = period is not None and period != (
+        booking.date,
+        booking.start_time,
+        booking.end_time,
+    )
+    if not (changes_venue or changes_period):
+        raise ApiRefusal(
+            400, "A suggestion must change the venue or the period from what was requested."
+        )
+
+    date_text, start_text, end_text = period or (None, None, None)
+    return {
+        "suggested_venue_id": venue.id if venue is not None else None,
+        "suggested_date": date_text,
+        "suggested_start_time": start_text,
+        "suggested_end_time": end_text,
+    }
 
 
 def _booking_text(booking):
@@ -223,12 +307,19 @@ def approve_booking(venue_id, booking_id, account, data):
 
 
 def reject_booking(venue_id, booking_id, account, data):
-    """Requested -> Rejected (state-model.md). Reason is required (AC3, AC4, AC8, AC9, AC10)."""
+    """Requested -> Rejected (state-model.md). Reason is required (AC3, AC8, AC4, AC9, AC10).
+
+    SCRUM-78: the rejection may carry a suggested venue, period or both. The
+    reason stays required, a suggestion cannot stand in for it, and a bad
+    suggestion refuses the whole rejection: the booking stays Requested.
+    A suggestion creates no booking and holds nothing; it is only recorded.
+    """
     booking = _get_decidable_booking(venue_id, booking_id)
     reason = _optional_reason(data)
     if not reason:
         raise ApiRefusal(400, "A reason is required to reject.")
-    return _record_decision(booking, account, "Rejected", reason)
+    suggestion = _suggestion_columns(booking, data)
+    return _record_decision(booking, account, "Rejected", reason, suggestion)
 
 
 def withdraw_booking(venue_id, booking_id, account):
@@ -293,6 +384,12 @@ def booking_to_dict(booking):
         "decision_reason": booking.decision_reason,
         "decided_at": booking.decided_at.isoformat() if booking.decided_at else None,
         "decided_by": booking.decided_by.username if booking.decided_by else None,
+        # SCRUM-78: what Venue Staff suggested when they rejected; all null when nothing was.
+        "suggested_venue_id": booking.suggested_venue_id,
+        "suggested_venue": booking.suggested_venue.name if booking.suggested_venue else None,
+        "suggested_date": booking.suggested_date,
+        "suggested_start_time": booking.suggested_start_time,
+        "suggested_end_time": booking.suggested_end_time,
     }
 
 

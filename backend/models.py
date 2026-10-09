@@ -29,8 +29,9 @@ from db import db
 # from both, so it is 10. SCRUM-37 added a venue booking request's own
 # approve/reject decision (decision, decision_reason, decided_at,
 # decided_by), so 11. SCRUM-43 added an event request's assigned Event
-# Coordinator and assignment date, so 12.
-SCHEMA_VERSION = 12
+# Coordinator and assignment date, so 12. SCRUM-78 added a rejected venue
+# booking request's suggested venue and period, so 13.
+SCHEMA_VERSION = 13
 
 
 account_roles = db.Table(
@@ -379,7 +380,16 @@ class VenueBookingRequest(db.Model):
     decided_at = db.Column(db.DateTime, nullable=True)
     decided_by_id = db.Column(db.Integer, db.ForeignKey("accounts.id"), nullable=True)
 
-    venue = db.relationship("Venue", backref="booking_requests")
+    # SCRUM-78: what Venue Staff suggest when they reject. Either part, or
+    # both, or neither. A suggestion is only text for the Coordinator to read:
+    # it is not a booking and holds nothing (occupancy.py never looks at it).
+    suggested_venue_id = db.Column(db.Integer, db.ForeignKey("venues.id"), nullable=True)
+    suggested_date = db.Column(db.String(10), nullable=True)  # ISO yyyy-mm-dd
+    suggested_start_time = db.Column(db.String(5), nullable=True)  # HH:MM
+    suggested_end_time = db.Column(db.String(5), nullable=True)  # HH:MM
+
+    venue = db.relationship("Venue", foreign_keys=[venue_id], backref="booking_requests")
+    suggested_venue = db.relationship("Venue", foreign_keys=[suggested_venue_id])
     event_request = db.relationship("EventRequest", backref="booking_requests")
     raised_by = db.relationship("Account", foreign_keys=[raised_by_id])
     decided_by = db.relationship("Account", foreign_keys=[decided_by_id])

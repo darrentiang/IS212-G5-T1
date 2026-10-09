@@ -133,11 +133,16 @@ export const approveBooking = (id, bookingId, reason) =>
   request('POST', `/api/venues/${id}/bookings/${bookingId}/approve`, { reason })
 
 // POST /api/venues/:id/bookings/:booking_id/reject   (SCRUM-37)
-// body:    { reason }   required
-// 200:     the booking, now Rejected
-// 400/403/404/409: { message }   400 when the reason is empty
-export const rejectBooking = (id, bookingId, reason) =>
-  request('POST', `/api/venues/${id}/bookings/${bookingId}/reject`, { reason })
+// body:    { reason, suggested_venue_id?, suggested_date?, suggested_start_time?, suggested_end_time? }
+//          reason required; the suggestion is optional (SCRUM-78): a venue, a
+//          period (all three of date, start and end) or both, and it must change
+//          the venue or the period from what was requested
+// 200:     the booking, now Rejected, with suggested_venue_id, suggested_venue (name),
+//          suggested_date, suggested_start_time, suggested_end_time: all null when none
+// 400/403/404/409: { message }   400 when the reason is empty or the suggestion is refused,
+//          in which case nothing is recorded and the booking stays Requested
+export const rejectBooking = (id, bookingId, reason, suggestion = {}) =>
+  request('POST', `/api/venues/${id}/bookings/${bookingId}/reject`, { reason, ...suggestion })
 
 // POST /api/venues/:id/bookings/:booking_id/withdraw   (SCRUM-77)
 // 200:     the booking, now Withdrawn

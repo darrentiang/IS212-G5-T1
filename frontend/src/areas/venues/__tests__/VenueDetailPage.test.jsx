@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, RouterProvider, Routes, createMemoryRouter } from 'react-router'
 import * as api from '../api'
@@ -2652,5 +2652,274 @@ describe('VenueDetailPage reloading the lists after a duration save', () => {
     expect(screen.queryByTestId('venue-detail-occupied-period-12')).not.toHaveTextContent('09:30')
     expect(screen.getByTestId('venue-detail-setup-time')).toHaveTextContent(/^0 minutes$/)
     expect(api.listVenueBookings).toHaveBeenCalledTimes(3)
+  })
+})
+
+// SCRUM-78: Venue Staff may suggest another venue or period when they reject.
+describe('VenueDetailPage suggesting an alternative when rejecting', () => {
+  const VENUES = [
+    { id: 3, name: 'Hall A', is_active: true },
+    { id: 4, name: 'Auditorium', is_active: true },
+    { id: 5, name: 'Old Hall', is_active: false },
+  ]
+  const rejected = (extra = {}) => ({
+    ...REQUESTED_BOOKING,
+    status: 'Rejected',
+    decision: 'Rejected',
+    decision_reason: 'Hall A is taken that day.',
+    decided_by: 'venue1',
+    decided_at: '2026-10-08T08:00:00+00:00',
+    suggested_venue_id: null,
+    suggested_venue: null,
+    suggested_date: null,
+    suggested_start_time: null,
+    suggested_end_time: null,
+    ...extra,
+  })
+
+  beforeEach(() => {
+    signInWith(['venues.view', 'bookings.decide'])
+    api.getVenue.mockResolvedValue(HALL_A)
+    api.listVenueBookings.mockResolvedValue([REQUESTED_BOOKING])
+    api.listVenues.mockResolvedValue(VENUES)
+  })
+
+  async function openReject() {
+    renderPage()
+    await userEvent.click(await screen.findByTestId('venue-detail-booking-reject-button-12'))
+    await screen.findByTestId('venue-detail-decide-suggested-venue-input')
+  }
+
+  const reason = (text = 'Hall A is taken that day.') =>
+    userEvent.type(screen.getByTestId('venue-detail-decide-reason-input'), text)
+  const setField = (name, value) =>
+    fireEvent.change(screen.getByTestId(`venue-detail-decide-${name}-input`), { target: { value } })
+  const confirm = () => userEvent.click(screen.getByTestId('venue-detail-decide-confirm-button'))
+
+  // @story: SCRUM-78
+  // @ac: 1
+  it('offers the suggestion fields on Reject, with None and the active venues only', async () => {
+    await openReject()
+
+    const options = [...screen.getByTestId('venue-detail-decide-suggested-venue-input').options].map(
+      (option) => option.textContent,
+    )
+    expect(options).toEqual(['None', 'Hall A', 'Auditorium'])
+    expect(screen.getByTestId('venue-detail-decide-suggested-date-input')).toBeInTheDocument()
+    expect(screen.getByTestId('venue-detail-decide-suggested-start-time-input')).toBeInTheDocument()
+    expect(screen.getByTestId('venue-detail-decide-suggested-end-time-input')).toBeInTheDocument()
+  })
+
+  // @story: SCRUM-78
+  // @ac: 1
+  it('offers no suggestion on Approve', async () => {
+    renderPage()
+    await userEvent.click(await screen.findByTestId('venue-detail-booking-approve-button-12'))
+
+    await screen.findByTestId('venue-detail-decide-reason-input')
+    expect(screen.queryByTestId('venue-detail-decide-suggested-venue-input')).not.toBeInTheDocument()
+    expect(api.listVenues).not.toHaveBeenCalled()
+  })
+
+  // @story: SCRUM-78
+  // @ac: 1, 3
+  it('rejects with a suggested venue only and shows it beside the reason', async () => {
+    api.rejectBooking.mockResolvedValue(rejected({ suggested_venue_id: 4, suggested_venue: 'Auditorium' }))
+    await openReject()
+
+    await reason()
+    await userEvent.selectOptions(screen.getByTestId('venue-detail-decide-suggested-venue-input'), 'Auditorium')
+    await confirm()
+
+    await waitFor(() => {
+      expect(api.rejectBooking).toHaveBeenCalledWith('3', 12, 'Hall A is taken that day.', {
+        suggested_venue_id: 4,
+      })
+    })
+    expect(screen.getByTestId('venue-detail-booking-decision-12')).toHaveTextContent('Hall A is taken that day.')
+    expect(screen.getByTestId('venue-detail-booking-suggested-venue-12')).toHaveTextContent('Auditorium')
+    expect(screen.queryByTestId('venue-detail-booking-suggested-period-12')).not.toBeInTheDocument()
+  })
+
+  // @story: SCRUM-78
+  // @ac: 1, 3
+  it('rejects with a suggested period only and shows it beside the reason', async () => {
+    api.rejectBooking.mockResolvedValue(
+      rejected({ suggested_date: '2026-11-21', suggested_start_time: '09:00', suggested_end_time: '12:00' }),
+    )
+    await openReject()
+
+    await reason()
+    setField('suggested-date', '2026-11-21')
+    setField('suggested-start-time', '09:00')
+    setField('suggested-end-time', '12:00')
+    await confirm()
+
+    await waitFor(() => {
+      expect(api.rejectBooking).toHaveBeenCalledWith('3', 12, 'Hall A is taken that day.', {
+        suggested_date: '2026-11-21',
+        suggested_start_time: '09:00',
+        suggested_end_time: '12:00',
+      })
+    })
+    expect(screen.getByTestId('venue-detail-booking-suggested-period-12')).toHaveTextContent(
+      '21 Nov 2026, 09:00–12:00',
+    )
+    expect(screen.queryByTestId('venue-detail-booking-suggested-venue-12')).not.toBeInTheDocument()
+  })
+
+  // @story: SCRUM-78
+  // @ac: 1
+  it('rejects with both a suggested venue and a suggested period', async () => {
+    api.rejectBooking.mockResolvedValue(
+      rejected({
+        suggested_venue_id: 4,
+        suggested_venue: 'Auditorium',
+        suggested_date: '2026-11-21',
+        suggested_start_time: '10:00',
+        suggested_end_time: '13:00',
+      }),
+    )
+    await openReject()
+
+    await reason()
+    await userEvent.selectOptions(screen.getByTestId('venue-detail-decide-suggested-venue-input'), 'Auditorium')
+    setField('suggested-date', '2026-11-21')
+    setField('suggested-start-time', '10:00')
+    setField('suggested-end-time', '13:00')
+    await confirm()
+
+    await waitFor(() => {
+      expect(api.rejectBooking).toHaveBeenCalledWith('3', 12, 'Hall A is taken that day.', {
+        suggested_venue_id: 4,
+        suggested_date: '2026-11-21',
+        suggested_start_time: '10:00',
+        suggested_end_time: '13:00',
+      })
+    })
+    expect(screen.getByTestId('venue-detail-booking-suggested-venue-12')).toHaveTextContent('Auditorium')
+    expect(screen.getByTestId('venue-detail-booking-suggested-period-12')).toHaveTextContent(
+      '21 Nov 2026, 10:00–13:00',
+    )
+  })
+
+  // @story: SCRUM-78
+  // @ac: 1
+  it('sends a plain rejection when nothing is suggested, and shows no suggestion', async () => {
+    api.rejectBooking.mockResolvedValue(rejected())
+    await openReject()
+
+    await reason()
+    await confirm()
+
+    await waitFor(() => {
+      expect(api.rejectBooking).toHaveBeenCalledWith('3', 12, 'Hall A is taken that day.')
+    })
+    expect(screen.getByTestId('venue-detail-booking-suggestion-12')).toBeEmptyDOMElement()
+  })
+
+  // @story: SCRUM-78
+  // @ac: 2
+  it('shows a message under each empty part of a started period and sends nothing', async () => {
+    await openReject()
+
+    await reason()
+    setField('suggested-date', '2026-11-21')
+    await confirm()
+
+    expect(screen.getByTestId('venue-detail-decide-suggested-start-time-error')).toHaveTextContent(
+      'Suggested start time is required.',
+    )
+    expect(screen.getByTestId('venue-detail-decide-suggested-end-time-error')).toHaveTextContent(
+      'Suggested end time is required.',
+    )
+    expect(screen.queryByTestId('venue-detail-decide-suggested-date-error')).not.toBeInTheDocument()
+    expect(api.rejectBooking).not.toHaveBeenCalled()
+  })
+
+  // @story: SCRUM-78
+  // @ac: 1, 2
+  it('shows the missing reason and the incomplete period together', async () => {
+    await openReject()
+
+    setField('suggested-end-time', '12:00')
+    await confirm()
+
+    expect(screen.getByTestId('venue-detail-decide-reason-error')).toBeInTheDocument()
+    expect(screen.getByTestId('venue-detail-decide-suggested-date-error')).toBeInTheDocument()
+    expect(api.rejectBooking).not.toHaveBeenCalled()
+  })
+
+  // @story: SCRUM-78
+  // @ac: 2
+  it('shows the API refusal in the banner and keeps the form and its entries', async () => {
+    api.rejectBooking.mockRejectedValue(
+      Object.assign(new Error('The suggested start time must be before the end time.'), { status: 400 }),
+    )
+    await openReject()
+
+    await reason()
+    setField('suggested-date', '2026-11-21')
+    setField('suggested-start-time', '12:00')
+    setField('suggested-end-time', '12:00')
+    await confirm()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('venue-detail-banner')).toHaveTextContent(
+        'The suggested start time must be before the end time.',
+      )
+    })
+    expect(screen.getByTestId('venue-detail-decide-suggested-start-time-input')).toHaveValue('12:00')
+    expect(screen.getByTestId('venue-detail-booking-status-12')).toHaveTextContent('Requested')
+  })
+
+  // @story: SCRUM-78
+  // @ac: 1
+  it('starts the suggestion empty each time, and loads the venues only once', async () => {
+    await openReject()
+    setField('suggested-date', '2026-11-21')
+    await userEvent.click(screen.getByTestId('venue-detail-decide-cancel-button'))
+
+    await userEvent.click(screen.getByTestId('venue-detail-booking-reject-button-12'))
+
+    expect(screen.getByTestId('venue-detail-decide-suggested-date-input')).toHaveValue('')
+    expect(api.listVenues).toHaveBeenCalledTimes(1)
+  })
+
+  // @story: SCRUM-78
+  // @ac: 1
+  it('shows the venues error in the banner when they cannot be loaded', async () => {
+    api.listVenues.mockRejectedValue(Object.assign(new Error('Something went wrong'), { status: 500 }))
+    renderPage()
+    await userEvent.click(await screen.findByTestId('venue-detail-booking-reject-button-12'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('venue-detail-banner')).toHaveTextContent('Something went wrong')
+    })
+  })
+
+  // @story: SCRUM-78
+  // @ac: 3
+  it('shows an Event Coordinator the suggestion beside the reason', async () => {
+    signInWith(['venues.view', 'bookings.edit'], 'coord1')
+    api.listVenueBookings.mockResolvedValue([
+      rejected({
+        suggested_venue_id: 4,
+        suggested_venue: 'Auditorium',
+        suggested_date: '2026-11-21',
+        suggested_start_time: '10:00',
+        suggested_end_time: '13:00',
+      }),
+    ])
+
+    renderPage()
+
+    await screen.findByTestId('venue-detail-booking-suggested-venue-12')
+    expect(screen.getByTestId('venue-detail-booking-decision-12')).toHaveTextContent('Hall A is taken that day.')
+    expect(screen.getByTestId('venue-detail-booking-suggested-venue-12')).toHaveTextContent('Auditorium')
+    expect(screen.getByTestId('venue-detail-booking-suggested-period-12')).toHaveTextContent(
+      '21 Nov 2026, 10:00–13:00',
+    )
+    expect(screen.queryByTestId('venue-detail-booking-reject-button-12')).not.toBeInTheDocument()
   })
 })
