@@ -49,6 +49,16 @@ function shiftAnchor(mode, anchor, direction) {
   return shifted
 }
 
+// One Date per day in [start, end), so a free day still gets its own row
+// (ui-guidelines.md §7: judging dates means seeing the open ones too).
+function daysBetween(start, end) {
+  const days = []
+  for (let day = new Date(start); day < end; day.setDate(day.getDate() + 1)) {
+    days.push(new Date(day))
+  }
+  return days
+}
+
 // Two periods overlap when each starts before the other ends (the same rule
 // as occupancy.py, applied here only to decide what the calendar shows).
 const overlaps = (firstStart, firstEnd, secondStart, secondEnd) =>
@@ -118,9 +128,17 @@ export default function VenueAvailabilityPage() {
     status: null,
   }))
 
-  const entries = [...bookingEntries, ...blockEntries]
-    .filter((entry) => overlaps(entry.periodStart, entry.periodEnd, start, end))
-    .sort((a, b) => a.periodStart - b.periodStart || a.id - b.id)
+  const allEntries = [...bookingEntries, ...blockEntries]
+  // One group per displayed day; an entry appears in every day it overlaps,
+  // in full, the same way a multi-day event appears on every day of a real
+  // calendar (ui-guidelines.md §7).
+  const days = daysBetween(start, end).map((day) => {
+    const dayEnd = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1)
+    const dayEntries = allEntries
+      .filter((entry) => overlaps(entry.periodStart, entry.periodEnd, day, dayEnd))
+      .sort((a, b) => a.periodStart - b.periodStart || a.id - b.id)
+    return { date: day, entries: dayEntries }
+  })
 
   return (
     <div className="space-y-8">
@@ -185,42 +203,52 @@ export default function VenueAvailabilityPage() {
             </div>
           </div>
 
-          {entries.length === 0 ? (
-            <div className="card">
-              <p className="empty-state" data-testid="venue-availability-empty">
-                Nothing booked or blocked in this period.
-              </p>
-            </div>
-          ) : (
-            <div className="card p-0 overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th>Period</th>
-                      <th>Name</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {entries.map((entry) => (
-                      <tr key={`${entry.kind}-${entry.id}`} data-testid={`venue-availability-entry-row-${entry.kind}-${entry.id}`}>
-                        <td data-testid={`venue-availability-entry-period-${entry.kind}-${entry.id}`}>
-                          {formatDateTimePeriod(toWire(entry.periodStart), toWire(entry.periodEnd))}
-                        </td>
-                        <td data-testid={`venue-availability-entry-name-${entry.kind}-${entry.id}`}>{entry.name}</td>
-                        <td data-testid={`venue-availability-entry-status-${entry.kind}-${entry.id}`}>
-                          <span className={entry.kind === 'block' ? 'badge badge-neutral' : statusBadgeClass(entry.status)}>
-                            {entry.kind === 'block' ? 'Block' : STATUS_LABEL[entry.status]}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
+          <div className="card">
+            <dl className="detail-list">
+              {days.map(({ date, entries: dayEntries }) => {
+                const dateKey = toISODate(date)
+                return (
+                  <div key={dateKey} data-testid={`venue-availability-day-${dateKey}`}>
+                    <dt data-testid={`venue-availability-day-heading-${dateKey}`}>{formatDate(dateKey)}</dt>
+                    <dd>
+                      {dayEntries.length === 0 ? (
+                        <span className="subtitle" data-testid={`venue-availability-day-empty-${dateKey}`}>
+                          Free
+                        </span>
+                      ) : (
+                        <ul className="space-y-2">
+                          {dayEntries.map((entry) => {
+                            // An entry spanning more than one displayed day repeats, once per
+                            // day (Month can show two of its days at once), so the day it is
+                            // under is part of its id to keep every id unique on the page.
+                            const entryKey = `${entry.kind}-${entry.id}-${dateKey}`
+                            return (
+                              <li
+                                key={entryKey}
+                                data-testid={`venue-availability-entry-row-${entryKey}`}
+                                className="flex flex-wrap items-center gap-2"
+                              >
+                                <span
+                                  data-testid={`venue-availability-entry-status-${entryKey}`}
+                                  className={entry.kind === 'block' ? 'badge badge-neutral' : statusBadgeClass(entry.status)}
+                                >
+                                  {entry.kind === 'block' ? 'Block' : STATUS_LABEL[entry.status]}
+                                </span>
+                                <span data-testid={`venue-availability-entry-period-${entryKey}`}>
+                                  {formatDateTimePeriod(toWire(entry.periodStart), toWire(entry.periodEnd))}
+                                </span>
+                                <span data-testid={`venue-availability-entry-name-${entryKey}`}>{entry.name}</span>
+                              </li>
+                            )
+                          })}
+                        </ul>
+                      )}
+                    </dd>
+                  </div>
+                )
+              })}
+            </dl>
+          </div>
         </>
       )}
     </div>

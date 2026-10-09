@@ -161,15 +161,14 @@ test('an Approved booking is shown with its period and event name', async ({ pag
   await openAvailability(page, venueId)
   await goToTargetWeek(page)
 
-  const row = page.getByTestId(`venue-availability-entry-row-booking-${bookingId}`)
+  const suffix = `${bookingId}-${isoDate(day)}`
+  const row = page.getByTestId(`venue-availability-entry-row-booking-${suffix}`)
   await expect(row).toBeVisible()
-  await expect(page.getByTestId(`venue-availability-entry-name-booking-${bookingId}`)).toHaveText(
-    'SCRUM-39 TC02 Event',
-  )
-  await expect(page.getByTestId(`venue-availability-entry-period-booking-${bookingId}`)).toHaveText(
+  await expect(page.getByTestId(`venue-availability-entry-name-booking-${suffix}`)).toHaveText('SCRUM-39 TC02 Event')
+  await expect(page.getByTestId(`venue-availability-entry-period-booking-${suffix}`)).toHaveText(
     `${label(day)}, 10:00 to ${label(day)}, 12:00`,
   )
-  await expect(page.getByTestId(`venue-availability-entry-status-booking-${bookingId}`)).toHaveText('Approved')
+  await expect(page.getByTestId(`venue-availability-entry-status-booking-${suffix}`)).toHaveText('Approved')
 })
 
 // @tc: TC-SCRUM-39-03
@@ -208,7 +207,7 @@ test("an Approved booking's unavailable period includes the venue's recorded set
   await openAvailability(page, venueId)
   await goToTargetWeek(page)
 
-  await expect(page.getByTestId(`venue-availability-entry-period-booking-${bookingId}`)).toHaveText(
+  await expect(page.getByTestId(`venue-availability-entry-period-booking-${bookingId}-${isoDate(day)}`)).toHaveText(
     `${label(day)}, 09:30 to ${label(day)}, 12:15`,
   )
 })
@@ -229,8 +228,12 @@ test('a Requested booking is shown as pending, visibly distinct from an Approved
   await openAvailability(page, venueId)
   await goToTargetWeek(page)
 
-  await expect(page.getByTestId(`venue-availability-entry-status-booking-${approvedId}`)).toHaveText('Approved')
-  await expect(page.getByTestId(`venue-availability-entry-status-booking-${pendingId}`)).toHaveText('Pending')
+  await expect(
+    page.getByTestId(`venue-availability-entry-status-booking-${approvedId}-${isoDate(approvedDay)}`),
+  ).toHaveText('Approved')
+  await expect(
+    page.getByTestId(`venue-availability-entry-status-booking-${pendingId}-${isoDate(pendingDay)}`),
+  ).toHaveText('Pending')
 })
 
 // @tc: TC-SCRUM-39-06
@@ -249,9 +252,10 @@ test('Rejected and Withdrawn booking requests do not appear on the calendar', as
   await openAvailability(page, venueId)
   await goToTargetWeek(page)
 
-  await expect(page.getByTestId(`venue-availability-entry-row-booking-${rejectedId}`)).toHaveCount(0)
-  await expect(page.getByTestId(`venue-availability-entry-row-booking-${withdrawnId}`)).toHaveCount(0)
-  await expect(page.getByTestId('venue-availability-empty')).toBeVisible()
+  const dateKey = isoDate(day)
+  await expect(page.getByTestId(`venue-availability-entry-row-booking-${rejectedId}-${dateKey}`)).toHaveCount(0)
+  await expect(page.getByTestId(`venue-availability-entry-row-booking-${withdrawnId}-${dateKey}`)).toHaveCount(0)
+  await expect(page.getByTestId(`venue-availability-day-empty-${dateKey}`)).toHaveText('Free')
 })
 
 // @tc: TC-SCRUM-39-07
@@ -268,14 +272,15 @@ test("navigating to a different week shows that week's own records only", async 
   await login(page, 'coord1')
   await openAvailability(page, venueId)
 
-  await expect(page.getByTestId(`venue-availability-entry-row-booking-${bookingId}`)).toHaveCount(0)
+  const dateKey = isoDate(day)
+  await expect(page.getByTestId(`venue-availability-entry-row-booking-${bookingId}-${dateKey}`)).toHaveCount(0)
 
   await page.getByTestId('venue-availability-next-button').click()
 
   await expect(page.getByTestId('venue-availability-range')).toHaveText(
     rangeLabel(nextWeekMonday, addDays(nextWeekMonday, 6)),
   )
-  await expect(page.getByTestId(`venue-availability-entry-row-booking-${bookingId}`)).toBeVisible()
+  await expect(page.getByTestId(`venue-availability-entry-row-booking-${bookingId}-${dateKey}`)).toBeVisible()
 })
 
 // @tc: TC-SCRUM-39-08
@@ -299,13 +304,16 @@ test("an approved booking's setup/turnaround-widened period that crosses into th
   await expect(page.getByTestId('venue-availability-range')).toHaveText(
     rangeLabel(nextWeekMonday, addDays(nextWeekMonday, 6)),
   )
-  await expect(page.getByTestId(`venue-availability-entry-row-booking-${bookingId}`)).toBeVisible()
+  await expect(page.getByTestId(`venue-availability-entry-row-booking-${bookingId}-${isoDate(sunday)}`)).toBeVisible()
 
-  // The following week: the widened period rolls over into its Monday, 00:45.
+  // The following week: the widened period rolls over into its Monday, 00:45,
+  // so the same booking also appears there, under that day's own id.
   await page.getByTestId('venue-availability-next-button').click()
   const followingMonday = addDays(nextWeekMonday, 7)
   await expect(page.getByTestId('venue-availability-range')).toHaveText(
     rangeLabel(followingMonday, addDays(followingMonday, 6)),
   )
-  await expect(page.getByTestId(`venue-availability-entry-row-booking-${bookingId}`)).toBeVisible()
+  await expect(
+    page.getByTestId(`venue-availability-entry-row-booking-${bookingId}-${isoDate(followingMonday)}`),
+  ).toBeVisible()
 })

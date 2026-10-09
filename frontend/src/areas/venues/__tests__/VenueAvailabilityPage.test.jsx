@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes, RouterProvider, createMemoryRouter } from 'react-router'
 import * as api from '../api'
@@ -52,8 +52,30 @@ describe('VenueAvailabilityPage', () => {
   })
 
   // @story: SCRUM-39
+  // @ac: 1
+  it('shows one day group per day of the week, each with its own heading', async () => {
+    renderPage()
+
+    await waitFor(() => screen.getByTestId('venue-availability-title'))
+    ;['2026-10-05', '2026-10-06', '2026-10-07', '2026-10-08', '2026-10-09', '2026-10-10', '2026-10-11'].forEach(
+      (dateKey) => {
+        expect(screen.getByTestId(`venue-availability-day-${dateKey}`)).toBeInTheDocument()
+      },
+    )
+    expect(screen.getByTestId('venue-availability-day-heading-2026-10-08')).toHaveTextContent('08 Oct 2026')
+  })
+
+  // @story: SCRUM-39
+  // @ac: 1, 5
+  it('shows Free on a day with nothing booked or blocked', async () => {
+    renderPage()
+
+    expect(await screen.findByTestId('venue-availability-day-empty-2026-10-05')).toHaveTextContent('Free')
+  })
+
+  // @story: SCRUM-39
   // @ac: 2, 4
-  it("shows an Approved booking with its event name and setup/turnaround-widened period", async () => {
+  it("shows an Approved booking under its day with its event name and setup/turnaround-widened period", async () => {
     api.listVenueBookings.mockResolvedValue([
       {
         id: 12,
@@ -69,26 +91,31 @@ describe('VenueAvailabilityPage', () => {
 
     renderPage()
 
-    const row = await screen.findByTestId('venue-availability-entry-row-booking-12')
+    const row = await screen.findByTestId('venue-availability-entry-row-booking-12-2026-10-08')
     expect(row).toBeInTheDocument()
-    expect(screen.getByTestId('venue-availability-entry-name-booking-12')).toHaveTextContent('Tech Fair 2026')
-    expect(screen.getByTestId('venue-availability-entry-period-booking-12')).toHaveTextContent(
+    expect(screen.getByTestId('venue-availability-entry-name-booking-12-2026-10-08')).toHaveTextContent(
+      'Tech Fair 2026',
+    )
+    expect(screen.getByTestId('venue-availability-entry-period-booking-12-2026-10-08')).toHaveTextContent(
       '08 Oct 2026, 09:30 to 08 Oct 2026, 12:15',
     )
-    expect(screen.getByTestId('venue-availability-entry-status-booking-12')).toHaveTextContent('Approved')
+    expect(screen.getByTestId('venue-availability-entry-status-booking-12-2026-10-08')).toHaveTextContent('Approved')
+    expect(screen.queryByTestId('venue-availability-day-empty-2026-10-08')).not.toBeInTheDocument()
   })
 
   // @story: SCRUM-39
   // @ac: 3
-  it('shows a block with its period and reason', async () => {
+  it('shows a block under its day with its period and reason', async () => {
     api.listVenueBlocks.mockResolvedValue([
       { id: 7, start: '2026-10-10T13:00', end: '2026-10-10T15:00', reason: 'Maintenance' },
     ])
 
     renderPage()
 
-    expect(await screen.findByTestId('venue-availability-entry-name-block-7')).toHaveTextContent('Maintenance')
-    expect(screen.getByTestId('venue-availability-entry-status-block-7')).toHaveTextContent('Block')
+    expect(await screen.findByTestId('venue-availability-entry-name-block-7-2026-10-10')).toHaveTextContent(
+      'Maintenance',
+    )
+    expect(screen.getByTestId('venue-availability-entry-status-block-7-2026-10-10')).toHaveTextContent('Block')
   })
 
   // @story: SCRUM-39
@@ -109,16 +136,18 @@ describe('VenueAvailabilityPage', () => {
 
     renderPage()
 
-    expect(await screen.findByTestId('venue-availability-entry-status-booking-13')).toHaveTextContent('Pending')
+    expect(await screen.findByTestId('venue-availability-entry-status-booking-13-2026-10-09')).toHaveTextContent(
+      'Pending',
+    )
     // Unwidened: the booking's own 14:00-15:00, not the occupied 13:30-15:15.
-    expect(screen.getByTestId('venue-availability-entry-period-booking-13')).toHaveTextContent(
+    expect(screen.getByTestId('venue-availability-entry-period-booking-13-2026-10-09')).toHaveTextContent(
       '09 Oct 2026, 14:00 to 09 Oct 2026, 15:00',
     )
   })
 
   // @story: SCRUM-39
   // @ac: 5
-  it('never shows a Rejected or a Withdrawn booking', async () => {
+  it('never shows a Rejected or a Withdrawn booking, leaving its day Free', async () => {
     api.listVenueBookings.mockResolvedValue([
       {
         id: 14,
@@ -145,14 +174,14 @@ describe('VenueAvailabilityPage', () => {
     renderPage()
 
     await waitFor(() => screen.getByTestId('venue-availability-title'))
-    expect(screen.queryByTestId('venue-availability-entry-row-booking-14')).not.toBeInTheDocument()
-    expect(screen.queryByTestId('venue-availability-entry-row-booking-15')).not.toBeInTheDocument()
-    expect(screen.getByTestId('venue-availability-empty')).toBeInTheDocument()
+    expect(screen.queryByTestId('venue-availability-entry-row-booking-14-2026-10-08')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('venue-availability-entry-row-booking-15-2026-10-08')).not.toBeInTheDocument()
+    expect(screen.getByTestId('venue-availability-day-empty-2026-10-08')).toHaveTextContent('Free')
   })
 
   // @story: SCRUM-39
   // @ac: 1
-  it('Next moves the range forward a week and shows that week\'s own booking only', async () => {
+  it("Next moves the range forward a week and shows that week's own booking only", async () => {
     api.listVenueBookings.mockResolvedValue([
       {
         id: 16,
@@ -168,12 +197,12 @@ describe('VenueAvailabilityPage', () => {
 
     renderPage()
     await waitFor(() => screen.getByTestId('venue-availability-title'))
-    expect(screen.queryByTestId('venue-availability-entry-row-booking-16')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('venue-availability-entry-row-booking-16-2026-10-13')).not.toBeInTheDocument()
 
     await userEvent.click(screen.getByTestId('venue-availability-next-button'))
 
     expect(screen.getByTestId('venue-availability-range')).toHaveTextContent('12 Oct 2026 to 18 Oct 2026')
-    expect(screen.getByTestId('venue-availability-entry-row-booking-16')).toBeInTheDocument()
+    expect(screen.getByTestId('venue-availability-entry-row-booking-16-2026-10-13')).toBeInTheDocument()
   })
 
   // @story: SCRUM-39
@@ -194,12 +223,12 @@ describe('VenueAvailabilityPage', () => {
 
     renderPage()
     await waitFor(() => screen.getByTestId('venue-availability-title'))
-    expect(screen.queryByTestId('venue-availability-entry-row-booking-17')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('venue-availability-entry-row-booking-17-2026-10-25')).not.toBeInTheDocument()
 
     await userEvent.click(screen.getByTestId('venue-availability-month-button'))
 
     expect(screen.getByTestId('venue-availability-range')).toHaveTextContent('01 Oct 2026 to 31 Oct 2026')
-    expect(screen.getByTestId('venue-availability-entry-row-booking-17')).toBeInTheDocument()
+    expect(screen.getByTestId('venue-availability-entry-row-booking-17-2026-10-25')).toBeInTheDocument()
   })
 
   // @story: SCRUM-39
@@ -227,7 +256,7 @@ describe('VenueAvailabilityPage', () => {
   })
 
   // @story: SCRUM-39
-  it('breaks a tie between two entries starting at the same moment by id', async () => {
+  it('breaks a tie between two entries starting at the same moment by id, within the same day', async () => {
     api.listVenueBookings.mockResolvedValue([
       {
         id: 21,
@@ -240,14 +269,17 @@ describe('VenueAvailabilityPage', () => {
         event_request_name: 'Later Id',
       },
     ])
-    api.listVenueBlocks.mockResolvedValue([{ id: 20, start: '2026-10-08T10:00', end: '2026-10-08T11:00', reason: 'Earlier Id' }])
+    api.listVenueBlocks.mockResolvedValue([
+      { id: 20, start: '2026-10-08T10:00', end: '2026-10-08T11:00', reason: 'Earlier Id' },
+    ])
 
     renderPage()
 
-    const rows = await screen.findAllByRole('row')
-    // Header row first, then the block (id 20) before the booking (id 21).
-    expect(rows[1]).toHaveTextContent('Earlier Id')
-    expect(rows[2]).toHaveTextContent('Later Id')
+    const day = await screen.findByTestId('venue-availability-day-2026-10-08')
+    const items = within(day).getAllByRole('listitem')
+    // Lower id first when two entries start at the same moment.
+    expect(items[0]).toHaveTextContent('Earlier Id')
+    expect(items[1]).toHaveTextContent('Later Id')
   })
 
   // @story: SCRUM-39
