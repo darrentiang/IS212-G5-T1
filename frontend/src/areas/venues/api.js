@@ -117,3 +117,9 @@ export const approveBooking = (id, bookingId, reason) =>
 // 400/403/404/409: { message }   400 when the reason is empty
 export const rejectBooking = (id, bookingId, reason) =>
   request('POST', `/api/venues/${id}/bookings/${bookingId}/reject`, { reason })
+
+// POST /api/venues/:id/bookings/:booking_id/withdraw   (SCRUM-77)
+// 200:     the booking, now Withdrawn
+// 403/404/409: { message }   404 for anyone but the raising Coordinator; 409 once already decided
+export const withdrawBooking = (id, bookingId) =>
+  request('POST', `/api/venues/${id}/bookings/${bookingId}/withdraw`)

@@ -15,7 +15,8 @@ Kept current by every story that adds an action: the row is added or changed in 
 | View venues and venue booking requests | No | Yes | Yes | No | No |
 | Search venues free on an Approved or Planning event's dates and large enough for its attendance | No | Yes | No | No | No |
 | Maintain venue records and layouts; block a venue | No | No | Yes | No | No |
-| Raise or withdraw a venue booking request | No | Yes* | No | No | No |
+| Raise a venue booking request | No | Yes* | No | No | No |
+| Withdraw a venue booking request before a decision | No | Own only (whoever raised it) | No | No | No |
 | See warnings that a venue appears unsuitable for an event, before raising a venue booking request | No | Yes* | No | No | No |
 | Approve or reject a venue booking | No | No | Yes | No | No |
 | Record equipment requirements | No | Assigned coordinator | No | View | No |
@@ -31,7 +32,7 @@ Rule: an action not listed as permitted for any of the account's roles is refuse
 
 Rule: when the refusal is object-level (the role is right but this particular record is not the account's to touch — "own only" above), a read (GET) answers 403: it may say a record exists that the account cannot open. A write (create, edit, submit, delete) instead answers 404: what another account is allowed to change never confirms that the record exists at all. Established by SCRUM-27 (reads) and SCRUM-28 (writes); kept by every story since. Not to be "corrected" into one status code for both.
 
-Rule: \* "Assigned coordinator" is not yet a real restriction anywhere in this table — SCRUM-43 now records the coordinator the system auto-assigns at Approved → Planning (state-model.md), but no story yet enforces the restriction. SCRUM-36 is the first story to need the rule enforced and could not build it without inventing the assignment mechanism itself, so for now any Event Coordinator may raise or withdraw a venue booking request for any Approved or Planning event (team decision, 07-10-2026). Narrow this back to the assigned coordinator once that story exists; every other "Assigned coordinator" row in this table is similarly unenforced today, for the same reason.
+Rule: \* "Assigned coordinator" is not yet a real restriction anywhere in this table — SCRUM-43 now records the coordinator the system auto-assigns at Approved → Planning (state-model.md), but no story yet enforces the restriction. SCRUM-36 is the first story to need the rule enforced and could not build it without inventing the assignment mechanism itself, so for now any Event Coordinator may raise a venue booking request for any Approved or Planning event (team decision, 07-10-2026). Narrow this back to the assigned coordinator once that story exists; every other "Assigned coordinator" row in this table is similarly unenforced today, for the same reason. Withdrawing is unaffected either way: SCRUM-77 restricts it to whoever raised that specific booking, not to the event's assigned coordinator, so there is nothing to narrow there later.
 
 ## Feature keys
 
@@ -66,3 +67,4 @@ Keys used in `backend/permissions.py` and on API routes / `features` from `/api/
 | 1.9 | 08-10-2026 | Venue-suitability warnings row, under `bookings.edit`, marked \* like raising; no new feature key. The fixed lists an event request's requirements are chosen from (`GET /api/request-options`) sit under `requests.edit`, covered by the existing create/edit row | SCRUM-42: the check is part of raising a venue booking request; Event Organisers choose requirements but do not hold `venues.view` |
 | 1.10 | 08-10-2026 | `bookings.decide` for Venue Staff | SCRUM-37: approving or rejecting a venue booking request needs a key of its own; the "Approve or reject a venue booking" row already named Venue Staff only |
 | 1.11 | 09-10-2026 | Rule \* reworded: assignment is now recorded; enforcement still pending | SCRUM-43 records who is assigned; narrowing "assigned coordinator" rows is a separate decision for the Product Owner |
+| 1.12 | 09-10-2026 | "Raise or withdraw a venue booking request" split into its own raise row (unchanged, still marked \*) and a withdraw row restricted to "Own only (whoever raised it)"; Rule \* reworded to say withdrawing is unaffected by the assigned-coordinator gap | SCRUM-77: withdrawing is restricted to the Coordinator who raised that specific booking (AC4), a stricter, different rule from the unenforced event-level "assigned coordinator"; the old combined row read as if any Event Coordinator could withdraw any booking |

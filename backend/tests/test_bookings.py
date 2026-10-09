@@ -1,5 +1,6 @@
 """Venue booking request rules — SCRUM-36 (Request Venue Booking), SCRUM-37
-(Approve or Reject a Venue Booking Request).
+(Approve or Reject a Venue Booking Request), SCRUM-77 (Withdraw a Venue
+Booking Request).
 
 The acceptance criteria as rules at the API: who may raise a booking request,
 which event statuses accept one, that it carries the event's own fields, that
@@ -7,10 +8,11 @@ it is visible with a status showing a decision is outstanding, that it does
 not block other bookings, that a duplicate (same venue, same event) awaiting
 a decision is refused, that a retired venue cannot be booked, who may decide
 one, that only a Requested booking can be decided, that a rejection needs a
-reason, that the decision and who/when it was made are retained, and that
-deciding one leaves an event's other booking requests unchanged. The browser
-journeys are the Playwright specs (functional/tests/SCRUM-36.spec.js,
-SCRUM-37.spec.js).
+reason, that the decision and who/when it was made are retained, that
+deciding or withdrawing one leaves an event's other booking requests
+unchanged, that only the raising Coordinator may withdraw, and only while
+Requested. The browser journeys are the Playwright specs
+(functional/tests/SCRUM-36.spec.js, SCRUM-37.spec.js, SCRUM-77.spec.js).
 
 AC8 of SCRUM-36 ("only the assigned coordinator") is not enforced here: no
 story has built coordinator assignment yet (docs/design/permissions.md, the
@@ -794,6 +796,174 @@ def test_deciding_one_booking_leaves_the_events_other_bookings_unchanged(client)
     auditorium_booking = db.session.get(VenueBookingRequest, auditorium_id)
     assert auditorium_booking.status == "Requested"
     assert auditorium_booking.decision is None
+
+
+# ==========================================================================
+# SCRUM-77: withdraw a venue booking request
+# ==========================================================================
+
+# --- AC1: the raising Coordinator can withdraw a booking awaiting a decision ---
+
+
+def test_coordinator_withdraws_their_own_requested_booking(client):
+    _, booking_id = raise_and_get_id(client)
+    # raise_and_get_id already logs in as coord1, who raised it.
+
+    resp = decide(client, venue_id(), booking_id, "withdraw")
+
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert body["status"] == "Withdrawn"
+    assert db.session.get(VenueBookingRequest, booking_id).status == "Withdrawn"
+
+
+# --- AC2: a Withdrawn request no longer awaits a decision, and cannot be decided ---
+
+
+def test_a_withdrawn_booking_no_longer_lists_as_requested(client):
+    _, booking_id = raise_and_get_id(client)
+    decide(client, venue_id(), booking_id, "withdraw")
+
+    login(client, "venue1")
+    resp = client.get(f"/api/venues/{venue_id()}/bookings")
+
+    row = next(row for row in resp.get_json() if row["id"] == booking_id)
+    assert row["status"] == "Withdrawn"
+
+
+def test_a_withdrawn_booking_cannot_then_be_approved(client):
+    _, booking_id = raise_and_get_id(client)
+    decide(client, venue_id(), booking_id, "withdraw")
+
+    login(client, "venue1")
+    resp = decide(client, venue_id(), booking_id, "approve")
+
+    assert resp.status_code == 409
+    assert db.session.get(VenueBookingRequest, booking_id).status == "Withdrawn"
+
+
+def test_a_withdrawn_booking_cannot_then_be_rejected(client):
+    _, booking_id = raise_and_get_id(client)
+    decide(client, venue_id(), booking_id, "withdraw")
+
+    login(client, "venue1")
+    resp = decide(client, venue_id(), booking_id, "reject", reason="No availability")
+
+    assert resp.status_code == 409
+    assert db.session.get(VenueBookingRequest, booking_id).status == "Withdrawn"
+
+
+# --- AC3: an already-decided request cannot be withdrawn ---
+
+
+def test_an_approved_booking_cannot_be_withdrawn(client):
+    _, booking_id = raise_and_get_id(client)
+    login(client, "venue1")
+    decide(client, venue_id(), booking_id, "approve")
+
+    login(client, "coord1")
+    resp = decide(client, venue_id(), booking_id, "withdraw")
+
+    assert resp.status_code == 409
+    assert "already been decided" in resp.get_json()["message"]
+    assert db.session.get(VenueBookingRequest, booking_id).status == "Approved"
+
+
+def test_a_rejected_booking_cannot_be_withdrawn(client):
+    _, booking_id = raise_and_get_id(client)
+    login(client, "venue1")
+    decide(client, venue_id(), booking_id, "reject", reason="No availability")
+
+    login(client, "coord1")
+    resp = decide(client, venue_id(), booking_id, "withdraw")
+
+    assert resp.status_code == 409
+    assert db.session.get(VenueBookingRequest, booking_id).status == "Rejected"
+
+
+# --- AC4: only the raising Coordinator may withdraw ---
+
+
+def test_a_different_coordinator_cannot_withdraw(client):
+    _, booking_id = raise_and_get_id(client)  # raised by coord1
+    login(client, "coord2")
+
+    resp = decide(client, venue_id(), booking_id, "withdraw")
+
+    assert resp.status_code == 404
+    assert db.session.get(VenueBookingRequest, booking_id).status == "Requested"
+
+
+@pytest.mark.parametrize("username", ["org1", "venue1", "tech1", "att1"])
+def test_an_account_without_event_coordinator_cannot_withdraw(client, username):
+    _, booking_id = raise_and_get_id(client)
+    login(client, username)
+
+    resp = decide(client, venue_id(), booking_id, "withdraw")
+
+    assert resp.status_code == 403
+    assert db.session.get(VenueBookingRequest, booking_id).status == "Requested"
+
+
+def test_the_role_check_comes_before_the_withdraw_lookup(client):
+    login(client, "org1")
+
+    resp = decide(client, venue_id(), 9999, "withdraw")
+
+    assert resp.status_code == 403
+
+
+def test_not_logged_in_cannot_withdraw(client):
+    _, booking_id = raise_and_get_id(client)
+    client.post("/api/logout")
+
+    resp = decide(client, venue_id(), booking_id, "withdraw")
+
+    assert resp.status_code == 401
+
+
+def test_withdrawing_an_unknown_booking_is_refused(client):
+    login(client, "coord1")
+
+    resp = decide(client, venue_id(), 9999, "withdraw")
+
+    assert resp.status_code == 404
+    assert resp.get_json()["message"] == "Booking request not found."
+
+
+def test_withdrawing_a_booking_that_belongs_to_another_venue_is_refused(client):
+    _, booking_id = raise_and_get_id(client, venue=venue_id("Seminar Room 1"))
+
+    resp = decide(client, venue_id("Auditorium"), booking_id, "withdraw")
+
+    assert resp.status_code == 404
+
+
+def test_an_account_holding_event_coordinator_among_its_roles_can_withdraw(client):
+    # multi1 is Event Coordinator and Venue Staff: any role allowing it is enough (D-09).
+    login(client, "multi1")
+    event_id = make_event()
+    booking_id = post_booking(client, event_id).get_json()["id"]
+
+    resp = decide(client, venue_id(), booking_id, "withdraw")
+
+    assert resp.status_code == 200
+    assert resp.get_json()["status"] == "Withdrawn"
+
+
+# --- AC5: withdrawing one booking leaves an event's other booking requests unchanged ---
+
+
+def test_withdrawing_one_booking_leaves_the_events_other_bookings_unchanged(client):
+    login(client, "coord1")
+    event_id = make_event()
+    seminar_id = post_booking(client, event_id, venue=venue_id("Seminar Room 1")).get_json()["id"]
+    auditorium_id = post_booking(client, event_id, venue=venue_id("Auditorium")).get_json()["id"]
+
+    decide(client, venue_id("Seminar Room 1"), seminar_id, "withdraw")
+
+    auditorium_booking = db.session.get(VenueBookingRequest, auditorium_id)
+    assert auditorium_booking.status == "Requested"
 
 
 def test_venue_booking_request_repr_shows_venue_event_and_status(app):

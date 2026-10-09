@@ -1,11 +1,10 @@
 """Venue booking request rules — SCRUM-36 (Request Venue Booking), SCRUM-37
-(Approve or Reject a Venue Booking Request), SCRUM-42 (Warn When a
-Requested Venue Appears Unsuitable) and SCRUM-38 (Prevent Double-Booking of
-a Venue).
+(Approve or Reject a Venue Booking Request), SCRUM-38 (Prevent Double-Booking
+of a Venue), SCRUM-42 (Warn When a Requested Venue Appears Unsuitable) and
+SCRUM-77 (Withdraw a Venue Booking Request).
 
 Every rule the acceptance criteria state lives here, next to the query, and
-refuses by raising ApiRefusal; the route never decides (ADR-002). Withdrawing
-is a later story, so nothing here supports it yet.
+refuses by raising ApiRefusal; the route never decides (ADR-002).
 
 AC8 of SCRUM-36 ("assigned coordinator") is not enforced: no story has built
 coordinator assignment yet (docs/design/permissions.md, the bookings.edit
@@ -70,9 +69,9 @@ def raise_booking(account, event_request_id, data):
 
     AC2: the event must be Approved or in Planning. AC10: the venue must be
     active. AC9: the event holds no Approved booking, and has no request
-    awaiting a decision, for the same venue; an earlier Rejected request does
-    not block. Every check runs before anything is written, so a refusal
-    records nothing.
+    awaiting a decision, for the same venue; an earlier Rejected or Withdrawn
+    request does not block. Every check runs before anything is written, so
+    a refusal records nothing.
 
     Who may call this is the route's own @require(BOOKINGS_EDIT): the
     feature key is held by Event Coordinator alone (permissions.py), so
@@ -226,6 +225,31 @@ def reject_booking(venue_id, booking_id, account, data):
     if not reason:
         raise ApiRefusal(400, "A reason is required to reject.")
     return _record_decision(booking, account, "Rejected", reason)
+
+
+def withdraw_booking(venue_id, booking_id, account):
+    """Requested -> Withdrawn (state-model.md): the raising Coordinator pulls
+    back a request before Venue Staff decide it.
+
+    AC4: refused for anyone other than the Coordinator who raised it,
+    answered as 404 — the same "a write does not reveal existence" rule as
+    an own Draft (permissions.md's 403-vs-404 Rule), checked before AC3's
+    status check so a non-raiser learns nothing about the booking's status
+    either. AC3: only a Requested booking can be withdrawn; already decided
+    is refused with its current status, nothing changed. AC2 (no longer
+    approvable/rejectable once Withdrawn) and AC5 (other bookings on the
+    event untouched) need no extra code: _get_decidable_booking already
+    refuses anything not Requested, and this only ever touches the one row.
+    """
+    booking = _get_booking(venue_id, booking_id)
+    if booking.raised_by_id != account.id:
+        raise ApiRefusal(404, "Booking request not found.")
+    if booking.status != AWAITING_DECISION:
+        raise ApiRefusal(409, _already_decided_message(booking))
+
+    booking.status = "Withdrawn"
+    db.session.commit()
+    return booking
 
 
 def booking_to_dict(booking):
