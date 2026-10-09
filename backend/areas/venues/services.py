@@ -432,12 +432,21 @@ def search_venues(event_request_id, location, accessibility_features=(), layout=
     AC1: the event must be Approved or in Planning, and the search uses the
     event's own date, start time, end time and expected attendance, read here
     and never sent by the caller. AC2: only venues whose maximum capacity is at
-    least that attendance. AC3 and AC5: a venue is left out when the event
-    period overlaps an approved booking's occupied period or a block; periods
-    that only touch at a boundary do not overlap. AC4: a booking that is not
-    Approved never leaves a venue out. AC6: a location, when given, must match
-    the venue's recorded location exactly; none given means no restriction.
-    AC8: nothing matching is an empty list, not a refusal.
+    least that attendance. AC3 and AC5: a venue is left out when the event's
+    occupied period overlaps an approved booking's occupied period or a block;
+    periods that only touch at a boundary do not overlap. AC4: a booking that
+    is not Approved never leaves a venue out. AC6: a location, when given, must
+    match the venue's recorded location exactly; none given means no
+    restriction. AC8: nothing matching is an empty list, not a refusal.
+
+    SCRUM-41: the candidate's occupied period is its own period widened by
+    each venue's setup and turnaround time (occupancy.buffered_period), so a
+    venue offering more time around an event is judged by that time — a
+    proposed 12:30 event with 30 minutes of setup starts occupying at 12:00
+    and so loses to a 10:00–12:00 booking still turning around until 12:15.
+    The existing Approved booking is widened the same way, in
+    occupancy.venue_holders. Capacity, location and the three filter lists are
+    unchanged.
 
     SCRUM-34 AC1-AC3: each accessibility feature selected must be one the
     fixed list recognises (else 400), and a venue is kept only when it records
@@ -475,9 +484,6 @@ def search_venues(event_request_id, location, accessibility_features=(), layout=
     # One layout at most: a blank one is none selected.
     required_layouts = _recognised([layout] if layout else [], RoomLayout, "Choose the layout from the list.")
 
-    starts_at = occupancy.moment(event.date, event.start_time)
-    ends_at = occupancy.moment(event.date, event.end_time)
-
     query = db.session.query(Venue).filter(
         Venue.is_active.is_(True), Venue.max_capacity >= event.attendance
     )
@@ -486,7 +492,10 @@ def search_venues(event_request_id, location, accessibility_features=(), layout=
     venues = [
         venue
         for venue in query.order_by(Venue.id).all()
-        if _is_free(venue, starts_at, ends_at)
+        if _is_free(
+            venue,
+            *occupancy.buffered_period(venue, event.date, event.start_time, event.end_time),
+        )
         and _records_every(venue.accessibility_features, required_features)
         and _records_every(venue.facilities, required_facilities)
         and _records_every(venue.layouts, required_layouts)
@@ -510,7 +519,8 @@ def _records_every(rows, required_names):
 
 def _is_free(venue, starts_at, ends_at):
     """True when no block and no approved booking of the venue overlaps the
-    period: the one overlap rule, shared with SCRUM-38 (occupancy.py)."""
+    occupied period: the one overlap rule, shared with SCRUM-38 (occupancy.py).
+    The caller passes the candidate's occupied period (SCRUM-41)."""
     holders = occupancy.venue_holders(venue, starts_at, ends_at)
     return not holders.bookings and not holders.blocks
 

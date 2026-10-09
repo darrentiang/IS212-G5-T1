@@ -93,8 +93,14 @@ export const searchVenues = (
 
 // GET /api/venues/:id/bookings   (SCRUM-36, SCRUM-37)
 // 200:     [ { id, venue_id, event_request_id, event_request_name, status,
-//              date, start_time, end_time, attendance, layout, facilities,
+//              date, start_time, end_time, occupied_start, occupied_end,
+//              attendance, layout, facilities,
 //              raised_by, raised_at, decision, decision_reason, decided_at, decided_by } ]
+//          date, start_time, end_time: the published event period, never rewritten
+//          occupied_start, occupied_end: (SCRUM-41) the same period widened by
+//          the venue's setup and turnaround time, derived at every read —
+//          'YYYY-MM-DDTHH:MM', the block wire format, and it may roll over
+//          midnight, e.g. '2026-12-14T23:45' to '2026-12-15T01:30'
 //          layout: name | null; facilities: [name]: the event's venue
 //          requirements (SCRUM-42)
 //          decision, decided_at, decided_by: null until decided; decision_reason:
@@ -102,12 +108,27 @@ export const searchVenues = (
 // 403/404: { message }
 export const listVenueBookings = (id) => request('GET', `/api/venues/${id}/bookings`)
 
+// GET /api/venues/:id/clashes   (SCRUM-41)
+// 200:     [ { id, event_request_id, event_request_name,
+//              occupied_start, occupied_end, date, start_time, end_time } ]
+//          event_request_id and event_request_name let the page link the event
+//          name to its request for an account with requests.view (§7)
+//          the venue's Approved bookings whose occupied periods overlap
+//          another's, earliest occupied period first, each listed once (a chain
+//          A-B-C names all three). Blocks, bookings awaiting a decision and
+//          other venues' bookings are never listed; nothing is stored, so the
+//          list is whatever the venue's recorded durations make clash now
+// 403/404: { message }   403 without venues.edit (Venue Staff: the account
+//          that records the durations)
+export const listVenueClashes = (id) => request('GET', `/api/venues/${id}/clashes`)
+
 // POST /api/venues/:id/bookings/:booking_id/approve   (SCRUM-37)
 // body:    { reason }   optional
 // 200:     the booking, now Approved
 // 403/404/409: { message }   409 when the booking is not Requested or already decided,
 //          or (SCRUM-38) when an approved booking or a block of the venue
-//          overlaps its period; the message names each one
+//          overlaps its occupied period (SCRUM-41: widened by the venue's
+//          setup and turnaround time); the message names each one
 export const approveBooking = (id, bookingId, reason) =>
   request('POST', `/api/venues/${id}/bookings/${bookingId}/approve`, { reason })
 

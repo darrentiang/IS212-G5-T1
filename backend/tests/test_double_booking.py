@@ -11,8 +11,9 @@ browser journeys are the Playwright spec's (functional/tests/SCRUM-38.spec.js).
 
 Seeded venues: Seminar Room 1 (capacity 60, 08:00 to 20:00) and Auditorium.
 Every booking here is on 10 Dec 2026, 40 people, unless a test says otherwise.
-SCRUM-41 (setup and turnaround time) is not built, so a booking's occupied
-period is its own period.
+SCRUM-41 (setup and turnaround time) is built, but the seeded venues record
+none, so a booking's occupied period here is its own period. The widening
+itself is tested in test_occupied_periods.py.
 """
 
 from datetime import datetime, timezone
