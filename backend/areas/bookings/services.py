@@ -1,6 +1,7 @@
 """Venue booking request rules — SCRUM-36 (Request Venue Booking), SCRUM-37
-(Approve or Reject a Venue Booking Request) and SCRUM-42 (Warn When a
-Requested Venue Appears Unsuitable).
+(Approve or Reject a Venue Booking Request), SCRUM-42 (Warn When a
+Requested Venue Appears Unsuitable) and SCRUM-38 (Prevent Double-Booking of
+a Venue).
 
 Every rule the acceptance criteria state lives here, next to the query, and
 refuses by raising ApiRefusal; the route never decides (ADR-002). Withdrawing
@@ -10,13 +11,15 @@ AC8 of SCRUM-36 ("assigned coordinator") is not enforced: no story has built
 coordinator assignment yet (docs/design/permissions.md, the bookings.edit
 Rule). Any Event Coordinator may raise for any Approved or Planning event.
 
-state-model.md no longer qualifies Approve with "(conflict check passes)":
-no story (this one included) has ever defined what a conflict is, so SCRUM-37
-approves unconditionally while the request is Requested.
+SCRUM-38 defines the conflict check state-model.md names on Approve: an
+approval is refused while an Approved booking or a block of the same venue
+overlaps the booking's period. What holds a venue is decided in one place,
+occupancy.py, shared with venue search; rejecting is never checked.
 """
 
 from datetime import datetime, timezone
 
+import occupancy
 from db import db
 from errors import ApiRefusal
 from models import EventRequest, Venue, VenueBookingRequest
@@ -38,6 +41,14 @@ DUPLICATE_MESSAGES = {
 }
 
 TIME_FORMAT = "%H:%M"
+
+# SCRUM-38 AC2: the refusal names whatever holds the venue, in the text
+# formats the pages use (ui-guidelines.md §9).
+HELD_MESSAGE = "This venue is already committed for an overlapping period: {}."
+DATE_TEXT_FORMAT = "%d %b %Y"
+MOMENT_TEXT_FORMAT = f"{DATE_TEXT_FORMAT}, {TIME_FORMAT}"
+# A block's start and end on the wire, as venues/services.py sends them.
+BLOCK_MOMENT_FORMAT = f"%Y-%m-%dT{TIME_FORMAT}"
 
 
 def _get_event_request(event_request_id):
@@ -170,9 +181,41 @@ def _record_decision(booking, account, decision, reason):
     return booking
 
 
+def _booking_text(booking):
+    """'TC38 Holder, 10 Dec 2026, 14:00–17:00': the event and the booking's own period."""
+    day = datetime.strptime(booking.date, "%Y-%m-%d").strftime(DATE_TEXT_FORMAT)
+    return f"{booking.event_request.name}, {day}, {booking.start_time}–{booking.end_time}"
+
+
+def _block_text(block):
+    """'blocked 10 Dec 2026, 13:00 to 10 Dec 2026, 15:00 (Projector replacement)'."""
+    start = block.starts_at.strftime(MOMENT_TEXT_FORMAT)
+    end = block.ends_at.strftime(MOMENT_TEXT_FORMAT)
+    return f"blocked {start} to {end} ({block.reason})"
+
+
+def _refuse_if_venue_held(booking):
+    """SCRUM-38 AC1-AC3, AC5: refuse 409 while anything holds the venue for an
+    overlapping period, naming every holder: bookings first, then blocks, each
+    earliest first. The booking's occupied period is compared, so SCRUM-41's
+    setup and turnaround time widen both sides together."""
+    holders = occupancy.venue_holders(booking.venue, *occupancy.occupied_period(booking))
+    named = [_booking_text(row) for row in holders.bookings] + [
+        _block_text(row) for row in holders.blocks
+    ]
+    if named:
+        raise ApiRefusal(409, HELD_MESSAGE.format("; ".join(named)))
+
+
 def approve_booking(venue_id, booking_id, account, data):
-    """Requested -> Approved (state-model.md). Reason is optional (AC2, AC4, AC9, AC10)."""
+    """Requested -> Approved (state-model.md). Reason is optional (AC2, AC4, AC9, AC10).
+
+    SCRUM-38: the conflict check runs after the awaiting-a-decision check and
+    before anything is written, so a refused approval leaves the booking
+    Requested with no decision (AC6).
+    """
     booking = _get_decidable_booking(venue_id, booking_id)
+    _refuse_if_venue_held(booking)
     return _record_decision(booking, account, "Approved", _optional_reason(data))
 
 
@@ -240,6 +283,10 @@ def venue_warnings(event_request, venue):
     event wholly outside the hours gets two warnings. A layout, facility or
     accessibility feature the event did not choose is not checked. An event
     crossing midnight is out of scope.
+
+    SCRUM-38 AC7: after those, one warning per Approved booking and then per
+    block of the venue that overlaps the event's own period, each carrying
+    what its line names. They are warnings only: raising stays allowed.
     """
     warnings = []
 
@@ -273,5 +320,32 @@ def venue_warnings(event_request, venue):
     for row in event_request.accessibility_features:
         if row not in venue.accessibility_features:
             warnings.append({"type": "accessibility_feature", "name": row.name})
+
+    holders = occupancy.venue_holders(
+        venue,
+        occupancy.moment(event_request.date, event_request.start_time),
+        occupancy.moment(event_request.date, event_request.end_time),
+    )
+    for booking in holders.bookings:
+        warnings.append(
+            {
+                "type": "approved_booking",
+                "id": booking.id,
+                "event_request_name": booking.event_request.name,
+                "date": booking.date,
+                "start_time": booking.start_time,
+                "end_time": booking.end_time,
+            }
+        )
+    for block in holders.blocks:
+        warnings.append(
+            {
+                "type": "block",
+                "id": block.id,
+                "start": block.starts_at.strftime(BLOCK_MOMENT_FORMAT),
+                "end": block.ends_at.strftime(BLOCK_MOMENT_FORMAT),
+                "reason": block.reason,
+            }
+        )
 
     return warnings

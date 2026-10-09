@@ -1,9 +1,12 @@
 import { test, expect, request as playwrightRequest } from '@playwright/test'
 
 // SCRUM-37 Approve or Reject a Venue Booking Request. Curated rows: team test
-// sheet, TC-SCRUM-37-01 to 08. Seeded Seminar Room 1 (/venues/1) and
-// Auditorium (/venues/2) are read and booked against, never retired or
-// renamed. Every event and booking a row needs it creates itself through the
+// sheet, TC-SCRUM-37-01 to 08. Seeded Seminar Room 1 (/venues/1) is read and
+// booked against, never retired or renamed. A row that approves a booking
+// does so on a venue it creates itself: since SCRUM-38 an approved booking
+// holds its venue for its period, so two rows approving on a shared venue at
+// the same time would clash, and so would a local re-run against the same
+// database. Every event and booking a row needs it creates itself through the
 // API, under its own name: org1 submits the event, coord1 approves it and
 // raises the booking, so the booking is Requested before the steps
 // (AUTOMATION.md). A booking a row needs already decided is decided by venue1
@@ -11,7 +14,6 @@ import { test, expect, request as playwrightRequest } from '@playwright/test'
 
 const BASE_URL = 'http://localhost:5173'
 const SEMINAR_ROOM_1 = 1
-const AUDITORIUM = 2
 
 const TEXT_FIELDS = {
   purpose: 'Client event',
@@ -92,6 +94,17 @@ async function decideAsVenueStaff(venueId, bookingId, action, reason) {
   await staff.dispose()
 }
 
+// venue1 creates a venue of the row's own (location Block T, capacity 100,
+// no operating hours), so its approvals never clash with another row's.
+async function ownVenue(name) {
+  const staff = await apiAs('venue1')
+  const resp = await staff.post('/api/venues', { data: { name, location: 'Block T', max_capacity: 100 } })
+  expect(resp.status()).toBe(201)
+  const { id } = await resp.json()
+  await staff.dispose()
+  return id
+}
+
 async function openVenue(page, venueId, name) {
   await page.getByTestId('layout-nav-venues').click()
   await page.getByTestId(`venues-row-${venueId}`).getByRole('link', { name }).click()
@@ -126,10 +139,11 @@ test("venue staff sees the event's timing, attendance and venue requirements bef
 // @story: SCRUM-37
 // @ac: 2, 4, 9
 test('venue staff approves a requested booking, committing the venue', async ({ page }) => {
-  const bookingId = await requestedBooking('SCRUM-37 TC-02 Event', SEMINAR_ROOM_1)
+  const venueId = await ownVenue('TC37 Room 02')
+  const bookingId = await requestedBooking('SCRUM-37 TC-02 Event', venueId)
 
   await login(page, 'venue1')
-  await openVenue(page, SEMINAR_ROOM_1, 'Seminar Room 1')
+  await openVenue(page, venueId, 'TC37 Room 02')
   await page.getByTestId(`venue-detail-booking-approve-button-${bookingId}`).click()
   await page.getByTestId('venue-detail-decide-confirm-button').click()
 
@@ -199,11 +213,12 @@ test('approve and reject are not offered to an event coordinator', async ({ page
 // @story: SCRUM-37
 // @ac: 7
 test('an already-decided booking cannot be decided again', async ({ page }) => {
-  const bookingId = await requestedBooking('SCRUM-37 TC-06 Event', SEMINAR_ROOM_1)
-  await decideAsVenueStaff(SEMINAR_ROOM_1, bookingId, 'approve', '')
+  const venueId = await ownVenue('TC37 Room 06')
+  const bookingId = await requestedBooking('SCRUM-37 TC-06 Event', venueId)
+  await decideAsVenueStaff(venueId, bookingId, 'approve', '')
 
   await login(page, 'venue1')
-  await openVenue(page, SEMINAR_ROOM_1, 'Seminar Room 1')
+  await openVenue(page, venueId, 'TC37 Room 06')
 
   await expect(page.getByTestId(`venue-detail-booking-status-${bookingId}`)).toHaveText('Approved')
   await expect(page.getByTestId(`venue-detail-booking-approve-button-${bookingId}`)).toHaveCount(0)
@@ -232,17 +247,19 @@ test('event coordinator sees the decision and reason once a booking is rejected'
 // @story: SCRUM-37
 // @ac: 10
 test("deciding one booking request leaves the event's other booking requests unchanged", async ({ page }) => {
-  const [seminarBookingId, auditoriumBookingId] = await requestedBookings('SCRUM-37 TC-08 Event', [
-    SEMINAR_ROOM_1,
-    AUDITORIUM,
+  const firstVenueId = await ownVenue('TC37 Room 08A')
+  const secondVenueId = await ownVenue('TC37 Room 08B')
+  const [firstBookingId, secondBookingId] = await requestedBookings('SCRUM-37 TC-08 Event', [
+    firstVenueId,
+    secondVenueId,
   ])
 
   await login(page, 'venue1')
-  await openVenue(page, SEMINAR_ROOM_1, 'Seminar Room 1')
-  await page.getByTestId(`venue-detail-booking-approve-button-${seminarBookingId}`).click()
+  await openVenue(page, firstVenueId, 'TC37 Room 08A')
+  await page.getByTestId(`venue-detail-booking-approve-button-${firstBookingId}`).click()
   await page.getByTestId('venue-detail-decide-confirm-button').click()
-  await expect(page.getByTestId(`venue-detail-booking-status-${seminarBookingId}`)).toHaveText('Approved')
+  await expect(page.getByTestId(`venue-detail-booking-status-${firstBookingId}`)).toHaveText('Approved')
 
-  await openVenue(page, AUDITORIUM, 'Auditorium')
-  await expect(page.getByTestId(`venue-detail-booking-status-${auditoriumBookingId}`)).toHaveText('Requested')
+  await openVenue(page, secondVenueId, 'TC37 Room 08B')
+  await expect(page.getByTestId(`venue-detail-booking-status-${secondBookingId}`)).toHaveText('Requested')
 })

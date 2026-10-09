@@ -17,8 +17,9 @@ story has built coordinator assignment yet (docs/design/permissions.md, the
 bookings.edit Rule). Any Event Coordinator may raise for any Approved or
 Planning event; see test_any_event_coordinator_may_raise_not_just_one.
 
-SCRUM-37's Approve is not qualified by "(conflict check passes)" either: no
-story defines what a conflict is (state-model.md 1.3).
+SCRUM-38 qualifies Approve with "(conflict check passes)" (state-model.md
+1.4); its rules are tested in test_double_booking.py. Every test here
+approves at most one booking per venue and period, so none of them meets it.
 """
 
 from datetime import datetime, timezone

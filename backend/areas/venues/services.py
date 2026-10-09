@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 
 import clock
+import occupancy
 from db import db
 from errors import ApiRefusal
 from models import (
@@ -33,9 +34,6 @@ DATE_TIME_FORMAT = f"{DATE_FORMAT}T{TIME_FORMAT}"
 
 # SCRUM-33 AC1: only an event in one of these statuses may be searched for.
 SEARCHABLE_STATUSES = ("Approved", "Planning")
-
-# SCRUM-33 AC3: only a booking in this status takes the venue's time.
-OCCUPYING_BOOKING_STATUS = "Approved"
 
 # A block's phase on the wire (SCRUM-79): derived from the time, never stored.
 PHASE_UPCOMING = "upcoming"
@@ -477,8 +475,8 @@ def search_venues(event_request_id, location, accessibility_features=(), layout=
     # One layout at most: a blank one is none selected.
     required_layouts = _recognised([layout] if layout else [], RoomLayout, "Choose the layout from the list.")
 
-    starts_at = _moment(event.date, event.start_time)
-    ends_at = _moment(event.date, event.end_time)
+    starts_at = occupancy.moment(event.date, event.start_time)
+    ends_at = occupancy.moment(event.date, event.end_time)
 
     query = db.session.query(Venue).filter(
         Venue.is_active.is_(True), Venue.max_capacity >= event.attendance
@@ -510,37 +508,11 @@ def _records_every(rows, required_names):
     return required_names <= {row.name for row in rows}
 
 
-def _moment(date_text, time_text):
-    """A stored ISO date and HH:MM time as a naive local date-time."""
-    return datetime.strptime(f"{date_text} {time_text}", f"{DATE_FORMAT} {TIME_FORMAT}")
-
-
-def _overlaps(first_start, first_end, second_start, second_end):
-    """Two periods overlap when each starts before the other ends: touching is not overlapping."""
-    return first_start < second_end and second_start < first_end
-
-
-def _occupied_period(booking):
-    """The period an approved booking takes the venue for.
-
-    SCRUM-41 adds setup and turnaround time to this period (SCRUM-33 AC3); it
-    is not built yet, so for now the occupied period is the booking's own.
-    """
-    return _moment(booking.date, booking.start_time), _moment(booking.date, booking.end_time)
-
-
 def _is_free(venue, starts_at, ends_at):
-    """True when no block and no approved booking of the venue overlaps the period."""
-    for block in venue.blocks:
-        if _overlaps(block.starts_at, block.ends_at, starts_at, ends_at):
-            return False
-    for booking in venue.booking_requests:
-        if booking.status != OCCUPYING_BOOKING_STATUS:
-            continue
-        occupied_start, occupied_end = _occupied_period(booking)
-        if _overlaps(occupied_start, occupied_end, starts_at, ends_at):
-            return False
-    return True
+    """True when no block and no approved booking of the venue overlaps the
+    period: the one overlap rule, shared with SCRUM-38 (occupancy.py)."""
+    holders = occupancy.venue_holders(venue, starts_at, ends_at)
+    return not holders.bookings and not holders.blocks
 
 
 def search_to_dict(event, venues):
