@@ -28,8 +28,11 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-function signInWith(features) {
-  vi.mocked(auth.useAuth).mockReturnValue({ can: (feature) => features.includes(feature) })
+function signInWith(features, username = 'coord1') {
+  vi.mocked(auth.useAuth).mockReturnValue({
+    can: (feature) => features.includes(feature),
+    account: { username },
+  })
 }
 
 const SUBMITTED = {
@@ -61,6 +64,13 @@ const decided = (decision, reason = null) => ({
   decision_reason: reason,
   decided_at: '2026-09-23T14:05:00',
   decided_by: 'coord1',
+})
+
+const rejected = () => ({
+  ...decided(STATUS.REQUEST.REJECTED, 'Venue capacity cannot be met.'),
+  layout: 'Theatre',
+  facilities: ['Projector'],
+  accessibility_features: ['Hearing loop'],
 })
 
 function renderDetail() {
@@ -981,6 +991,242 @@ describe('RequestDetailPage', () => {
 
     await waitFor(() => screen.getByTestId('request-detail-raise-booking-button'))
     expect(screen.queryByTestId('request-detail-search-venues-button')).not.toBeInTheDocument()
+  })
+
+  // @story: SCRUM-72
+  // @ac: 1
+  it("shows the creator's Rejected request with its reason and a prefilled form", async () => {
+    signInWith(['requests.view', 'requests.edit'], 'org1')
+    api.getRequest.mockResolvedValue(rejected())
+
+    renderDetail()
+
+    await screen.findByTestId('request-detail-resubmit-button')
+    expect(screen.getByTestId('request-detail-decision-reason')).toHaveTextContent('Venue capacity cannot be met.')
+    expect(screen.getByTestId('request-detail-status')).toHaveTextContent(STATUS.REQUEST.REJECTED)
+    expect(screen.getByTestId('request-detail-resubmit-name-input')).toHaveValue('Annual Dinner')
+    expect(screen.getByTestId('request-detail-resubmit-date-input')).toHaveValue('2026-12-12')
+    expect(screen.getByTestId('request-detail-resubmit-attendance-input')).toHaveValue(150)
+    expect(screen.getByTestId('request-detail-resubmit-layout-input')).toHaveValue('Theatre')
+    expect(screen.getByTestId('request-detail-resubmit-facilities-projector-input')).toBeChecked()
+    expect(screen.getByTestId('request-detail-resubmit-facilities-whiteboard-input')).not.toBeChecked()
+    expect(screen.getByTestId('request-detail-resubmit-accessibility-features-hearing-loop-input')).toBeChecked()
+    expect(api.resubmitRequest).not.toHaveBeenCalled()
+  })
+
+  // @story: SCRUM-72
+  // @ac: 5
+  it('offers no form to anyone but the creator, or on a request that is not Rejected', async () => {
+    signInWith(['requests.view', 'requests.edit'], 'org2')
+    api.getRequest.mockResolvedValue(rejected())
+    const { unmount } = render(
+      <MemoryRouter initialEntries={['/requests/1']}>
+        <Routes>
+          <Route path="/requests/:id" element={<RequestDetailPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    await waitFor(() => screen.getByTestId('request-detail-status'))
+    expect(screen.queryByTestId('request-detail-resubmit-button')).not.toBeInTheDocument()
+    unmount()
+
+    signInWith(['requests.view', 'requests.edit', 'requests.decide'], 'coord1')
+    renderDetail()
+    await waitFor(() => screen.getByTestId('request-detail-status'))
+    expect(screen.queryByTestId('request-detail-resubmit-button')).not.toBeInTheDocument()
+    expect(api.getRequestOptions).not.toHaveBeenCalled()
+  })
+
+  // @story: SCRUM-72
+  // @ac: 5
+  it('offers no form to the creator once the request is no longer Rejected', async () => {
+    signInWith(['requests.view', 'requests.edit'], 'org1')
+    api.getRequest.mockResolvedValue({ ...rejected(), status: STATUS.REQUEST.SUBMITTED })
+
+    renderDetail()
+
+    await waitFor(() => screen.getByTestId('request-detail-status'))
+    expect(screen.queryByTestId('request-detail-resubmit-button')).not.toBeInTheDocument()
+  })
+
+  // @story: SCRUM-72
+  // @ac: 1
+  it('shows the lists error when the form cannot load its lists', async () => {
+    signInWith(['requests.view', 'requests.edit'], 'org1')
+    api.getRequest.mockResolvedValue(rejected())
+    api.getRequestOptions.mockRejectedValue(Object.assign(new Error('Something went wrong'), { status: 500 }))
+
+    renderDetail()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('request-detail-banner')).toHaveTextContent('Something went wrong')
+    })
+    expect(screen.queryByTestId('request-detail-resubmit-button')).not.toBeInTheDocument()
+  })
+
+  // @story: SCRUM-72
+  // @ac: 1
+  it('ignores the lists reply after the page is left', async () => {
+    signInWith(['requests.view', 'requests.edit'], 'org1')
+    api.getRequest.mockResolvedValue(rejected())
+    let resolveOptions
+    api.getRequestOptions.mockReturnValue(new Promise((resolve) => { resolveOptions = resolve }))
+
+    const { unmount } = render(
+      <MemoryRouter initialEntries={['/requests/1']}>
+        <Routes>
+          <Route path="/requests/:id" element={<RequestDetailPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    await waitFor(() => expect(api.getRequestOptions).toHaveBeenCalled())
+    unmount()
+    await act(async () => resolveOptions(OPTIONS))
+  })
+
+  // @story: SCRUM-72
+  // @ac: 1
+  it('ignores a lists error after the page is left', async () => {
+    signInWith(['requests.view', 'requests.edit'], 'org1')
+    api.getRequest.mockResolvedValue(rejected())
+    let rejectOptions
+    api.getRequestOptions.mockReturnValue(new Promise((_, reject) => { rejectOptions = reject }))
+
+    const { unmount } = render(
+      <MemoryRouter initialEntries={['/requests/1']}>
+        <Routes>
+          <Route path="/requests/:id" element={<RequestDetailPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    await waitFor(() => expect(api.getRequestOptions).toHaveBeenCalled())
+    unmount()
+    await act(async () => rejectOptions(new Error('late')))
+  })
+
+  // @story: SCRUM-72
+  // @ac: 2
+  it('shows a message under each empty required field and sends nothing', async () => {
+    signInWith(['requests.view', 'requests.edit'], 'org1')
+    api.getRequest.mockResolvedValue(rejected())
+
+    renderDetail()
+    await screen.findByTestId('request-detail-resubmit-button')
+    await userEvent.clear(screen.getByTestId('request-detail-resubmit-name-input'))
+    await userEvent.clear(screen.getByTestId('request-detail-resubmit-purpose-input'))
+    await userEvent.click(screen.getByTestId('request-detail-resubmit-button'))
+
+    expect(screen.getByTestId('request-detail-resubmit-name-error')).toHaveTextContent('Event name is required.')
+    expect(screen.getByTestId('request-detail-resubmit-purpose-error')).toHaveTextContent('Purpose is required.')
+    expect(screen.queryByTestId('request-detail-resubmit-date-error')).not.toBeInTheDocument()
+    expect(api.resubmitRequest).not.toHaveBeenCalled()
+    expect(screen.getByTestId('request-detail-status')).toHaveTextContent(STATUS.REQUEST.REJECTED)
+  })
+
+  // @story: SCRUM-72
+  // @ac: 1, 3, 4
+  it('resubmits the edited values, shows Submitted with the earlier decision and drops the form', async () => {
+    signInWith(['requests.view', 'requests.edit'], 'org1')
+    api.getRequest.mockResolvedValue(rejected())
+    api.resubmitRequest.mockResolvedValue({
+      ...rejected(),
+      status: STATUS.REQUEST.SUBMITTED,
+      attendance: 40,
+      facilities: ['Projector', 'Whiteboard'],
+      submitted_at: '2026-10-08T08:15:00',
+    })
+
+    renderDetail()
+    await screen.findByTestId('request-detail-resubmit-button')
+    const attendance = screen.getByTestId('request-detail-resubmit-attendance-input')
+    await userEvent.clear(attendance)
+    await userEvent.type(attendance, '40')
+    await userEvent.click(screen.getByTestId('request-detail-resubmit-facilities-whiteboard-input'))
+    await userEvent.selectOptions(screen.getByTestId('request-detail-resubmit-layout-input'), '')
+    await userEvent.click(screen.getByTestId('request-detail-resubmit-button'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('request-detail-banner')).toHaveTextContent('Request resubmitted')
+    })
+    expect(api.resubmitRequest).toHaveBeenCalledWith(
+      '1',
+      expect.objectContaining({
+        name: 'Annual Dinner',
+        attendance: '40',
+        layout: null,
+        facilities: ['Projector', 'Whiteboard'],
+        accessibility_features: ['Hearing loop'],
+      }),
+    )
+    expect(screen.getByTestId('request-detail-banner')).toHaveAttribute('role', 'status')
+    expect(screen.getByTestId('request-detail-status')).toHaveTextContent(STATUS.REQUEST.SUBMITTED)
+    expect(screen.getByTestId('request-detail-submitted-at')).toHaveTextContent('08 Oct 2026, 08:15')
+    expect(screen.getByTestId('request-detail-decision')).toHaveTextContent('Rejected')
+    expect(screen.getByTestId('request-detail-decision-reason')).toHaveTextContent('Venue capacity cannot be met.')
+    expect(screen.getByTestId('request-detail-decided-by')).toHaveTextContent('coord1')
+    expect(screen.queryByTestId('request-detail-resubmit-button')).not.toBeInTheDocument()
+  })
+
+  // @story: SCRUM-72
+  // @ac: 2
+  it('shows the refusal in the banner, keeps the entries and the Rejected status', async () => {
+    signInWith(['requests.view', 'requests.edit'], 'org1')
+    api.getRequest.mockResolvedValue(rejected())
+    api.resubmitRequest.mockRejectedValue(
+      Object.assign(new Error('Start time must be before the end time.'), { status: 400 }),
+    )
+
+    renderDetail()
+    await screen.findByTestId('request-detail-resubmit-button')
+    const purpose = screen.getByTestId('request-detail-resubmit-purpose-input')
+    await userEvent.clear(purpose)
+    await userEvent.type(purpose, 'Revised purpose')
+    await userEvent.click(screen.getByTestId('request-detail-resubmit-button'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('request-detail-banner')).toHaveTextContent('Start time must be before the end time.')
+    })
+    expect(screen.getByTestId('request-detail-banner')).toHaveAttribute('role', 'alert')
+    expect(screen.getByTestId('request-detail-status')).toHaveTextContent(STATUS.REQUEST.REJECTED)
+    expect(screen.getByTestId('request-detail-resubmit-purpose-input')).toHaveValue('Revised purpose')
+  })
+
+  // @story: SCRUM-72
+  // @ac: 5
+  it('reloads the request after a refusal so a request resubmitted elsewhere shows as Submitted', async () => {
+    signInWith(['requests.view', 'requests.edit'], 'org1')
+    api.getRequest
+      .mockResolvedValueOnce(rejected())
+      .mockResolvedValueOnce({ ...rejected(), status: STATUS.REQUEST.SUBMITTED })
+    api.resubmitRequest.mockRejectedValue(
+      Object.assign(new Error('Only a Rejected request can be resubmitted.'), { status: 400 }),
+    )
+
+    renderDetail()
+    await userEvent.click(await screen.findByTestId('request-detail-resubmit-button'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('request-detail-status')).toHaveTextContent(STATUS.REQUEST.SUBMITTED)
+    })
+    expect(screen.getByTestId('request-detail-banner')).toHaveTextContent('Only a Rejected request can be resubmitted.')
+    expect(screen.queryByTestId('request-detail-resubmit-button')).not.toBeInTheDocument()
+  })
+
+  // @story: SCRUM-72
+  // @ac: 5
+  it('shows the reload error when the request cannot be reloaded after a refusal', async () => {
+    signInWith(['requests.view', 'requests.edit'], 'org1')
+    api.getRequest
+      .mockResolvedValueOnce(rejected())
+      .mockRejectedValueOnce(Object.assign(new Error('Event request not found.'), { status: 404 }))
+    api.resubmitRequest.mockRejectedValue(Object.assign(new Error('Event request not found.'), { status: 404 }))
+
+    renderDetail()
+    await userEvent.click(await screen.findByTestId('request-detail-resubmit-button'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('request-detail-banner')).toHaveTextContent('Event request not found.')
+    })
   })
 
   // @story: SCRUM-43

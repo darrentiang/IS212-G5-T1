@@ -22,6 +22,7 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | 1.13 | 08-10-2026 | §7 a per-row action's confirm/reason form opens as its own row directly below the one it acts on, not below the whole table; End block early and Deciding a booking request updated to match | A form that opened at the bottom of a long list was mistaken for not working; this is now the rule for every per-row action, not just these two |
 | 1.14 | 09-10-2026 | §7 the venue-search page's Room layout select and Facilities checkboxes, with the same one Apply | SCRUM-35 narrows the SCRUM-33 search by room layout and facilities |
 | 1.15 | 09-10-2026 | §7 the request page's Assigned coordinator and Assigned on date, with their test ids | SCRUM-43: approving a request now assigns an Event Coordinator, and the Organiser and every Coordinator can see who |
+| 1.16 | 09-10-2026 | §7: an Event Organiser's own Rejected request shows its form already open, with a Resubmit button and no Cancel | SCRUM-72: the form's only purpose is to resubmit, so there is no action button to open it and nothing to cancel |
 
 ## 1. Pages
 
@@ -127,6 +128,7 @@ While the page is waiting for the API it renders the title row and nothing below
 - Actions (approve, reject, …) are buttons per §5, in one row under the fields, shown only when the account's features allow them.
 - **Assigned coordinator (SCRUM-43).** Approving a request makes the system assign one Event Coordinator and moves it to Planning, so the request page shows an Assigned coordinator (their username) and an Assigned on date, below the decision, to everyone who can open the request. The page offers no way to decline or change the assignment; reassignment is SCRUM-44.
 - **An action that needs a reason or a confirmation opens an inline form** below the action row, on the same page: its fields per §5, a Confirm button (labelled with the action, e.g. Reject) and a Cancel button that closes it. No modal, no overlay, no browser `confirm()`. Only one inline form is open at a time; opening another closes the first. Its test ids use the action as `<field>`: `request-detail-reject-reason-input`, `request-detail-reject-confirm-button`, `request-detail-reject-cancel-button`.
+- **Revise and resubmit (SCRUM-72).** On a Rejected request the Event Organiser who created it sees the request's fields in a form already open below the details (the decision and its reason stay above it), prefilled and laid out as the Draft edit form is, with one primary Resubmit button and no Cancel. The same required-field check as submitting runs first: a message under each empty required field, nothing sent. Test ids use `resubmit` as the action: `request-detail-resubmit-<field>-input`, `request-detail-resubmit-<field>-error`, a choice's checkbox `request-detail-resubmit-<list>-<option>-input` as in §5, and `request-detail-resubmit-button`. Once the request is Submitted the form is gone. Anyone else sees the details only.
 
 | Element | `data-testid` | Example |
 |---|---|---|
