@@ -28,6 +28,8 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | 1.19 | 09-10-2026 | §7 the venue page's Occupied periods section and Current clashes section and their test ids; the warnings and the approval refusal speak of the event's occupied period, widened by the venue's setup and turnaround time (a block keeps its own period) | SCRUM-41 reserves setup and turnaround time either side of a booking, so what holds a venue is its occupied period, not its published one |
 | 1.20 | 09-10-2026 | §7 a successful duration save always closes the form and says `Times updated`; a list whose reload refuses afterwards shows an unavailable notice with a Reload control (`venue-detail-occupied-unavailable`/`-reload-button`, `venue-detail-clashes-unavailable`/`-reload-button`, `venue-detail-bookings-unavailable`/`-reload-button`) instead of its previous rows | SCRUM-41 review: a failed refresh must not leave stale occupied periods or a stale clash list on the page as though they were current |
 | 1.21 | 09-10-2026 | §7 the venue page's Booking requests section gains a Suggestion column, and the Reject form gains an optional suggested venue and suggested period, with their test ids | SCRUM-78 lets Venue Staff suggest another venue or period when they reject a booking request, and the Event Coordinator reads it beside the reason |
+| 1.22 | 09-10-2026 | §1 `/venues/:id/availability`; §7 the venue page's View availability link and the venue-availability page | SCRUM-39 lets an Event Coordinator or Venue Staff see a venue's committed and pending periods on a calendar before raising or deciding a request |
+| 1.23 | 09-10-2026 | §7 the venue-availability page shown one day at a time, reusing the label/value list, with an explicit Free day instead of one flat table of entries; its test ids updated to match | A flat table of only-busy entries did not show which days were open, the very thing AC1 ("judge dates") needs; day-by-day, with Free days shown, makes that legible at a glance |
 
 ## 1. Pages
 
@@ -40,6 +42,7 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | `/venues` | `venues` | Feature per `permissions.md` |
 | `/venues/new` | `venue-new` | Feature per `permissions.md` |
 | `/venues/:id` | `venue-detail` | Feature per `permissions.md` |
+| `/venues/:id/availability` | `venue-availability` | Feature per `permissions.md` |
 | `/requests/:id/bookings/new` | `booking-new` | Feature per `permissions.md` |
 | `/requests/:id/venues/search` | `venue-search` | Feature per `permissions.md` |
 | — (shown in place of a refused page) | `not-permitted` | Anyone whose account lacks the page's feature |
@@ -149,6 +152,7 @@ The venue page (`venue-detail`), SCRUM-40, SCRUM-75:
 
 | Element | `data-testid` |
 |---|---|
+| View availability link (SCRUM-39; links to `/venues/:id/availability`) | `venue-detail-availability-link` |
 | Block row | `venue-detail-block-row-<id>` |
 | Block period | `venue-detail-block-period-<id>` |
 | Block reason | `venue-detail-block-reason-<id>` |
@@ -161,6 +165,8 @@ The venue page (`venue-detail`), SCRUM-40, SCRUM-75:
 | Inline update form inputs | `venue-detail-update-name-input`, `venue-detail-update-location-input`, `venue-detail-update-max-capacity-input`, `venue-detail-update-opening-time-input`, `venue-detail-update-closing-time-input`, `venue-detail-update-facilities-<kebab-option>-input`, `venue-detail-update-accessibility-features-<kebab-option>-input` |
 | Message under an empty field | `venue-detail-update-<field>-error` (e.g. `venue-detail-update-name-error`) |
 | Save and Cancel update buttons | `venue-detail-update-save-button`, `venue-detail-update-cancel-button` |
+
+SCRUM-39: View availability is shown to anyone who may view the venue at all (`venues.view`, held by both Event Coordinator and Venue Staff) — no narrower than the page itself, so there is nothing to gate beyond reaching this page. It links to `/venues/:id/availability`.
 
 SCRUM-32 adds the venue's supported layouts. An empty list is shown as `None`, and the selection form is available only with `venues.edit`; it is another inline form, so it follows the one-form-at-a-time rule above.
 
@@ -323,6 +329,27 @@ The venue-search page (`venue-search`) shows the event's own values, an optional
 | Venue location | `venue-search-location-<id>` |
 | Venue maximum capacity | `venue-search-capacity-<id>` |
 | No results | `venue-search-empty` |
+
+**Venue availability** (SCRUM-39). The venue-availability page (`venue-availability`) shows, for a chosen week or a chosen month, every period that currently occupies or might occupy the venue: an Approved booking's occupied period (its published period widened by the venue's setup and turnaround time, the same `occupied_start`/`occupied_end` as Occupied periods above), a Requested booking's own published period, unwidened (AC4 names only an approved booking; a request still awaiting a decision does not yet hold the venue), and a block's own recorded period, never widened (the same rule as everywhere else). Rejected and Withdrawn booking requests are never shown: they no longer hold or threaten to hold the venue (team decision, 09-10-2026).
+
+It is shown one day at a time (§7's label/value list, reused: the date as `dt`, that day's own entries as `dd`), not one flat table, so a free day reads as "Free" rather than simply being absent — judging dates means seeing the open ones as clearly as the booked ones (AC1). An entry that spans midnight is listed under every day it overlaps, in full, with both its own dates (the same `formatDateTimePeriod` text each time): a calendar is exactly the place a booking crossing into the next day is expected to appear on both. Within a day, entries are earliest start first; every entry carries a status badge — Approved (`statusBadgeClass(STATUS.BOOKING.APPROVED)`) or Pending (`statusBadgeClass(STATUS.BOOKING.REQUESTED)`) for a booking, Block (its own neutral badge, not a state-model.md status) for a block — so a Requested booking reads as pending at a glance beside an Approved one (AC5).
+
+The page opens to the current week (Monday to Sunday), "current" read from the browser's own clock: this default is a cosmetic starting point only, never a rule the API enforces, so it is the one place in the front end allowed to read the time itself rather than through `app/format.js` or the API. Week and Month are two buttons, not a form; switching recomputes the displayed days from the same anchor date. Previous and Next move the anchor by one week or one month, matching whichever is selected. The page reads the venue's bookings and blocks once, from the same two lists `venue-detail` already calls (`listVenueBookings`, `listVenueBlocks`) — neither API filters by date, so there is nothing to re-read on navigation; the displayed days only change which already-loaded entries the page shows against each one.
+
+| Element | `data-testid` |
+|---|---|
+| Back link (to `venue-detail`) | `venue-availability-back-link` |
+| Title (the venue's name) | `venue-availability-title` |
+| Displayed range, `formatDate` on each end (`06 Oct 2026 to 12 Oct 2026`; a month is its first day to its last, e.g. `01 Oct 2026 to 31 Oct 2026`) | `venue-availability-range` |
+| Week / Month buttons | `venue-availability-week-button`, `venue-availability-month-button` |
+| Previous / Next buttons | `venue-availability-prev-button`, `venue-availability-next-button` |
+| Day group (one per displayed day, `<date>` its ISO date) | `venue-availability-day-<date>` |
+| Day heading, `formatDate` | `venue-availability-day-heading-<date>` |
+| Free day (no entry overlaps it) | `venue-availability-day-empty-<date>` |
+| Entry row (booking or block; `<kind>` is `booking` or `block`, `<id>` that record's own id, `<date>` the day group it is shown under; an entry spanning more than one displayed day repeats, once per day, each with its own id this way — Month can show two of its days at once, so the id must still be unique on the page) | `venue-availability-entry-row-<kind>-<id>-<date>` |
+| Entry period, `formatDateTimePeriod` | `venue-availability-entry-period-<kind>-<id>-<date>` |
+| Entry name (event name for a booking, reason for a block) | `venue-availability-entry-name-<kind>-<id>-<date>` |
+| Entry status (`Approved`, `Pending` or `Block`) | `venue-availability-entry-status-<kind>-<id>-<date>` |
 
 ## 8. Not-permitted page
 

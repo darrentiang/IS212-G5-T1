@@ -13,6 +13,7 @@ Kept current by every story that adds an action: the row is added or changed in 
 | Reassign an event | No | Assigned coordinator initiates; new coordinator accepts | No | No | No |
 | Confirm, cancel, mark completed | No | Assigned coordinator | No | No | No |
 | View venues and venue booking requests | No | Yes | Yes | No | No |
+| View a venue's availability calendar | No | Yes | Yes | No | No |
 | Search venues free on an Approved or Planning event's dates and large enough for its attendance | No | Yes | No | No | No |
 | Maintain venue records and layouts; block a venue | No | No | Yes | No | No |
 | Raise a venue booking request | No | Yes* | No | No | No |
@@ -68,3 +69,4 @@ Keys used in `backend/permissions.py` and on API routes / `features` from `/api/
 | 1.10 | 08-10-2026 | `bookings.decide` for Venue Staff | SCRUM-37: approving or rejecting a venue booking request needs a key of its own; the "Approve or reject a venue booking" row already named Venue Staff only |
 | 1.11 | 09-10-2026 | Rule \* reworded: assignment is now recorded; enforcement still pending | SCRUM-43 records who is assigned; narrowing "assigned coordinator" rows is a separate decision for the Product Owner |
 | 1.12 | 09-10-2026 | "Raise or withdraw a venue booking request" split into its own raise row (unchanged, still marked \*) and a withdraw row restricted to "Own only (whoever raised it)"; Rule \* reworded to say withdrawing is unaffected by the assigned-coordinator gap | SCRUM-77: withdrawing is restricted to the Coordinator who raised that specific booking (AC4), a stricter, different rule from the unenforced event-level "assigned coordinator"; the old combined row read as if any Event Coordinator could withdraw any booking |
+| 1.13 | 09-10-2026 | "View a venue's availability calendar" row, Event Coordinator and Venue Staff, no new feature key | SCRUM-39: the calendar reuses `venues.view` exactly, already held by both; the story's own AC6 ("venues they manage") was reworded to any venue during drafting, since no story has ever built per-venue Venue Staff assignment (team decision, 09-10-2026) |
