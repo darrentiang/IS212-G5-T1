@@ -1,6 +1,8 @@
 import { test, expect, request as playwrightRequest } from '@playwright/test'
 
 // Curated rows: team test sheet — SCRUM-29 Approve or Reject Event Request.
+// SCRUM-43: approving also assigns an Event Coordinator, so an approved request
+// shows status Planning while its decision stays Approved.
 // Seeded Annual Dinner (/requests/1, Submitted) and Open House (/requests/4,
 // Confirmed) are only read here, never decided. Every request a test decides
 // it creates itself through the API as org1, under its own name.
@@ -107,7 +109,7 @@ test('coordinator approves a Submitted request without a reason', async ({ page 
 
   await expect(page.getByTestId('request-detail-banner')).toHaveAttribute('role', 'status')
   await page.reload()
-  await expect(page.getByTestId('request-detail-status')).toHaveText('Approved')
+  await expect(page.getByTestId('request-detail-status')).toHaveText('Planning')
   await expect(page.getByTestId('request-detail-decision')).toHaveText('Approved')
   await expect(page.getByTestId('request-detail-decided-at')).toHaveText(/^\d{2} \w{3} \d{4}, \d{2}:\d{2}$/)
   await expect(page.getByTestId('request-detail-decided-by')).toHaveText('coord1')
@@ -129,7 +131,7 @@ test('coordinator approves a Submitted request with an optional reason', async (
 
   await expect(page.getByTestId('request-detail-banner')).toHaveAttribute('role', 'status')
   await page.reload()
-  await expect(page.getByTestId('request-detail-status')).toHaveText('Approved')
+  await expect(page.getByTestId('request-detail-status')).toHaveText('Planning')
   await expect(page.getByTestId('request-detail-decision-reason')).toHaveText('Fits the autumn calendar.')
   await expect(page.getByTestId('request-detail-decided-at')).toHaveText(/^\d{2} \w{3} \d{4}, \d{2}:\d{2}$/)
   await expect(page.getByTestId('request-detail-decided-by')).toHaveText('coord1')
@@ -247,12 +249,12 @@ test('a second decision on an already decided request is refused and the existin
   const banner = page.getByTestId('request-detail-banner')
   await expect(banner).toHaveAttribute('role', 'alert')
   await expect(banner).toHaveText(/^This request has already been decided \(Approved on \d{2} \w{3} \d{4}, \d{2}:\d{2}\)\.$/)
-  await expect(page.getByTestId('request-detail-status')).toHaveText('Approved')
+  await expect(page.getByTestId('request-detail-status')).toHaveText('Planning')
   const decidedAt = await page.getByTestId('request-detail-decided-at').textContent()
   expect(await banner.textContent()).toContain(decidedAt)
 
   await page.reload()
-  await expect(page.getByTestId('request-detail-status')).toHaveText('Approved')
+  await expect(page.getByTestId('request-detail-status')).toHaveText('Planning')
   await expect(page.getByTestId('request-detail-decision')).toHaveText('Approved')
   await expect(page.getByTestId('request-detail-decided-at')).toHaveText(decidedAt)
   await expect(page.getByTestId('request-detail-decided-by')).toHaveText('coord1')

@@ -131,6 +131,14 @@ def seed_database(db, data_path=DEFAULT_DATA_PATH):
                     registration_enabled=bool(entry.get("registration_enabled", False)),
                     coordinator_notes=entry.get("coordinator_notes"),
                     submitted_at=parse_datetime(entry.get("submitted_at")),
+                    # SCRUM-43: standing events already assigned to a coordinator,
+                    # so the open-event counts have something to count.
+                    assigned_coordinator=(
+                        accounts[entry["assigned_coordinator"]]
+                        if entry.get("assigned_coordinator")
+                        else None
+                    ),
+                    assigned_at=parse_datetime(entry.get("assigned_at")),
                     # SCRUM-42: the optional requirements chosen from the fixed lists.
                     layout=layouts[entry["layout"]] if entry.get("layout") else None,
                     facilities=[facilities[name] for name in entry.get("facilities", [])],
