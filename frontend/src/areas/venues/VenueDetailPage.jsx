@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useParams } from 'react-router'
 import { useAuth } from '../../app/auth'
 import { formatDateTime, formatDateTimePeriod, formatPeriod, formatTime, statusBadgeClass } from '../../app/format'
@@ -10,6 +10,7 @@ import {
   getVenueOptions,
   listVenueBlocks,
   listVenueBookings,
+  listVenueClashes,
   listVenues,
   rejectBooking,
   removeVenueBlock,
@@ -59,6 +60,9 @@ const minutes = (value) => `${value} ${value === 1 ? 'minute' : 'minutes'}`
 // SCRUM-37: a Requested row is undecided; the Decision cell is blank until
 // Approve or Reject is confirmed.
 const REQUESTED = 'Requested'
+// SCRUM-41: only an Approved booking occupies the venue, so only Approved
+// bookings appear in the Occupied periods list.
+const APPROVED = 'Approved'
 const DECIDE_ACTIONS = {
   approve: { label: 'Approve', send: approveBooking, banner: 'Booking approved', reasonRequired: false },
   reject: { label: 'Reject', send: rejectBooking, banner: 'Booking rejected', reasonRequired: true },
@@ -89,6 +93,34 @@ function bookingDecisionText(booking) {
 // so comparing the strings compares the moments.
 const byStartThenId = (a, b) => a.start.localeCompare(b.start) || a.id - b.id
 
+// SCRUM-41: occupied_start is the same wire shape as a block's start, so the
+// occupied lists sort the same way.
+const byOccupiedThenId = (a, b) =>
+  a.occupied_start.localeCompare(b.occupied_start) || a.id - b.id
+
+// SCRUM-41 (review): a list whose reload refused after a successful duration
+// save is shown as unavailable — never as its previous results, which would
+// read as current — with a Reload control as the recovery path
+// (docs/design/ui-guidelines.md §7).
+function ListUnavailable({ testId, text, onReload, disabled }) {
+  return (
+    <div className="card space-y-4">
+      <p role="alert" className="banner-error" data-testid={`${testId}-unavailable`}>
+        {text}
+      </p>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={onReload}
+        className="btn btn-secondary"
+        data-testid={`${testId}-reload-button`}
+      >
+        Reload
+      </button>
+    </div>
+  )
+}
+
 // SCRUM-31: every field recorded for one venue, or the API refusal.
 // SCRUM-40: the venue's blocks, and for Venue Staff an inline form to block
 // it for a period with a reason (ui-guidelines.md §7).
@@ -97,6 +129,8 @@ const byStartThenId = (a, b) => a.start.localeCompare(b.start) || a.id - b.id
 // early, an inline form for a new end, on a block in progress.
 // SCRUM-80: setup time and turnaround time shown for every authorised user,
 // and for Venue Staff an inline form to record or change them.
+// SCRUM-41: an Occupied periods list for anyone who may view the venue, and a
+// Current clashes list for Venue Staff, refreshed after a duration save.
 export default function VenueDetailPage() {
   const { id } = useParams()
   const routerLocation = useLocation()
@@ -104,6 +138,24 @@ export default function VenueDetailPage() {
   const [row, setRow] = useState(null)
   const [blocks, setBlocks] = useState([])
   const [bookings, setBookings] = useState([])
+  // SCRUM-41 AC5: the clashes the venue's recorded durations make right now.
+  // Asked for only with venues.edit, so an account without it never sees a
+  // refusal for a list that is not its to read.
+  const [clashes, setClashes] = useState([])
+  // SCRUM-41 (review): a refresh that refuses after a successful duration
+  // save marks the lists that fetch feeds unavailable instead of leaving the
+  // earlier results on the page as though they were current. One flag per
+  // fetch: bookings feeds both the Occupied periods and the Booking requests
+  // section, clashes feeds Current clashes. A load that refuses on the way in
+  // still shows in the banner, as it always has.
+  const [staleLists, setStaleLists] = useState({ bookings: false, clashes: false })
+  // SCRUM-41 (review): duration saves refresh the lists after the form has
+  // closed, so a second save can start while the first save's refresh is
+  // still in flight. Only the latest refresh may apply its results — an
+  // older one arriving late would show periods the stored durations no
+  // longer make. Bumped per refresh and whenever the venue changes, which
+  // also invalidates a refresh still in flight for a venue left behind.
+  const refreshSeq = useRef(0)
   const [loading, setLoading] = useState(true)
   const [banner, setBanner] = useState(null)
   // The success banner shows on the page the user lands on after saving
@@ -155,18 +207,34 @@ export default function VenueDetailPage() {
   // account raised the specific row is checked per-row below, the API's
   // own ownership rule mirrored here for usability (ADR-002).
   const canWithdraw = can('bookings.edit')
+  // SCRUM-41: an event's name links to its request only when the account may
+  // open requests; anyone else sees the name as plain text.
+  const canViewRequests = can('requests.view')
 
   // Keyed to id: a reply for the venue the user has left can
   // arrive after the current one, so a stale reply is ignored
-  // (docs/design/frontend.md section 7).
+  // (docs/design/frontend.md section 7). Loading a venue also
+  // invalidates any duration-save refresh still in flight for the
+  // previous venue, and clears unavailable flags the previous venue
+  // left behind: what loaded here is current for this venue.
   useEffect(() => {
     let active = true
-    Promise.all([getVenue(id), listVenueBlocks(id), listVenueBookings(id)])
-      .then(([venue, venueBlocks, venueBookings]) => {
+    refreshSeq.current += 1
+    Promise.all([
+      getVenue(id),
+      listVenueBlocks(id),
+      listVenueBookings(id),
+      // SCRUM-41 AC5: only Venue Staff (venues.edit) may read the clash list,
+      // so only they ask for it.
+      canBlock ? listVenueClashes(id) : Promise.resolve([]),
+    ])
+      .then(([venue, venueBlocks, venueBookings, venueClashes]) => {
         if (active) {
           setRow(venue)
           setBlocks(venueBlocks)
           setBookings(venueBookings)
+          setClashes(venueClashes)
+          setStaleLists({ bookings: false, clashes: false })
         }
       })
       .catch((error) => {
@@ -178,7 +246,7 @@ export default function VenueDetailPage() {
     return () => {
       active = false
     }
-  }, [id])
+  }, [id, canBlock])
 
   useEffect(() => {
     let active = true
@@ -315,6 +383,33 @@ export default function VenueDetailPage() {
     setOpenForm(null)
   }
 
+  // SCRUM-41 AC5: the duration save's refresh, and the recovery path when it
+  // refuses. Each list is read on its own, so one refusal marks only the
+  // sections that fetch feeds unavailable and leaves the other list current;
+  // a list that loads is always the current one. Whichever refresh started
+  // last owns the lists: a slower earlier one that finishes late is dropped
+  // rather than overwriting newer results.
+  const refreshLists = async () => {
+    const seq = ++refreshSeq.current
+    const [bookingsResult, clashesResult] = await Promise.allSettled([
+      listVenueBookings(id),
+      listVenueClashes(id),
+    ])
+    if (seq !== refreshSeq.current) return
+    if (bookingsResult.status === 'fulfilled') {
+      setBookings(bookingsResult.value)
+      setStaleLists((current) => ({ ...current, bookings: false }))
+    } else {
+      setStaleLists((current) => ({ ...current, bookings: true }))
+    }
+    if (clashesResult.status === 'fulfilled') {
+      setClashes(clashesResult.value)
+      setStaleLists((current) => ({ ...current, clashes: false }))
+    } else {
+      setStaleLists((current) => ({ ...current, clashes: true }))
+    }
+  }
+
   // The page sends exactly what was typed; every rule and every refusal,
   // including which field is invalid, belongs to the API and shows in the
   // banner (ui-guidelines.md §5). On a refusal the form stays open with the
@@ -325,19 +420,30 @@ export default function VenueDetailPage() {
     setBanner(null)
     setSuccess(null)
     setSubmitting(true)
+    let updated
     try {
-      const updated = await updateVenueTimes(id, {
+      updated = await updateVenueTimes(id, {
         setup_time: timesValues.setup_time,
         turnaround_time: timesValues.turnaround_time,
       })
-      setRow(updated)
-      setOpenForm(null)
-      setSuccess('Times updated')
     } catch (error) {
+      // A save refusal: nothing was written, so the form stays open with the
+      // typed values and no success is claimed.
       setBanner(error.message)
-    } finally {
       setSubmitting(false)
+      return
     }
+    // The save landed, so it is acknowledged and the form closes even if the
+    // refresh below refuses — that refusal marks lists unavailable; it is not
+    // a save failure (ui-guidelines.md §7).
+    setRow(updated)
+    setOpenForm(null)
+    setSuccess('Times updated')
+    setSubmitting(false)
+    // SCRUM-41 AC5: occupied periods and clashes are derived from these
+    // durations at every read, so both lists are read again once the save
+    // has landed. Nothing else about the bookings changes (AC5).
+    await refreshLists()
   }
 
   const openEnd = (block) => {
@@ -468,6 +574,9 @@ export default function VenueDetailPage() {
     setSubmitting(true)
     try {
       const updated = await action.send(id, decidingBookingId, decideReason, ...extra)
+      // SCRUM-41: the occupied list is the Approved rows of this same state,
+      // so updating the row updates it too — a booking just approved moves in
+      // with the occupied period the API sent back (AC1).
       setBookings((current) => current.map((booking) => (booking.id === updated.id ? updated : booking)))
       setOpenForm(null)
       setSuccess(action.banner)
@@ -521,6 +630,12 @@ export default function VenueDetailPage() {
       setSubmitting(false)
     }
   }
+
+  // SCRUM-41 AC2: the availability list — every Approved booking with the
+  // occupied period the API derived from the venue's durations, earliest
+  // first. Derived from the bookings above, so approving one brings it in and
+  // a duration save's refresh moves them all together.
+  const occupied = bookings.filter((booking) => booking.status === APPROVED).sort(byOccupiedThenId)
 
   return (
     <div className="space-y-8">
@@ -977,6 +1092,115 @@ export default function VenueDetailPage() {
             </form>
           )}
 
+          {/* SCRUM-41 AC2: what the venue is actually held for, one row per
+              Approved booking, its occupied period beside the event name.
+              (Review: unavailable instead of its previous rows when the
+              reload after a duration save refused.) */}
+          <section className="space-y-4">
+            <h2 className="section-title">Occupied periods</h2>
+            {staleLists.bookings ? (
+              <ListUnavailable
+                testId="venue-detail-occupied"
+                text="The occupied periods could not be reloaded after the times were saved."
+                onReload={refreshLists}
+                disabled={submitting}
+              />
+            ) : occupied.length === 0 ? (
+              <div className="card">
+                <p className="empty-state" data-testid="venue-detail-occupied-empty">
+                  This venue has no approved bookings.
+                </p>
+              </div>
+            ) : (
+              <div className="card p-0 overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>Event</th>
+                        <th>Occupied period</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {occupied.map((booking) => (
+                        <tr key={booking.id} data-testid={`venue-detail-occupied-row-${booking.id}`}>
+                          <td data-testid={`venue-detail-occupied-event-${booking.id}`}>
+                            {canViewRequests ? (
+                              <Link to={`/requests/${booking.event_request_id}`}>
+                                {booking.event_request_name}
+                              </Link>
+                            ) : (
+                              booking.event_request_name
+                            )}
+                          </td>
+                          <td data-testid={`venue-detail-occupied-period-${booking.id}`}>
+                            {formatDateTimePeriod(booking.occupied_start, booking.occupied_end)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </section>
+
+          {/* SCRUM-41 AC5: what the venue's recorded durations make clash right
+              now. Venue Staff only (venues.edit) — the ones who change them.
+              canBlock is that same feature key. (Review: unavailable instead
+              of the previous rows — or the empty state, which would claim
+              nothing clashes — when the reload after a save refused.) */}
+          {canBlock && (
+            <section className="space-y-4">
+              <h2 className="section-title">Current clashes</h2>
+              {staleLists.clashes ? (
+                <ListUnavailable
+                  testId="venue-detail-clashes"
+                  text="The current clashes could not be reloaded after the times were saved."
+                  onReload={refreshLists}
+                  disabled={submitting}
+                />
+              ) : clashes.length === 0 ? (
+                <div className="card">
+                  <p className="empty-state" data-testid="venue-detail-clashes-empty">
+                    No approved bookings currently clash.
+                  </p>
+                </div>
+              ) : (
+                <div className="card p-0 overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="table">
+                      <thead>
+                        <tr>
+                          <th>Event</th>
+                          <th>Occupied period</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[...clashes].sort(byOccupiedThenId).map((booking) => (
+                          <tr key={booking.id} data-testid={`venue-detail-clash-row-${booking.id}`}>
+                            <td data-testid={`venue-detail-clash-event-${booking.id}`}>
+                              {canViewRequests ? (
+                                <Link to={`/requests/${booking.event_request_id}`}>
+                                  {booking.event_request_name}
+                                </Link>
+                              ) : (
+                                booking.event_request_name
+                              )}
+                            </td>
+                            <td data-testid={`venue-detail-clash-period-${booking.id}`}>
+                              {formatDateTimePeriod(booking.occupied_start, booking.occupied_end)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </section>
+          )}
+
           <section className="space-y-4">
             <h2 className="section-title">Blocks</h2>
             {blocks.length === 0 ? (
@@ -1114,10 +1338,19 @@ export default function VenueDetailPage() {
           </section>
 
           {/* SCRUM-36: booking requests raised against this venue.
-              SCRUM-37: Venue Staff decide a Requested one from its row. */}
+              SCRUM-37: Venue Staff decide a Requested one from its row.
+              SCRUM-41 (review): fed by the same read as the Occupied periods
+              list, so a refused reload marks it unavailable the same way. */}
           <section className="space-y-4">
             <h2 className="section-title">Booking requests</h2>
-            {bookings.length === 0 ? (
+            {staleLists.bookings ? (
+              <ListUnavailable
+                testId="venue-detail-bookings"
+                text="The booking requests could not be reloaded after the times were saved."
+                onReload={refreshLists}
+                disabled={submitting}
+              />
+            ) : bookings.length === 0 ? (
               <div className="card">
                 <p className="empty-state" data-testid="venue-detail-bookings-empty">
                   This venue has no booking requests.

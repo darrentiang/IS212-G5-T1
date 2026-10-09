@@ -47,6 +47,8 @@ beforeEach(() => {
   signInWith(['venues.view', 'venues.edit'])
   api.listVenueBlocks.mockResolvedValue([])
   api.listVenueBookings.mockResolvedValue([])
+  // SCRUM-41: asked for on load with venues.edit, and again after a duration save.
+  api.listVenueClashes.mockResolvedValue([])
   api.getVenueOptions.mockResolvedValue(OPTIONS)
 })
 
@@ -1735,11 +1737,16 @@ describe('VenueDetailPage booking requests', () => {
 
 const REQUESTED_BOOKING = {
   id: 12,
+  event_request_id: 4,
   event_request_name: 'Tech Fair 2026',
   status: 'Requested',
   date: '2026-11-20',
   start_time: '09:00',
   end_time: '17:00',
+  // SCRUM-41: the API sends the occupied period with every booking row,
+  // derived from the venue's durations.
+  occupied_start: '2026-11-20T08:30',
+  occupied_end: '2026-11-20T17:15',
   attendance: 75,
   layout: 'Theatre',
   facilities: ['Projector', 'Whiteboard'],
@@ -2017,6 +2024,634 @@ describe('VenueDetailPage withdrawing a booking request', () => {
       expect(screen.getByTestId('venue-detail-booking-status-12')).toHaveTextContent('Withdrawn')
     })
     expect(screen.getByTestId('venue-detail-booking-status-13')).toHaveTextContent('Requested')
+  })
+})
+
+// ---------------- SCRUM-41 Occupied periods and current clashes ----------------
+
+// Hall A records 30 minutes of setup and 15 of turnaround (RECORDED_TIMES), so
+// an event on 15 Dec 2026 10:00–12:00 occupies 09:30–12:15. The fixtures are
+// what the API sends: the published period never rewritten, the occupied one
+// derived beside it.
+const APPROVED_A = {
+  id: 12,
+  event_request_id: 4,
+  event_request_name: 'Tech Fair 2026',
+  status: 'Approved',
+  date: '2026-12-15',
+  start_time: '10:00',
+  end_time: '12:00',
+  occupied_start: '2026-12-15T09:30',
+  occupied_end: '2026-12-15T12:15',
+}
+
+const APPROVED_B = {
+  id: 13,
+  event_request_id: 5,
+  event_request_name: 'Alumni Dinner',
+  status: 'Approved',
+  date: '2026-12-15',
+  start_time: '12:30',
+  end_time: '13:30',
+  occupied_start: '2026-12-15T12:00',
+  occupied_end: '2026-12-15T13:45',
+}
+
+// The clash list is the lean payload (api.js): event, occupied period and the
+// published one beside it.
+const CLASH_A = {
+  id: 12,
+  event_request_id: 4,
+  event_request_name: 'Tech Fair 2026',
+  occupied_start: '2026-12-15T09:30',
+  occupied_end: '2026-12-15T12:15',
+  date: '2026-12-15',
+  start_time: '10:00',
+  end_time: '12:00',
+}
+
+const CLASH_B = {
+  id: 13,
+  event_request_id: 5,
+  event_request_name: 'Alumni Dinner',
+  occupied_start: '2026-12-15T12:00',
+  occupied_end: '2026-12-15T13:45',
+  date: '2026-12-15',
+  start_time: '12:30',
+  end_time: '13:30',
+}
+
+describe('VenueDetailPage occupied periods', () => {
+  // @story: SCRUM-41
+  // @ac: 1, 5
+  it('shows a clamped occupied period exactly as the API sends it', async () => {
+    api.getVenue.mockResolvedValue(RECORDED_TIMES)
+    // The extreme-duration read the API answers with: an enormous setup time
+    // pushes the occupied start to the first date Python represents, and the
+    // page must render that value, not crash on it.
+    api.listVenueBookings.mockResolvedValue([
+      { ...APPROVED_A, occupied_start: '0001-01-01T00:00', occupied_end: '2026-12-15T12:15' },
+    ])
+
+    renderPage()
+
+    expect(await screen.findByTestId('venue-detail-occupied-row-12')).toBeVisible()
+    expect(screen.getByTestId('venue-detail-occupied-period-12')).toHaveTextContent(
+      '01 Jan 0001, 00:00 to 15 Dec 2026, 12:15',
+    )
+    // The published period beside it never moves (AC1).
+    expect(screen.getByTestId('venue-detail-booking-period-12')).toHaveTextContent(
+      '15 Dec 2026, 10:00–12:00',
+    )
+  })
+
+  // @story: SCRUM-41
+  // @ac: 1, 2
+  it('lists each approved booking with its occupied period, earliest first', async () => {
+    api.getVenue.mockResolvedValue(RECORDED_TIMES)
+    api.listVenueBookings.mockResolvedValue([APPROVED_B, APPROVED_A])
+
+    renderPage()
+
+    expect(await screen.findByTestId('venue-detail-occupied-row-12')).toBeVisible()
+    expect(screen.getByTestId('venue-detail-occupied-event-12')).toHaveTextContent('Tech Fair 2026')
+    expect(screen.getByTestId('venue-detail-occupied-period-12')).toHaveTextContent(
+      '15 Dec 2026, 09:30 to 15 Dec 2026, 12:15',
+    )
+    expect(screen.getByTestId('venue-detail-occupied-period-13')).toHaveTextContent(
+      '15 Dec 2026, 12:00 to 15 Dec 2026, 13:45',
+    )
+    // Earliest occupied period first, whatever order the API sent.
+    const rows = screen.getAllByTestId(/^venue-detail-occupied-row-/)
+    expect(rows.map((row) => row.getAttribute('data-testid'))).toEqual([
+      'venue-detail-occupied-row-12',
+      'venue-detail-occupied-row-13',
+    ])
+    expect(screen.queryByTestId('venue-detail-occupied-empty')).not.toBeInTheDocument()
+    expect(api.listVenueBookings).toHaveBeenCalledWith('3')
+  })
+
+  // @story: SCRUM-41
+  // @ac: 1
+  it('shows both dates when setup rolls the occupied period into the previous date', async () => {
+    api.getVenue.mockResolvedValue(RECORDED_TIMES)
+    api.listVenueBookings.mockResolvedValue([
+      {
+        ...APPROVED_A,
+        start_time: '00:15',
+        end_time: '01:15',
+        occupied_start: '2026-12-14T23:45',
+        occupied_end: '2026-12-15T01:30',
+      },
+    ])
+
+    renderPage()
+
+    expect(await screen.findByTestId('venue-detail-occupied-period-12')).toHaveTextContent(
+      '14 Dec 2026, 23:45 to 15 Dec 2026, 01:30',
+    )
+  })
+
+  // @story: SCRUM-41
+  // @ac: 1
+  it('shows both dates when turnaround rolls the occupied period into the next date', async () => {
+    api.getVenue.mockResolvedValue({ ...HALL_A, setup_time: 30, turnaround_time: 30 })
+    api.listVenueBookings.mockResolvedValue([
+      {
+        ...APPROVED_A,
+        start_time: '23:00',
+        end_time: '23:45',
+        occupied_start: '2026-12-15T22:30',
+        occupied_end: '2026-12-16T00:15',
+      },
+    ])
+
+    renderPage()
+
+    expect(await screen.findByTestId('venue-detail-occupied-period-12')).toHaveTextContent(
+      '15 Dec 2026, 22:30 to 16 Dec 2026, 00:15',
+    )
+  })
+
+  // @story: SCRUM-41
+  // @ac: 2
+  it('orders bookings that share an occupied start by id', async () => {
+    api.getVenue.mockResolvedValue(RECORDED_TIMES)
+    api.listVenueBookings.mockResolvedValue([
+      { ...APPROVED_B, id: 13, occupied_start: '2026-12-15T09:30' },
+      { ...APPROVED_A, id: 12 },
+    ])
+
+    renderPage()
+
+    await waitFor(() => screen.getByTestId('venue-detail-occupied-row-12'))
+    const rows = screen.getAllByTestId(/^venue-detail-occupied-row-/)
+    expect(rows.map((row) => row.getAttribute('data-testid'))).toEqual([
+      'venue-detail-occupied-row-12',
+      'venue-detail-occupied-row-13',
+    ])
+  })
+
+  // @story: SCRUM-41
+  // @ac: 2
+  it('says the venue has no approved bookings, and only that, when the list is empty', async () => {
+    api.getVenue.mockResolvedValue(RECORDED_TIMES)
+    api.listVenueBookings.mockResolvedValue([
+      { ...APPROVED_A, status: 'Requested' },
+      { ...APPROVED_B, status: 'Rejected' },
+    ])
+
+    renderPage()
+
+    expect(await screen.findByTestId('venue-detail-occupied-empty')).toHaveTextContent(
+      'This venue has no approved bookings.',
+    )
+    expect(screen.getByTestId('venue-detail-occupied-empty')).not.toHaveTextContent('no blocks')
+    expect(screen.getByTestId('venue-detail-occupied-empty')).not.toHaveTextContent('free')
+  })
+
+  // @story: SCRUM-41
+  // @ac: 1
+  it('keeps the published period on the booking row beside the occupied one', async () => {
+    api.getVenue.mockResolvedValue(RECORDED_TIMES)
+    api.listVenueBookings.mockResolvedValue([APPROVED_A])
+
+    renderPage()
+
+    expect(await screen.findByTestId('venue-detail-booking-period-12')).toHaveTextContent(
+      '15 Dec 2026, 10:00–12:00',
+    )
+    expect(screen.getByTestId('venue-detail-occupied-period-12')).toHaveTextContent(
+      '15 Dec 2026, 09:30 to 15 Dec 2026, 12:15',
+    )
+  })
+
+  // @story: SCRUM-41
+  // @ac: 2
+  it('links the event name to its request with requests.view', async () => {
+    signInWith(['venues.view', 'requests.view'])
+    api.getVenue.mockResolvedValue(RECORDED_TIMES)
+    api.listVenueBookings.mockResolvedValue([APPROVED_A])
+
+    renderPage()
+
+    const event = await screen.findByTestId('venue-detail-occupied-event-12')
+    expect(event.querySelector('a')).toHaveAttribute('href', '/requests/4')
+    expect(event).toHaveTextContent('Tech Fair 2026')
+  })
+
+  // @story: SCRUM-41
+  // @ac: 2
+  it('shows the event name as plain text without requests.view', async () => {
+    signInWith(['venues.view'])
+    api.getVenue.mockResolvedValue(RECORDED_TIMES)
+    api.listVenueBookings.mockResolvedValue([APPROVED_A])
+
+    renderPage()
+
+    const event = await screen.findByTestId('venue-detail-occupied-event-12')
+    expect(event.querySelector('a')).toBeNull()
+    expect(event).toHaveTextContent('Tech Fair 2026')
+  })
+
+  // @story: SCRUM-41
+  // @ac: 1
+  it('brings a newly approved booking into the list with its occupied period', async () => {
+    signInWith(['venues.view', 'bookings.decide'])
+    api.getVenue.mockResolvedValue(RECORDED_TIMES)
+    api.listVenueBookings.mockResolvedValue([{ ...REQUESTED_BOOKING, ...APPROVED_A, status: 'Requested' }])
+    api.approveBooking.mockResolvedValue({
+      ...REQUESTED_BOOKING,
+      ...APPROVED_A,
+      decision: 'Approved',
+      decided_by: 'venue1',
+      decided_at: '2026-10-08T08:00:00+00:00',
+    })
+
+    renderPage()
+    await waitFor(() => screen.getByTestId('venue-detail-booking-approve-button-12'))
+    await userEvent.click(screen.getByTestId('venue-detail-booking-approve-button-12'))
+    await userEvent.click(screen.getByTestId('venue-detail-decide-confirm-button'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('venue-detail-occupied-period-12')).toHaveTextContent(
+        '15 Dec 2026, 09:30 to 15 Dec 2026, 12:15',
+      )
+    })
+    expect(screen.getByTestId('venue-detail-occupied-event-12')).toHaveTextContent('Tech Fair 2026')
+    expect(api.listVenueClashes).not.toHaveBeenCalled()
+  })
+})
+
+describe('VenueDetailPage current clashes', () => {
+  // @story: SCRUM-41
+  // @ac: 5
+  it('lists every booking of a clashing chain once, earliest first', async () => {
+    api.getVenue.mockResolvedValue(RECORDED_TIMES)
+    const clashingC = {
+      ...CLASH_B,
+      id: 14,
+      event_request_id: 6,
+      event_request_name: 'Career Fair',
+      occupied_start: '2026-12-15T13:30',
+      occupied_end: '2026-12-15T15:15',
+      date: '2026-12-15',
+      start_time: '14:00',
+      end_time: '15:00',
+    }
+    api.listVenueClashes.mockResolvedValue([clashingC, CLASH_B, CLASH_A])
+
+    renderPage()
+
+    expect(await screen.findByTestId('venue-detail-clash-row-12')).toBeVisible()
+    const rows = screen.getAllByTestId(/^venue-detail-clash-row-/)
+    expect(rows.map((row) => row.getAttribute('data-testid'))).toEqual([
+      'venue-detail-clash-row-12',
+      'venue-detail-clash-row-13',
+      'venue-detail-clash-row-14',
+    ])
+    expect(screen.getByTestId('venue-detail-clash-event-13')).toHaveTextContent('Alumni Dinner')
+    expect(screen.getByTestId('venue-detail-clash-period-13')).toHaveTextContent(
+      '15 Dec 2026, 12:00 to 15 Dec 2026, 13:45',
+    )
+    expect(screen.queryByTestId('venue-detail-clashes-empty')).not.toBeInTheDocument()
+    expect(api.listVenueClashes).toHaveBeenCalledWith('3')
+  })
+
+  // @story: SCRUM-41
+  // @ac: 5
+  it('says so when nothing currently clashes', async () => {
+    api.getVenue.mockResolvedValue(RECORDED_TIMES)
+    api.listVenueBookings.mockResolvedValue([APPROVED_A])
+
+    renderPage()
+
+    expect(await screen.findByTestId('venue-detail-clashes-empty')).toHaveTextContent(
+      'No approved bookings currently clash.',
+    )
+  })
+
+  // @story: SCRUM-41
+  // @ac: 5
+  it('shows the section only to an account with venues.edit, and never asks for the list without it', async () => {
+    signInWith(['venues.view', 'requests.view'])
+    api.getVenue.mockResolvedValue(RECORDED_TIMES)
+    api.listVenueBookings.mockResolvedValue([APPROVED_A])
+
+    renderPage()
+
+    expect(await screen.findByTestId('venue-detail-occupied-row-12')).toBeVisible()
+    expect(screen.queryByTestId('venue-detail-clashes-empty')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('venue-detail-clash-row-12')).not.toBeInTheDocument()
+    expect(api.listVenueClashes).not.toHaveBeenCalled()
+  })
+
+  // @story: SCRUM-41
+  // @ac: 5
+  it('links a clashing event name to its request with requests.view and shows plain text without it', async () => {
+    api.getVenue.mockResolvedValue(RECORDED_TIMES)
+    api.listVenueClashes.mockResolvedValue([CLASH_A])
+
+    signInWith(['venues.view', 'venues.edit', 'requests.view'])
+    const first = renderPage()
+    const linked = await screen.findByTestId('venue-detail-clash-event-12')
+    expect(linked.querySelector('a')).toHaveAttribute('href', '/requests/4')
+    first.unmount()
+
+    signInWith(['venues.view', 'venues.edit'])
+    renderPage()
+    const event = await screen.findByTestId('venue-detail-clash-event-12')
+    expect(event.querySelector('a')).toBeNull()
+    expect(event).toHaveTextContent('Tech Fair 2026')
+  })
+
+  // @story: SCRUM-41
+  // @ac: 5
+  it('reloads the occupied periods and the clashes after a duration save exposes a clash', async () => {
+    api.getVenue.mockResolvedValue({ ...HALL_A, setup_time: 0, turnaround_time: 0 })
+    // Before the save the three bookings' occupied periods are their published
+    // ones and nothing clashes; after it (30/15) A and B do.
+    api.listVenueBookings
+      .mockResolvedValueOnce([
+        { ...APPROVED_A, occupied_start: '2026-12-15T10:00', occupied_end: '2026-12-15T12:00' },
+        { ...APPROVED_B, occupied_start: '2026-12-15T12:30', occupied_end: '2026-12-15T13:30' },
+      ])
+      .mockResolvedValue([APPROVED_A, APPROVED_B])
+    api.listVenueClashes.mockResolvedValueOnce([]).mockResolvedValue([CLASH_A, CLASH_B])
+    api.updateVenueTimes.mockResolvedValue({ ...HALL_A, setup_time: 30, turnaround_time: 15 })
+
+    renderPage()
+    await waitFor(() => {
+      expect(screen.getByTestId('venue-detail-occupied-period-12')).toHaveTextContent(
+        '15 Dec 2026, 10:00 to 15 Dec 2026, 12:00',
+      )
+    })
+    expect(screen.getByTestId('venue-detail-clashes-empty')).toBeVisible()
+
+    await openTimesForm()
+    await fillTimesForm({ setup_time: '30', turnaround_time: '15' })
+    await userEvent.click(screen.getByTestId('venue-detail-times-save-button'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('venue-detail-clash-row-12')).toBeVisible()
+    })
+    expect(screen.getByTestId('venue-detail-clash-row-13')).toBeVisible()
+    expect(screen.queryByTestId('venue-detail-clashes-empty')).not.toBeInTheDocument()
+    expect(screen.getByTestId('venue-detail-occupied-period-12')).toHaveTextContent(
+      '15 Dec 2026, 09:30 to 15 Dec 2026, 12:15',
+    )
+    // Nothing about the bookings themselves changed (AC5).
+    expect(screen.getByTestId('venue-detail-booking-period-12')).toHaveTextContent(
+      '15 Dec 2026, 10:00–12:00',
+    )
+    expect(screen.getByTestId('venue-detail-booking-status-12')).toHaveTextContent('Approved')
+    expect(api.listVenueBookings).toHaveBeenCalledTimes(2)
+    expect(api.listVenueClashes).toHaveBeenCalledTimes(2)
+  })
+
+  // @story: SCRUM-41
+  // @ac: 5
+  it('drops the clashes a reduced duration resolves, without changing the bookings', async () => {
+    api.getVenue.mockResolvedValue(RECORDED_TIMES)
+    api.listVenueBookings.mockResolvedValueOnce([APPROVED_A, APPROVED_B]).mockResolvedValue([
+      { ...APPROVED_A, occupied_start: '2026-12-15T10:00', occupied_end: '2026-12-15T12:15' },
+      { ...APPROVED_B, occupied_start: '2026-12-15T12:30', occupied_end: '2026-12-15T13:45' },
+    ])
+    api.listVenueClashes.mockResolvedValueOnce([CLASH_A, CLASH_B]).mockResolvedValue([])
+    api.updateVenueTimes.mockResolvedValue({ ...RECORDED_TIMES, setup_time: 0, turnaround_time: 15 })
+
+    renderPage()
+    await waitFor(() => {
+      expect(screen.getByTestId('venue-detail-clash-row-12')).toBeVisible()
+    })
+    expect(screen.getByTestId('venue-detail-clash-row-13')).toBeVisible()
+
+    await openTimesForm()
+    await fillTimesForm({ setup_time: '0', turnaround_time: '15' })
+    await userEvent.click(screen.getByTestId('venue-detail-times-save-button'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('venue-detail-clashes-empty')).toHaveTextContent(
+        'No approved bookings currently clash.',
+      )
+    })
+    expect(screen.queryByTestId('venue-detail-clash-row-12')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('venue-detail-clash-row-13')).not.toBeInTheDocument()
+    // Both bookings keep their dates, event times and status (AC5).
+    expect(screen.getByTestId('venue-detail-booking-period-12')).toHaveTextContent(
+      '15 Dec 2026, 10:00–12:00',
+    )
+    expect(screen.getByTestId('venue-detail-booking-period-13')).toHaveTextContent(
+      '15 Dec 2026, 12:30–13:30',
+    )
+    expect(screen.getByTestId('venue-detail-booking-status-12')).toHaveTextContent('Approved')
+    expect(screen.getByTestId('venue-detail-booking-status-13')).toHaveTextContent('Approved')
+    expect(screen.getByTestId('venue-detail-turnaround-time')).toHaveTextContent(/^15 minutes$/)
+  })
+
+  // @story: SCRUM-41
+  // @ac: 5
+  it('shows the API refusal in the banner when the clash list cannot be loaded', async () => {
+    api.getVenue.mockResolvedValue(RECORDED_TIMES)
+    api.listVenueClashes.mockRejectedValue(new Error('Clash list unavailable.'))
+
+    renderPage()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('venue-detail-banner')).toHaveTextContent('Clash list unavailable.')
+    })
+  })
+})
+
+describe('VenueDetailPage reloading the lists after a duration save', () => {
+  // @story: SCRUM-41
+  // @ac: 5
+  it('acknowledges the save and marks the occupied and request lists unavailable when the bookings reload refuses', async () => {
+    api.getVenue.mockResolvedValue({ ...HALL_A, setup_time: 0, turnaround_time: 0 })
+    // Mount shows the periods the old durations give; the reload after the
+    // save refuses, so those rows must not stay on the page as current.
+    api.listVenueBookings
+      .mockResolvedValueOnce([
+        { ...APPROVED_A, occupied_start: '2026-12-15T10:00', occupied_end: '2026-12-15T12:00' },
+      ])
+      .mockRejectedValueOnce(new Error('Bookings unavailable.'))
+    api.listVenueClashes.mockResolvedValueOnce([]).mockResolvedValue([CLASH_A])
+    api.updateVenueTimes.mockResolvedValue({ ...HALL_A, setup_time: 30, turnaround_time: 15 })
+
+    renderPage()
+    await waitFor(() => {
+      expect(screen.getByTestId('venue-detail-occupied-period-12')).toHaveTextContent(
+        '15 Dec 2026, 10:00 to 15 Dec 2026, 12:00',
+      )
+    })
+
+    await openTimesForm()
+    await fillTimesForm({ setup_time: '30', turnaround_time: '15' })
+    await userEvent.click(screen.getByTestId('venue-detail-times-save-button'))
+
+    // The save is acknowledged as a success — this is not a save refusal.
+    expect(await screen.findByTestId('venue-detail-banner')).toHaveTextContent('Times updated')
+    expect(screen.getByTestId('venue-detail-banner')).toHaveAttribute('role', 'status')
+    expect(screen.getByTestId('venue-detail-setup-time')).toHaveTextContent(/^30 minutes$/)
+    // The save landed, so the form closes even though a refresh refused.
+    expect(screen.queryByTestId('venue-detail-times-setup-time-input')).not.toBeInTheDocument()
+
+    // The lists that fetch feeds are unavailable, not their old results.
+    await waitFor(() => {
+      expect(screen.getByTestId('venue-detail-occupied-unavailable')).toBeVisible()
+    })
+    expect(screen.queryByTestId('venue-detail-occupied-row-12')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('venue-detail-occupied-empty')).not.toBeInTheDocument()
+    expect(screen.getByTestId('venue-detail-bookings-unavailable')).toBeVisible()
+    expect(screen.queryByTestId('venue-detail-booking-row-12')).not.toBeInTheDocument()
+
+    // The list the other fetch feeds is reloaded and current.
+    expect(screen.getByTestId('venue-detail-clash-row-12')).toBeVisible()
+    expect(api.listVenueBookings).toHaveBeenCalledTimes(2)
+    expect(api.listVenueClashes).toHaveBeenCalledTimes(2)
+  })
+
+  // @story: SCRUM-41
+  // @ac: 5
+  it('acknowledges the save and marks the clash list unavailable when the clashes reload refuses', async () => {
+    api.getVenue.mockResolvedValue(RECORDED_TIMES)
+    api.listVenueBookings
+      .mockResolvedValueOnce([
+        { ...APPROVED_A, occupied_start: '2026-12-15T10:00', occupied_end: '2026-12-15T12:00' },
+      ])
+      .mockResolvedValue([APPROVED_A])
+    // Mount shows the clashes the old durations made; the reload refuses, so
+    // neither those rows nor the empty state may stand in for a current read.
+    api.listVenueClashes
+      .mockResolvedValueOnce([CLASH_A, CLASH_B])
+      .mockRejectedValue(new Error('Clashes unavailable.'))
+    api.updateVenueTimes.mockResolvedValue({ ...RECORDED_TIMES, setup_time: 0, turnaround_time: 15 })
+
+    renderPage()
+    await waitFor(() => expect(screen.getByTestId('venue-detail-clash-row-12')).toBeVisible())
+    expect(screen.getByTestId('venue-detail-occupied-period-12')).toHaveTextContent(
+      '15 Dec 2026, 10:00 to 15 Dec 2026, 12:00',
+    )
+
+    await openTimesForm()
+    await fillTimesForm({ setup_time: '0', turnaround_time: '15' })
+    await userEvent.click(screen.getByTestId('venue-detail-times-save-button'))
+
+    expect(await screen.findByTestId('venue-detail-banner')).toHaveTextContent('Times updated')
+    await waitFor(() => {
+      expect(screen.getByTestId('venue-detail-clashes-unavailable')).toBeVisible()
+    })
+    expect(screen.queryByTestId('venue-detail-clash-row-12')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('venue-detail-clash-row-13')).not.toBeInTheDocument()
+    // The refusal must not read as "nothing clashes".
+    expect(screen.queryByTestId('venue-detail-clashes-empty')).not.toBeInTheDocument()
+    // The bookings list did reload: its new occupied period is showing.
+    expect(screen.getByTestId('venue-detail-occupied-period-12')).toHaveTextContent(
+      '15 Dec 2026, 09:30 to 15 Dec 2026, 12:15',
+    )
+    expect(screen.getByTestId('venue-detail-booking-row-12')).toBeVisible()
+    expect(screen.getByTestId('venue-detail-setup-time')).toHaveTextContent(/^0 minutes$/)
+  })
+
+  // @story: SCRUM-41
+  // @ac: 5
+  it('recovers an unavailable list through its Reload control', async () => {
+    api.getVenue.mockResolvedValue({ ...HALL_A, setup_time: 0, turnaround_time: 0 })
+    api.listVenueBookings
+      .mockResolvedValueOnce([
+        { ...APPROVED_A, occupied_start: '2026-12-15T10:00', occupied_end: '2026-12-15T12:00' },
+      ])
+      .mockRejectedValueOnce(new Error('Bookings unavailable.'))
+      .mockResolvedValue([APPROVED_A])
+    api.updateVenueTimes.mockResolvedValue({ ...HALL_A, setup_time: 30, turnaround_time: 15 })
+
+    renderPage()
+    await waitFor(() => screen.getByTestId('venue-detail-occupied-row-12'))
+
+    await openTimesForm()
+    await fillTimesForm({ setup_time: '30', turnaround_time: '15' })
+    await userEvent.click(screen.getByTestId('venue-detail-times-save-button'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('venue-detail-occupied-unavailable')).toBeVisible()
+    })
+
+    await userEvent.click(screen.getByTestId('venue-detail-occupied-reload-button'))
+
+    // The recovery path reads the list again and it comes back current.
+    await waitFor(() => {
+      expect(screen.getByTestId('venue-detail-occupied-period-12')).toHaveTextContent(
+        '15 Dec 2026, 09:30 to 15 Dec 2026, 12:15',
+      )
+    })
+    expect(screen.queryByTestId('venue-detail-occupied-unavailable')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('venue-detail-bookings-unavailable')).not.toBeInTheDocument()
+    expect(screen.getByTestId('venue-detail-booking-row-12')).toBeVisible()
+    expect(api.listVenueBookings).toHaveBeenCalledTimes(3)
+  })
+
+  // @story: SCRUM-41
+  // @ac: 5
+  it('keeps the latest save\'s lists when an earlier save\'s refresh finishes late', async () => {
+    api.getVenue.mockResolvedValue({ ...HALL_A, setup_time: 0, turnaround_time: 0 })
+    // The first save's refresh is held open until the second save's refresh
+    // has landed, reproducing two saves whose refreshes finish out of order.
+    let releaseFirstRefresh
+    const firstRefresh = new Promise((resolve) => {
+      releaseFirstRefresh = resolve
+    })
+    api.listVenueBookings
+      // Mount: no buffers yet (0/0).
+      .mockResolvedValueOnce([
+        { ...APPROVED_A, occupied_start: '2026-12-15T10:00', occupied_end: '2026-12-15T12:00' },
+      ])
+      // Save 1 (30/15) refresh: the buffered periods, delivered late.
+      .mockReturnValueOnce(firstRefresh)
+      // Save 2 (0/15) refresh: turnaround only, delivered first.
+      .mockResolvedValueOnce([
+        { ...APPROVED_A, occupied_start: '2026-12-15T10:00', occupied_end: '2026-12-15T12:15' },
+      ])
+    api.listVenueClashes.mockResolvedValue([])
+    api.updateVenueTimes
+      .mockResolvedValueOnce({ ...HALL_A, setup_time: 30, turnaround_time: 15 })
+      .mockResolvedValueOnce({ ...HALL_A, setup_time: 0, turnaround_time: 15 })
+
+    renderPage()
+    await waitFor(() => expect(screen.getByTestId('venue-detail-occupied-row-12')).toBeVisible())
+
+    // Save 1: 30 setup / 15 turnaround; its refresh stays in flight.
+    await openTimesForm()
+    await fillTimesForm({ setup_time: '30', turnaround_time: '15' })
+    await userEvent.click(screen.getByTestId('venue-detail-times-save-button'))
+    await waitFor(() => expect(api.listVenueBookings).toHaveBeenCalledTimes(2))
+
+    // Save 2 while save 1's refresh is still running: the form is available
+    // again as soon as the save is acknowledged.
+    await openTimesForm()
+    await fillTimesForm({ setup_time: '0', turnaround_time: '15' })
+    await userEvent.click(screen.getByTestId('venue-detail-times-save-button'))
+    await waitFor(() => expect(api.listVenueBookings).toHaveBeenCalledTimes(3))
+    await waitFor(() => {
+      expect(screen.getByTestId('venue-detail-occupied-period-12')).toHaveTextContent(
+        '15 Dec 2026, 10:00 to 15 Dec 2026, 12:15',
+      )
+    })
+    expect(screen.getByTestId('venue-detail-setup-time')).toHaveTextContent(/^0 minutes$/)
+
+    // The first save's refresh now lands late, carrying the 30-minute-buffer
+    // periods. It must not overwrite the newer save's lists.
+    await act(async () => {
+      releaseFirstRefresh([
+        { ...APPROVED_A, occupied_start: '2026-12-15T09:30', occupied_end: '2026-12-15T12:15' },
+      ])
+    })
+
+    expect(screen.getByTestId('venue-detail-occupied-period-12')).toHaveTextContent(
+      '15 Dec 2026, 10:00 to 15 Dec 2026, 12:15',
+    )
+    expect(screen.queryByTestId('venue-detail-occupied-period-12')).not.toHaveTextContent('09:30')
+    expect(screen.getByTestId('venue-detail-setup-time')).toHaveTextContent(/^0 minutes$/)
+    expect(api.listVenueBookings).toHaveBeenCalledTimes(3)
   })
 })
 

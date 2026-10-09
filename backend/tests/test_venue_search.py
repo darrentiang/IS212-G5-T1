@@ -11,8 +11,9 @@ Seeded venues: Seminar Room 1 (Block A Level 2, capacity 60) and Auditorium
 (Block C Level 1, capacity 400). Every expected list below is worked out from
 the criteria and those two rows, never from running the code.
 
-SCRUM-41 (setup and turnaround time) is not built, so an approved booking's
-occupied period is its own period here; AC3's second sentence is that story's.
+SCRUM-41 (setup and turnaround time) is built, but the seeded venues record
+none, so an approved booking's occupied period here is its own period. The
+widening itself is tested in test_occupied_periods.py.
 """
 
 from datetime import datetime, timezone

@@ -8,7 +8,11 @@ bookings.decide (Venue Staff); listing reuses venues.view (Event Coordinator
 and Venue Staff), since a venue's booking requests are shown on its own page
 — docs/design/permissions.md. SCRUM-42: the warnings for a venue chosen for
 an event, before raising; bookings.edit, since only whoever may raise needs
-them. SCRUM-78: rejecting may carry a suggested venue and/or period
+them. SCRUM-41: the occupied periods of a venue's bookings ride along on the
+list above, and the clashes the venue's recorded durations currently expose
+are their own read — venues.edit (Venue Staff), who are the ones who change
+those durations (docs/design/permissions.md).
+SCRUM-78: rejecting may carry a suggested venue and/or period
 (suggested_venue_id, suggested_date, suggested_start_time, suggested_end_time),
 recorded with the rejection and returned with every booking request. Rules
 are in services.py; the contract is frontend/src/areas/bookings/api.js.
@@ -17,7 +21,7 @@ are in services.py; the contract is frontend/src/areas/bookings/api.js.
 from flask import Blueprint, g, jsonify, request
 
 from areas.bookings import services
-from permissions import BOOKINGS_DECIDE, BOOKINGS_EDIT, VENUES_VIEW, require
+from permissions import BOOKINGS_DECIDE, BOOKINGS_EDIT, VENUES_EDIT, VENUES_VIEW, require
 
 bp = Blueprint("bookings", __name__, url_prefix="/api")
 
@@ -36,6 +40,14 @@ def list_venue_bookings(venue_id):
     return jsonify(
         [services.booking_to_dict(row) for row in services.list_bookings_for_venue(venue_id)]
     )
+
+
+@bp.get("/venues/<int:venue_id>/clashes")
+@require(VENUES_EDIT)
+def list_venue_clashes(venue_id):
+    """SCRUM-41 AC5: the venue's Approved bookings whose occupied periods
+    currently overlap another's, as the recorded durations define them now."""
+    return jsonify([services.clash_to_dict(row) for row in services.current_clashes(venue_id)])
 
 
 @bp.get("/requests/<int:request_id>/venues/<int:venue_id>/warnings")
