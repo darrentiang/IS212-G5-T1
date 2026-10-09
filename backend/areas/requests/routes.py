@@ -6,6 +6,7 @@ SCRUM-29: approve or reject a Submitted request.
 SCRUM-30: save, edit and delete a Draft.
 SCRUM-42: the fixed lists a request's required layout, facilities and
 accessibility features are chosen from.
+SCRUM-43: approving a request assigns an Event Coordinator (no route of its own).
 SCRUM-72: revise and resubmit a Rejected request.
 """
 
@@ -62,7 +63,12 @@ def submit_draft_request(request_id):
 @bp.post("/requests/<int:request_id>/approve")
 @require(REQUESTS_DECIDE)
 def approve_request(request_id):
-    """SCRUM-29: Submitted -> Approved; reason optional."""
+    """SCRUM-29: Submitted -> Approved; reason optional.
+
+    SCRUM-43: the system also assigns an Event Coordinator, so the reply is
+    normally the request in Planning with assigned_coordinator and assigned_at
+    set; with no Event Coordinator it stays Approved, with both null.
+    """
     account = g.account
     data = flask_request.get_json(silent=True) or {}
     updated = services.approve_request(account, request_id, data)

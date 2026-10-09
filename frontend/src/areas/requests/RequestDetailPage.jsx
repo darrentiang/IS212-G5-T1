@@ -26,6 +26,9 @@ import {
 // shown as on the venue page ("None" when empty), and chosen in the Draft edit
 // form. They replace the brief's free-text venue requirements and
 // accessibility needs, so they sit where those were, under the brief's two headings.
+// SCRUM-43: approving assigns an Event Coordinator, so the request comes back
+// in Planning with the assigned coordinator and the date shown to everyone who
+// can see the request. There is no control to decline or change it (SCRUM-44).
 // SCRUM-33: for the same two statuses, an Event Coordinator may also search the
 // venues free for the event; that page belongs to the venues area.
 // SCRUM-72: the Organiser who created a Rejected request revises it in a form
@@ -516,6 +519,22 @@ const openDecision = (action) => {
                   <dt>Decided by</dt>
                   <dd data-testid="request-detail-decided-by">{row.decided_by}</dd>
                 </div>
+              </>
+            )}
+
+            {/* SCRUM-43: the one Event Coordinator the system assigned on approval. */}
+            {row.assigned_coordinator && (
+              <>
+                <div>
+                  <dt>Assigned coordinator</dt>
+                  <dd data-testid="request-detail-assigned-coordinator">{row.assigned_coordinator}</dd>
+                </div>
+                {row.assigned_at && (
+                  <div>
+                    <dt>Assigned on</dt>
+                    <dd data-testid="request-detail-assigned-at">{formatDate(row.assigned_at.slice(0, 10))}</dd>
+                  </div>
+                )}
               </>
             )}
 

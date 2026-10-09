@@ -3,6 +3,7 @@ import { request } from '../../app/http'
 // GET /api/requests
 // 200:     [ { id, status, created_by, registration_enabled, submitted_at,
 //              decision, decision_reason, decided_at, decided_by,
+//              assigned_coordinator, assigned_at,
 //              name, purpose, description, date, start_time, end_time, attendance,
 //              equipment_requirements, registration_needs,
 //              layout, facilities, accessibility_features } ]
@@ -41,7 +42,11 @@ export const resubmitRequest = (id, data) => request('POST', `/api/requests/${id
 
 // POST /api/requests/:id/approve   (SCRUM-29)
 // body:    { reason }   optional
-// 200:     the request, now Approved, with decision, decision_reason, decided_at, decided_by
+// 200:     the request, with decision Approved and decision_reason, decided_at, decided_by.
+//          SCRUM-43: the system also assigns the Event Coordinator with the fewest open
+//          events, so status is normally Planning with assigned_coordinator (username)
+//          and assigned_at (ISO UTC) set; with no Event Coordinator the status stays
+//          Approved and both are null
 // 400/403/404/409: { message }   409 when the request is not Submitted or already decided
 export const approveRequest = (id, reason) => request('POST', `/api/requests/${id}/approve`, { reason })
 

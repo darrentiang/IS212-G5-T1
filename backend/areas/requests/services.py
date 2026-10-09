@@ -3,6 +3,7 @@
 and delete a Draft).
 SCRUM-42: the optional required layout, facilities and accessibility features,
 which replace the free-text venue requirements and accessibility needs.
+SCRUM-43: approving a request assigns the Event Coordinator with the fewest open events.
 SCRUM-72: revise and resubmit a Rejected request.
 
 Object rules from permissions.md / ADR-002 live here next to the query.
@@ -12,7 +13,7 @@ from datetime import date, datetime, timezone
 
 from db import db
 from errors import ApiRefusal
-from models import AccessibilityFeature, EventRequest, Facility, RoomLayout
+from models import AccessibilityFeature, Account, EventRequest, Facility, Role, RoomLayout
 from permissions import INTERNAL_NOTES_VIEW, can
 
 ORGANISER_ROLE = "Event Organiser"
@@ -302,15 +303,75 @@ def _get_decidable_request(account, request_id):
     return event_request
 
 
+# An open event is one in Planning or Confirmed status assigned to a
+# Coordinator (SCRUM-43, PO working rule 28-09-2026).
+OPEN_EVENT_STATUSES = ("Planning", "Confirmed")
+
+
+def _event_coordinators():
+    """Every account holding the Event Coordinator role, including one that
+    also holds another role (Q-06, D-09) and the one approving."""
+    return (
+        db.session.query(Account)
+        .join(Account.roles)
+        .filter(Role.name == COORDINATOR_ROLE)
+        .all()
+    )
+
+
+def _open_event_count(coordinator):
+    return (
+        db.session.query(EventRequest)
+        .filter(
+            EventRequest.assigned_coordinator_id == coordinator.id,
+            EventRequest.status.in_(OPEN_EVENT_STATUSES),
+        )
+        .count()
+    )
+
+
+def _next_coordinator():
+    """The Event Coordinator with the fewest open events (SCRUM-43 AC1); a
+    tie goes to the username that comes first alphabetically (AC2), so the
+    same situation always gives the same result. None when no Event
+    Coordinator exists (AC7)."""
+    coordinators = _event_coordinators()
+    if not coordinators:
+        return None
+    return min(
+        coordinators,
+        key=lambda coordinator: (_open_event_count(coordinator), coordinator.username.casefold()),
+    )
+
+
+def _assign_coordinator(event_request):
+    """Approved -> Planning with the chosen Coordinator and the date (AC3).
+
+    A Coordinator cannot decline (AC5): nothing here, or in the routes, can
+    undo an assignment. With no Event Coordinator the request stays Approved,
+    and no error is raised (AC7).
+    """
+    coordinator = _next_coordinator()
+    if coordinator is None:
+        return
+    event_request.status = "Planning"
+    event_request.assigned_coordinator_id = coordinator.id
+    event_request.assigned_at = datetime.now(timezone.utc)
+
+
 def _record_decision(event_request, account, decision, reason):
     event_request.status = decision
     event_request.decision = decision
     event_request.decision_reason = reason
     event_request.decided_at = datetime.now(timezone.utc)
     event_request.decided_by_id = account.id
-    
+    if decision == "Approved":
+        # The decision stays recorded as Approved; the status moves on.
+        _assign_coordinator(event_request)
+
     db.session.commit()
     return event_request
+
 
 def save_new_draft(account, data):
     """Save a new Draft (state-model.md: '— -> Draft').
@@ -342,7 +403,11 @@ def save_new_draft(account, data):
 
 
 def approve_request(account, request_id, data):
-    """Submitted -> Approved (state-model.md). Reason is optional."""
+    """Submitted -> Approved (state-model.md). Reason is optional.
+
+    SCRUM-43: approving also assigns an Event Coordinator, which moves the
+    request on to Planning in the same commit.
+    """
     event_request = _get_decidable_request(account, request_id)
     return _record_decision(event_request, account, "Approved", _optional_reason(data))
 

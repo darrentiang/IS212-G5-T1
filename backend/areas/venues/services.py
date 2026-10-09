@@ -2,6 +2,7 @@
 SCRUM-40 (Block a Venue), SCRUM-75 (Update a Venue),
 SCRUM-79 (End or Remove a Venue Block), SCRUM-33 (Search Venues by Date and
 Capacity), SCRUM-34 (Filter Venue Results by Accessibility Requirements),
+SCRUM-35 (Filter Venues by Layout and Facilities),
 SCRUM-80 (Record Setup and Turnaround Time).
 
 Every rule the acceptance criteria state lives here, next to the query, and
@@ -425,9 +426,10 @@ def block_to_dict(block):
     }
 
 
-def search_venues(event_request_id, location, accessibility_features=()):
+def search_venues(event_request_id, location, accessibility_features=(), layout="", facilities=()):
     """Venues that are free for an event and large enough for it (SCRUM-33),
-    narrowed by the accessibility features the coordinator selected (SCRUM-34).
+    narrowed by the accessibility features (SCRUM-34) and the room layout and
+    facilities (SCRUM-35) the coordinator selected.
 
     AC1: the event must be Approved or in Planning, and the search uses the
     event's own date, start time, end time and expected attendance, read here
@@ -447,6 +449,15 @@ def search_venues(event_request_id, location, accessibility_features=()):
     one the other rules left out. AC5: leaving the features out again is all
     "clearing" means; location, capacity and availability still apply.
 
+    SCRUM-35 AC1: one room layout may be selected; it must be on the fixed list
+    (else 400) and a venue is kept only when it records that layout as
+    supported, so a venue with no layouts recorded is left out. AC2: facilities
+    work like accessibility features: each must be on the fixed list, and a
+    venue is kept only when it records every one. AC3: none selected restricts
+    nothing, and the event's own required layout and facilities are never read
+    here. AC4 and AC5: the same as for accessibility, one more condition each
+    that can only remove venues, and leaving one out clears only that one.
+
     A retired venue is left out as well. The criteria do not say so, but a
     retired venue cannot be booked (SCRUM-36 AC10), so offering it to
     shortlist would only end in a refusal.
@@ -459,7 +470,12 @@ def search_venues(event_request_id, location, accessibility_features=()):
     if event.status not in SEARCHABLE_STATUSES:
         raise ApiRefusal(400, "Venue search is available only for an Approved or Planning event.")
 
-    required_features = _recognised_features(accessibility_features)
+    required_features = _recognised(
+        accessibility_features, AccessibilityFeature, "Choose each accessibility feature from the list."
+    )
+    required_facilities = _recognised(facilities, Facility, "Choose each facility from the list.")
+    # One layout at most: a blank one is none selected.
+    required_layouts = _recognised([layout] if layout else [], RoomLayout, "Choose the layout from the list.")
 
     starts_at = _moment(event.date, event.start_time)
     ends_at = _moment(event.date, event.end_time)
@@ -472,23 +488,26 @@ def search_venues(event_request_id, location, accessibility_features=()):
     venues = [
         venue
         for venue in query.order_by(Venue.id).all()
-        if _is_free(venue, starts_at, ends_at) and _has_every_feature(venue, required_features)
+        if _is_free(venue, starts_at, ends_at)
+        and _records_every(venue.accessibility_features, required_features)
+        and _records_every(venue.facilities, required_facilities)
+        and _records_every(venue.layouts, required_layouts)
     ]
     return event, venues
 
 
-def _recognised_features(names):
-    """The selected accessibility feature names as a set, refusing 400 for any the fixed list lacks."""
+def _recognised(names, model, message):
+    """The selected names as a set, refusing 400 with the message for any the fixed list lacks."""
     selected = set(names)
-    recognised = {row.name for row in db.session.query(AccessibilityFeature).all()}
+    recognised = {row.name for row in db.session.query(model).all()}
     if not selected <= recognised:
-        raise ApiRefusal(400, "Choose each accessibility feature from the list.")
+        raise ApiRefusal(400, message)
     return selected
 
 
-def _has_every_feature(venue, required_features):
-    """True when the venue records every required feature (vacuously true when none are required)."""
-    return required_features <= {feature.name for feature in venue.accessibility_features}
+def _records_every(rows, required_names):
+    """True when the venue records every required name (vacuously true when none are required)."""
+    return required_names <= {row.name for row in rows}
 
 
 def _moment(date_text, time_text):

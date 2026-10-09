@@ -10,7 +10,8 @@ Staff); adding a venue, updating one, blocking one, and ending or removing a
 block is venues.edit (Venue Staff only) — docs/design/permissions.md.
 SCRUM-33: search the venues free for an Approved or Planning event, which is
 venues.search (Event Coordinator only); SCRUM-34 narrows that search by
-accessibility features. Rules are in services.py; the contract is
+accessibility features and SCRUM-35 by room layout and facilities. Rules are
+in services.py; the contract is
 frontend/src/areas/venues/api.js.
 """
 
@@ -41,6 +42,8 @@ def search_venues():
         request.args.get("event_request_id", type=int),
         request.args.get("location", ""),
         request.args.getlist("accessibility_features"),
+        request.args.get("layout", ""),
+        request.args.getlist("facilities"),
     )
     return jsonify(services.search_to_dict(event, venues))
 
