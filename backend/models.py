@@ -7,7 +7,8 @@ blocks. SCRUM-36: venue booking requests, and a venue's is_active flag
 (retiring one is SCRUM-76; this story only needed somewhere to check).
 SCRUM-42: an event request's required layout, facilities and accessibility
 features, chosen from the same fixed lists as a venue's. SCRUM-37: a venue
-booking request's approve/reject decision.
+booking request's approve/reject decision. SCRUM-43: an event request's
+assigned Event Coordinator and the date it was assigned.
 No permission logic here — see backend/permissions.py.
 """
 
@@ -27,8 +28,9 @@ from db import db
 # each raised the version to 9 on their own branch; the merged schema differs
 # from both, so it is 10. SCRUM-37 added a venue booking request's own
 # approve/reject decision (decision, decision_reason, decided_at,
-# decided_by), so 11.
-SCHEMA_VERSION = 11
+# decided_by), so 11. SCRUM-43 added an event request's assigned Event
+# Coordinator and assignment date, so 12.
+SCHEMA_VERSION = 12
 
 
 account_roles = db.Table(
@@ -136,12 +138,19 @@ class EventRequest(db.Model):
     decided_at = db.Column(db.DateTime, nullable=True)
     decided_by_id = db.Column(db.Integer, db.ForeignKey("accounts.id"), nullable=True)
 
+    # SCRUM-43: at most one assigned Event Coordinator, set when the request is
+    # approved and moves to Planning (state-model.md). One column, so a second
+    # coordinator cannot be recorded; reassignment is SCRUM-44.
+    assigned_coordinator_id = db.Column(db.Integer, db.ForeignKey("accounts.id"), nullable=True)
+    assigned_at = db.Column(db.DateTime, nullable=True)
+
     # SCRUM-42: one required layout or none; any number of facilities and
     # accessibility features. Ordered as the fixed lists are.
     layout_id = db.Column(db.Integer, db.ForeignKey("room_layouts.id"), nullable=True)
 
     created_by = db.relationship("Account", foreign_keys=[created_by_id], backref="event_requests")
     decided_by = db.relationship("Account", foreign_keys=[decided_by_id])
+    assigned_coordinator = db.relationship("Account", foreign_keys=[assigned_coordinator_id])
     layout = db.relationship("RoomLayout")
     facilities = db.relationship(
         "Facility", secondary="event_request_facilities", order_by="Facility.id"
@@ -172,6 +181,10 @@ class EventRequest(db.Model):
             "decision_reason": self.decision_reason,
             "decided_at": self.decided_at.isoformat() if self.decided_at else None,
             "decided_by": self.decided_by.username if self.decided_by else None,
+            "assigned_coordinator": (
+                self.assigned_coordinator.username if self.assigned_coordinator else None
+            ),
+            "assigned_at": self.assigned_at.isoformat() if self.assigned_at else None,
             "layout": self.layout.name if self.layout else None,
             "facilities": [row.name for row in self.facilities],
             "accessibility_features": [row.name for row in self.accessibility_features],

@@ -8,6 +8,7 @@ import {
   getRequest,
   getRequestOptions,
   rejectRequest,
+  resubmitRequest,
   submitDraft,
   updateDraft,
 } from './api'
@@ -25,8 +26,13 @@ import {
 // shown as on the venue page ("None" when empty), and chosen in the Draft edit
 // form. They replace the brief's free-text venue requirements and
 // accessibility needs, so they sit where those were, under the brief's two headings.
+// SCRUM-43: approving assigns an Event Coordinator, so the request comes back
+// in Planning with the assigned coordinator and the date shown to everyone who
+// can see the request. There is no control to decline or change it (SCRUM-44).
 // SCRUM-33: for the same two statuses, an Event Coordinator may also search the
 // venues free for the event; that page belongs to the venues area.
+// SCRUM-72: the Organiser who created a Rejected request revises it in a form
+// that is already open and resubmits it (state-model.md: 'Rejected -> Submitted').
 
 // Same order and labels as RequestNewPage's form (ui-guidelines.md §7): FIELDS
 // come before the Venue requirements and Accessibility needs groups,
@@ -81,6 +87,15 @@ const SHORT = new Set(['date', 'start_time', 'end_time', 'attendance'])
 const editValuesFrom = (row) =>
   Object.fromEntries(EDIT_FIELDS.map((field) => [field.name, row[field.name] ?? '']))
 
+// The edit and resubmit forms start from the same values: the fields, the
+// layout ('' when none) and the two lists.
+const formValuesFrom = (row) => ({
+  ...editValuesFrom(row),
+  layout: row.layout ?? '',
+  facilities: row.facilities,
+  accessibility_features: row.accessibility_features,
+})
+
 const list = (values) => (values.length > 0 ? values.join(', ') : 'None')
 
 // The test id of one checkbox is the option's name in kebab-case
@@ -93,7 +108,7 @@ const toggle = (values, value) =>
 export default function RequestDetailPage() {
   const { id } = useParams()
   const location = useLocation()
-  const { can } = useAuth() ?? {}
+  const { can, account } = useAuth() ?? {}
   const navigate = useNavigate()
   const [row, setRow] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -107,6 +122,8 @@ export default function RequestDetailPage() {
   const [editValues, setEditValues] = useState(null)
   const [editError, setEditError] = useState(null)
   const [options, setOptions] = useState(null)
+  const [resubmitValues, setResubmitValues] = useState(null)
+  const [resubmitErrors, setResubmitErrors] = useState({})
 
   // Keyed to id: a reply for the request the user has left can
   // arrive after the current one, so a stale reply is ignored
@@ -201,17 +218,72 @@ const openDecision = (action) => {
     Boolean(can?.('venues.search')) &&
     [STATUS.REQUEST.APPROVED, STATUS.REQUEST.PLANNING].includes(row?.status)
 
+  // SCRUM-72: the form is offered to the Organiser who created the request; the
+  // API refuses anyone else (403/404) and a request that is not Rejected.
+  const canResubmit =
+    Boolean(can?.('requests.edit')) &&
+    row?.status === STATUS.REQUEST.REJECTED &&
+    row?.created_by === account?.username
+
+  // The form is already open, so its lists and starting values load with the page.
+  useEffect(() => {
+    if (!canResubmit || resubmitValues) return undefined
+    let active = true
+    getRequestOptions()
+      .then((data) => {
+        if (!active) return
+        setOptions(data)
+        setResubmitValues(formValuesFrom(row))
+      })
+      .catch((error) => {
+        if (!active) return
+        setBanner(error.message)
+        setSuccessBanner(null)
+      })
+    return () => {
+      active = false
+    }
+  }, [canResubmit, resubmitValues, row])
+
+  const setResubmitValue = (name, value) => setResubmitValues((prev) => ({ ...prev, [name]: value }))
+
+  const handleResubmit = async (event) => {
+    event.preventDefault()
+    const missing = EDIT_FIELDS.filter((field) => String(resubmitValues[field.name]).trim() === '')
+    if (missing.length > 0) {
+      setResubmitErrors(Object.fromEntries(missing.map((field) => [field.name, `${field.label} is required.`])))
+      setBanner(null)
+      return
+    }
+    setResubmitErrors({})
+
+    setSubmitting(true)
+    try {
+      const updated = await resubmitRequest(id, { ...resubmitValues, layout: resubmitValues.layout || null })
+      setRow(updated)
+      setBanner(null)
+      setSuccessBanner('Request resubmitted')
+    } catch (error) {
+      setBanner(error.message)
+      setSuccessBanner(null)
+      // The refusal may mean the request is no longer Rejected (resubmitted
+      // from another page): show it as it now stands, entries kept.
+      try {
+        setRow(await getRequest(id))
+      } catch (reloadError) {
+        setBanner(reloadError.message)
+      }
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   // The lists are needed only to edit, so they load when Edit is opened.
   const openEdit = async () => {
     setSubmitting(true)
     try {
       setOptions(await getRequestOptions())
-      setEditValues({
-        ...editValuesFrom(row),
-        layout: row.layout ?? '',
-        facilities: row.facilities,
-        accessibility_features: row.accessibility_features,
-      })
+      setEditValues(formValuesFrom(row))
       setEditError(null)
       setOpenAction('edit')
     } catch (error) {
@@ -266,49 +338,89 @@ const openDecision = (action) => {
     </div>
   )
 
-  const renderEditField = (field) => (
-    <div key={field.name} className={SHORT.has(field.name) ? undefined : 'md:col-span-3'}>
-      <label htmlFor={`request-detail-edit-${field.name}`} className="label">
-        {field.label}
-      </label>
-      {field.type === 'textarea' ? (
-        <textarea
-          id={`request-detail-edit-${field.name}`}
+  // One field of the Draft edit form or of the resubmit form: the same markup,
+  // with the action as test id prefix (ui-guidelines.md section 7).
+  const renderFormField = (action, values, setValue, errors, required) => (field) => {
+    const key = field.name.replaceAll('_', '-')
+    const Control = field.type === 'textarea' ? 'textarea' : 'input'
+    return (
+      <div key={field.name} className={SHORT.has(field.name) ? undefined : 'md:col-span-3'}>
+        <label htmlFor={`request-detail-${action}-${field.name}`} className="label">
+          {field.label}
+          {required ? ' *' : ''}
+        </label>
+        <Control
+          id={`request-detail-${action}-${field.name}`}
+          type={field.type === 'textarea' ? undefined : field.type}
+          aria-required={required ? 'true' : undefined}
           className="input"
-          value={editValues[field.name]}
-          onChange={(event) => setEditValue(field.name, event.target.value)}
-          data-testid={`request-detail-edit-${field.name.replaceAll('_', '-')}-input`}
+          value={values[field.name]}
+          onChange={(event) => setValue(field.name, event.target.value)}
+          data-testid={`request-detail-${action}-${key}-input`}
         />
-      ) : (
-        <input
-          id={`request-detail-edit-${field.name}`}
-          type={field.type}
-          className="input"
-          value={editValues[field.name]}
-          onChange={(event) => setEditValue(field.name, event.target.value)}
-          data-testid={`request-detail-edit-${field.name.replaceAll('_', '-')}-input`}
-        />
-      )}
-      {field.name === 'name' && editError && (
-        <p className="field-error" data-testid="request-detail-edit-name-error">
-          {editError}
-        </p>
-      )}
-    </div>
-  )
+        {errors[field.name] && (
+          <p className="field-error" data-testid={`request-detail-${action}-${key}-error`}>
+            {errors[field.name]}
+          </p>
+        )}
+      </div>
+    )
+  }
 
-  const renderEditCheckboxes = (name) =>
+  const renderCheckboxes = (action, values, setValue, name) =>
     options[name].map((option) => (
       <label key={option} className="flex items-center gap-2 py-1">
         <input
           type="checkbox"
-          checked={editValues[name].includes(option)}
-          onChange={() => setEditValue(name, toggle(editValues[name], option))}
-          data-testid={`request-detail-edit-${name.replaceAll('_', '-')}-${kebab(option)}-input`}
+          checked={values[name].includes(option)}
+          onChange={() => setValue(name, toggle(values[name], option))}
+          data-testid={`request-detail-${action}-${name.replaceAll('_', '-')}-${kebab(option)}-input`}
         />
         {option}
       </label>
     ))
+
+  // The venue and accessibility choices between the two groups of fields, shared
+  // by both forms.
+  const renderChoices = (action, values, setValue) => (
+    <>
+      <fieldset className="space-y-4">
+        <legend className="section-title">Venue requirements</legend>
+        <div>
+          <label htmlFor={`request-detail-${action}-layout`} className="label">
+            Room layout
+          </label>
+          <select
+            id={`request-detail-${action}-layout`}
+            className="input"
+            value={values.layout}
+            onChange={(event) => setValue('layout', event.target.value)}
+            data-testid={`request-detail-${action}-layout-input`}
+          >
+            <option value="">None</option>
+            {options.layouts.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </div>
+        <fieldset>
+          <legend className="label">Facilities</legend>
+          {renderCheckboxes(action, values, setValue, 'facilities')}
+        </fieldset>
+      </fieldset>
+      <fieldset className="space-y-4">
+        <legend className="section-title">Accessibility needs</legend>
+        <fieldset>
+          <legend className="label">Accessibility features</legend>
+          {renderCheckboxes(action, values, setValue, 'accessibility_features')}
+        </fieldset>
+      </fieldset>
+    </>
+  )
+
+  const renderEditField = renderFormField('edit', editValues ?? {}, setEditValue, editError ? { name: editError } : {}, false)
 
   return (
     <div className="space-y-8">
@@ -410,6 +522,22 @@ const openDecision = (action) => {
               </>
             )}
 
+            {/* SCRUM-43: the one Event Coordinator the system assigned on approval. */}
+            {row.assigned_coordinator && (
+              <>
+                <div>
+                  <dt>Assigned coordinator</dt>
+                  <dd data-testid="request-detail-assigned-coordinator">{row.assigned_coordinator}</dd>
+                </div>
+                {row.assigned_at && (
+                  <div>
+                    <dt>Assigned on</dt>
+                    <dd data-testid="request-detail-assigned-at">{formatDate(row.assigned_at.slice(0, 10))}</dd>
+                  </div>
+                )}
+              </>
+            )}
+
             {'coordinator_notes' in row && row.coordinator_notes != null && (
               <div>
                 <dt>Coordinator notes</dt>
@@ -483,39 +611,7 @@ const openDecision = (action) => {
         <div className="card form-card space-y-4" data-testid="request-detail-edit-form">
           <h2 className="section-title">Edit draft</h2>
           <div className="grid gap-4 md:grid-cols-3">{EDIT_FIELDS_BEFORE_CHOICES.map(renderEditField)}</div>
-          <fieldset className="space-y-4">
-            <legend className="section-title">Venue requirements</legend>
-            <div>
-              <label htmlFor="request-detail-edit-layout" className="label">
-                Room layout
-              </label>
-              <select
-                id="request-detail-edit-layout"
-                className="input"
-                value={editValues.layout}
-                onChange={(event) => setEditValue('layout', event.target.value)}
-                data-testid="request-detail-edit-layout-input"
-              >
-                <option value="">None</option>
-                {options.layouts.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <fieldset>
-              <legend className="label">Facilities</legend>
-              {renderEditCheckboxes('facilities')}
-            </fieldset>
-          </fieldset>
-          <fieldset className="space-y-4">
-            <legend className="section-title">Accessibility needs</legend>
-            <fieldset>
-              <legend className="label">Accessibility features</legend>
-              {renderEditCheckboxes('accessibility_features')}
-            </fieldset>
-          </fieldset>
+          {renderChoices('edit', editValues, setEditValue)}
           <div className="grid gap-4 md:grid-cols-3">{EDIT_FIELDS_AFTER_CHOICES.map(renderEditField)}</div>
           <div className="flex flex-wrap justify-end gap-2">
             <button
@@ -538,6 +634,39 @@ const openDecision = (action) => {
             </button>
           </div>
         </div>
+      )}
+
+      {/* SCRUM-72: a Rejected request's creator revises it and resubmits. */}
+      {!loading && canResubmit && resubmitValues && options && (
+        <form
+          onSubmit={handleResubmit}
+          noValidate
+          className="card form-card space-y-4"
+          data-testid="request-detail-resubmit-form"
+        >
+          <h2 className="section-title">Revise and resubmit</h2>
+          <div className="grid gap-4 md:grid-cols-3">
+            {EDIT_FIELDS_BEFORE_CHOICES.map(
+              renderFormField('resubmit', resubmitValues, setResubmitValue, resubmitErrors, true),
+            )}
+          </div>
+          {renderChoices('resubmit', resubmitValues, setResubmitValue)}
+          <div className="grid gap-4 md:grid-cols-3">
+            {EDIT_FIELDS_AFTER_CHOICES.map(
+              renderFormField('resubmit', resubmitValues, setResubmitValue, resubmitErrors, true),
+            )}
+          </div>
+          <div className="flex flex-wrap justify-end gap-2">
+            <button
+              type="submit"
+              disabled={submitting}
+              className="btn btn-primary"
+              data-testid="request-detail-resubmit-button"
+            >
+              Resubmit
+            </button>
+          </div>
+        </form>
       )}
 
       {/* SCRUM-30: permanently delete an own Draft. */}

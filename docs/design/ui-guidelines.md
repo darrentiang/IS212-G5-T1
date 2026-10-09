@@ -20,7 +20,10 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | 1.11 | 08-10-2026 | §7 the venue page's setup-time and turnaround-time display and the inline Edit times form test ids; one inline form open at a time across Update venue, Edit times, Block venue and End early | SCRUM-80 lets Venue Staff record how long a venue needs before and after an event |
 | 1.12 | 08-10-2026 | §7 the venue page's Booking requests section gains attendance, the event's layout and facilities (its venue requirements, SCRUM-42) and a decision cell, plus per-row Approve/Reject and an inline decide form. The decision cell is blank while the booking is Requested, then reads `<Decision> by <username> (<moment>)`, followed by `: <reason>` when a reason was given (e.g. `Rejected by venue1 (08 Oct 2026, 09:15): Already committed that week`); the moment is formatted with `formatDateTime`, in UTC (§9) | SCRUM-37 lets Venue Staff decide a booking request from the venue's own page |
 | 1.13 | 08-10-2026 | §7 a per-row action's confirm/reason form opens as its own row directly below the one it acts on, not below the whole table; End block early and Deciding a booking request updated to match | A form that opened at the bottom of a long list was mistaken for not working; this is now the rule for every per-row action, not just these two |
-| 1.14 | 09-10-2026 | §7 the booking-new page's warnings gain a line per approved booking and per block already holding the chosen venue over the event's period (`booking-new-warning-approved-booking-<id>`, `booking-new-warning-block-<id>`); deciding a booking request: a refused approval shows the API's message, naming what holds the venue, in the venue page's banner | SCRUM-38 refuses an approval that would double-book a venue and warns the Event Coordinator before raising |
+| 1.14 | 09-10-2026 | §7 the venue-search page's Room layout select and Facilities checkboxes, with the same one Apply | SCRUM-35 narrows the SCRUM-33 search by room layout and facilities |
+| 1.15 | 09-10-2026 | §7 the request page's Assigned coordinator and Assigned on date, with their test ids | SCRUM-43: approving a request now assigns an Event Coordinator, and the Organiser and every Coordinator can see who |
+| 1.16 | 09-10-2026 | §7: an Event Organiser's own Rejected request shows its form already open, with a Resubmit button and no Cancel | SCRUM-72: the form's only purpose is to resubmit, so there is no action button to open it and nothing to cancel |
+| 1.17 | 09-10-2026 | §7 the booking-new page's warnings gain a line per approved booking and per block already holding the chosen venue over the event's period (`booking-new-warning-approved-booking-<id>`, `booking-new-warning-block-<id>`); deciding a booking request: a refused approval shows the API's message, naming what holds the venue, in the venue page's banner | SCRUM-38 refuses an approval that would double-book a venue and warns the Event Coordinator before raising |
 
 ## 1. Pages
 
@@ -124,13 +127,17 @@ While the page is waiting for the API it renders the title row and nothing below
 - Fields as label/value pairs, in the order the form uses.
 - Status as text; a flag as its own text beside it.
 - Actions (approve, reject, …) are buttons per §5, in one row under the fields, shown only when the account's features allow them.
+- **Assigned coordinator (SCRUM-43).** Approving a request makes the system assign one Event Coordinator and moves it to Planning, so the request page shows an Assigned coordinator (their username) and an Assigned on date, below the decision, to everyone who can open the request. The page offers no way to decline or change the assignment; reassignment is SCRUM-44.
 - **An action that needs a reason or a confirmation opens an inline form** below the action row, on the same page: its fields per §5, a Confirm button (labelled with the action, e.g. Reject) and a Cancel button that closes it. No modal, no overlay, no browser `confirm()`. Only one inline form is open at a time; opening another closes the first. Its test ids use the action as `<field>`: `request-detail-reject-reason-input`, `request-detail-reject-confirm-button`, `request-detail-reject-cancel-button`.
+- **Revise and resubmit (SCRUM-72).** On a Rejected request the Event Organiser who created it sees the request's fields in a form already open below the details (the decision and its reason stay above it), prefilled and laid out as the Draft edit form is, with one primary Resubmit button and no Cancel. The same required-field check as submitting runs first: a message under each empty required field, nothing sent. Test ids use `resubmit` as the action: `request-detail-resubmit-<field>-input`, `request-detail-resubmit-<field>-error`, a choice's checkbox `request-detail-resubmit-<list>-<option>-input` as in §5, and `request-detail-resubmit-button`. Once the request is Submitted the form is gone. Anyone else sees the details only.
 
 | Element | `data-testid` | Example |
 |---|---|---|
 | Field value | `<page>-<field>` | `request-detail-attendance` |
 | Status | `<page>-status` | `request-detail-status` |
 | Flag | `<page>-<flag>-flag` | `request-detail-clarification-flag` |
+| Assigned coordinator (SCRUM-43; shown once assigned) | `<page>-assigned-coordinator` | `request-detail-assigned-coordinator` |
+| Assignment date (SCRUM-43; shown with the coordinator, `03 Oct 2026`) | `<page>-assigned-at` | `request-detail-assigned-at` |
 
 **A list of related records on a detail page** (a venue's blocks) is a section under the fields with an `h2` and a table per §6. Its ids carry the record's name in place of the page's own list ids, so they cannot clash with the page's fields: `<page>-<record>-row-<id>`, one cell `<page>-<record>-<field>-<id>`, and `<page>-<records>-empty` when there are none. A per-row action's confirm/reason form opens as its own row directly below the one it acts on (a `<td colspan>` spanning the table), never below the whole table: in a long list, a form that opens far from its row is a form the user cannot find.
 
@@ -256,7 +263,7 @@ SCRUM-38: after the mismatches, one line per approved booking and then per block
 |---|---|
 | Search venues button (only with `venues.search`, status Approved or Planning) | `request-detail-search-venues-button` |
 
-The venue-search page (`venue-search`) shows the event's own values, an optional location filter and the venues that fit. The filters are a text input for the location, a group of checkboxes for accessibility features (SCRUM-34) and one Apply button, not a form that leaves the page: Apply searches again with the typed location and the ticked features together. An empty location input applies no location restriction, and no feature ticked applies no accessibility restriction; nothing is ticked when the page opens, and the event's own accessibility needs never tick a box. A venue's location must match the typed text exactly, and a venue is shown only if it records every feature ticked. Clearing the accessibility filter is unticking every box and pressing Apply; the location and the event's own criteria still apply. The results are a table per §6 whose first cell links to the venue's page; no results is one sentence instead of the table, never an error.
+The venue-search page (`venue-search`) shows the event's own values, an optional location filter and the venues that fit. The filters are a text input for the location, a "Room layout" select (None, then the layouts; SCRUM-35), a group of checkboxes for facilities (SCRUM-35), a group of checkboxes for accessibility features (SCRUM-34) and one Apply button, not a form that leaves the page: Apply searches again with everything typed, chosen and ticked together. An empty location input applies no location restriction, the layout on None applies no layout restriction, and no facility or accessibility feature ticked applies no restriction for that list; nothing is chosen or ticked when the page opens, and the event's own required layout, facilities and accessibility needs never choose or tick anything. A venue's location must match the typed text exactly; a venue is shown only if it records the chosen layout as supported (a venue with no layouts recorded does not) and records every facility and every accessibility feature ticked. Clearing a filter is setting the layout back to None or unticking every box of one group and pressing Apply; only that restriction goes, and the other filters and the event's own criteria still apply. The results are a table per §6 whose first cell links to the venue's page; no results is one sentence instead of the table, never an error.
 
 | Element | `data-testid` |
 |---|---|
@@ -267,8 +274,10 @@ The venue-search page (`venue-search`) shows the event's own values, an optional
 | Event date and times | `venue-search-period` |
 | Expected attendance | `venue-search-attendance` |
 | Location input | `venue-search-location-input` |
+| Room layout select (None first) | `venue-search-layout-input` |
+| Facility checkbox | `venue-search-facilities-<kebab-option>-input` (e.g. `venue-search-facilities-wi-fi-input`) |
 | Accessibility feature checkbox | `venue-search-accessibility-features-<kebab-option>-input` (e.g. `venue-search-accessibility-features-hearing-loop-input`) |
-| Apply button (location and features together) | `venue-search-apply-button` |
+| Apply button (every filter together) | `venue-search-apply-button` |
 | Result row | `venue-search-row-<id>` |
 | Venue name (link) | `venue-search-name-<id>` |
 | Venue location | `venue-search-location-<id>` |
