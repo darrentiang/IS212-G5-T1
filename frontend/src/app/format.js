@@ -17,10 +17,14 @@ export function formatDate(iso) {
 
   const [, year, month, day] = parts
   const monthIndex = Number(month) - 1
-  const parsed = new Date(Date.UTC(Number(year), monthIndex, Number(day)))
+  // Date.UTC reads years 0–99 as 1900–1999, which would make every real year
+  // below 0100 fail the round-trip below (0001 checks back as 1901). Taking
+  // the year with setUTCFullYear instead keeps four-digit years like
+  // 0001 valid. It still rolls a date that does not exist forward (31
+  // February becomes 3 March), so compare the parts back to reject it.
+  const parsed = new Date(0)
+  parsed.setUTCFullYear(Number(year), monthIndex, Number(day))
 
-  // Date.UTC rolls a date that does not exist forward (31 February becomes
-  // 3 March), so compare the parts back to reject it.
   const rolled =
     parsed.getUTCFullYear() !== Number(year) ||
     parsed.getUTCMonth() !== monthIndex ||

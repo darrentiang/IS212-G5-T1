@@ -1,7 +1,8 @@
 """Venue booking request rules — SCRUM-36 (Request Venue Booking), SCRUM-37
 (Approve or Reject a Venue Booking Request), SCRUM-38 (Prevent Double-Booking
-of a Venue), SCRUM-42 (Warn When a Requested Venue Appears Unsuitable) and
-SCRUM-77 (Withdraw a Venue Booking Request).
+of a Venue), SCRUM-41 (Reserve Setup and Turnaround Time Around a Booking),
+SCRUM-42 (Warn When a Requested Venue Appears Unsuitable) and SCRUM-77
+(Withdraw a Venue Booking Request).
 
 Every rule the acceptance criteria state lives here, next to the query, and
 refuses by raising ApiRefusal; the route never decides (ADR-002).
@@ -12,8 +13,11 @@ Rule). Any Event Coordinator may raise for any Approved or Planning event.
 
 SCRUM-38 defines the conflict check state-model.md names on Approve: an
 approval is refused while an Approved booking or a block of the same venue
-overlaps the booking's period. What holds a venue is decided in one place,
-occupancy.py, shared with venue search; rejecting is never checked.
+overlaps the booking's occupied period. What holds a venue is decided in one
+place, occupancy.py, shared with venue search; rejecting is never checked.
+SCRUM-41 widens that occupied period by the venue's setup and turnaround time
+on both sides of every comparison, and lists the Approved bookings of a venue
+whose occupied periods clash (AC5) without changing any of them.
 """
 
 from datetime import datetime, timezone
@@ -254,7 +258,16 @@ def withdraw_booking(venue_id, booking_id, account):
 
 def booking_to_dict(booking):
     """Public JSON for a booking request: the event it is for, its own fields,
-    and its decision once made (SCRUM-37 AC4, AC5)."""
+    and its decision once made (SCRUM-37 AC4, AC5).
+
+    SCRUM-41 AC1 adds the occupied period beside the published one. It is
+    derived from the venue's recorded durations at every read and never stored
+    beside the booking, so changing a duration cannot leave a stale snapshot;
+    the published date and times above stay exactly as the event recorded them
+    (AC1, AC5). The endpoints are the block wire format (§9 of the API
+    contract), e.g. '2026-12-15T09:30'.
+    """
+    occupied_start, occupied_end = occupancy.occupied_period(booking)
     return {
         "id": booking.id,
         "venue_id": booking.venue_id,
@@ -264,6 +277,11 @@ def booking_to_dict(booking):
         "date": booking.date,
         "start_time": booking.start_time,
         "end_time": booking.end_time,
+        # isoformat, not strftime: %Y does not pad years below 1000 on every
+        # platform (Linux yields '1-01-01T00:00' for the clamped edge), while
+        # the wire format always wants four digits ('0001-01-01T00:00').
+        "occupied_start": occupied_start.isoformat(timespec="minutes"),
+        "occupied_end": occupied_end.isoformat(timespec="minutes"),
         "attendance": booking.attendance,
         # AC3's venue requirements: the event's chosen layout and facilities
         # (SCRUM-42), read through the event (see VenueBookingRequest).
@@ -275,6 +293,58 @@ def booking_to_dict(booking):
         "decision_reason": booking.decision_reason,
         "decided_at": booking.decided_at.isoformat() if booking.decided_at else None,
         "decided_by": booking.decided_by.username if booking.decided_by else None,
+    }
+
+
+def current_clashes(venue_id):
+    """The venue's Approved bookings whose occupied periods overlap another's (SCRUM-41 AC5).
+
+    Only Approved bookings of this venue are compared with each other: never a
+    block, a booking still awaiting a decision, or a booking of another venue.
+    Each booking is compared with the others and never with itself, and every
+    booking of a clashing pair is listed once, so a chain A-B-C names all
+    three. Nothing is stored or changed — this is the clash picture as the
+    venue's recorded durations define it right now, which is why reducing a
+    duration clears a resolved pair (AC5) and saving durations that expose a
+    clash never alters a booking. Ordered by occupied start, then id.
+    """
+    venue = _get_venue(venue_id)
+    booked = sorted(
+        (
+            (booking, occupancy.occupied_period(booking))
+            for booking in venue.booking_requests
+            if booking.status == occupancy.HOLDING_BOOKING_STATUS
+        ),
+        key=lambda row: (row[1][0], row[0].id),
+    )
+    clashing = set()
+    for index, (booking, period) in enumerate(booked):
+        for other, other_period in booked[index + 1 :]:
+            if occupancy.overlaps(*period, *other_period):
+                clashing.add(booking.id)
+                clashing.add(other.id)
+    return [booking for booking, _ in booked if booking.id in clashing]
+
+
+def clash_to_dict(booking):
+    """Public JSON for one clashing booking (SCRUM-41 AC5): the event it is for,
+    its published period and the occupied period that makes it clash.
+
+    event_request_id comes along so the page can link the event's name to its
+    request for an account with requests.view (ui-guidelines.md §7), the same
+    rule the Occupied periods list follows.
+    """
+    occupied_start, occupied_end = occupancy.occupied_period(booking)
+    return {
+        "id": booking.id,
+        "event_request_id": booking.event_request_id,
+        "event_request_name": booking.event_request.name,
+        # Same wire format as booking_to_dict: always four-digit years.
+        "occupied_start": occupied_start.isoformat(timespec="minutes"),
+        "occupied_end": occupied_end.isoformat(timespec="minutes"),
+        "date": booking.date,
+        "start_time": booking.start_time,
+        "end_time": booking.end_time,
     }
 
 
@@ -309,8 +379,13 @@ def venue_warnings(event_request, venue):
     crossing midnight is out of scope.
 
     SCRUM-38 AC7: after those, one warning per Approved booking and then per
-    block of the venue that overlaps the event's own period, each carrying
+    block of the venue that overlaps the event's occupied period, each carrying
     what its line names. They are warnings only: raising stays allowed.
+
+    SCRUM-41: the holder lookup compares the event's occupied period — its own
+    period widened by this venue's setup and turnaround time — while each line
+    still shows the holder's own published period or the block's own period,
+    the text the warnings have always carried (ui-guidelines.md §7).
     """
     warnings = []
 
@@ -347,8 +422,9 @@ def venue_warnings(event_request, venue):
 
     holders = occupancy.venue_holders(
         venue,
-        occupancy.moment(event_request.date, event_request.start_time),
-        occupancy.moment(event_request.date, event_request.end_time),
+        *occupancy.buffered_period(
+            venue, event_request.date, event_request.start_time, event_request.end_time
+        ),
     )
     for booking in holders.bookings:
         warnings.append(

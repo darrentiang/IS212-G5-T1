@@ -28,6 +28,19 @@ describe('formatDate', () => {
   it('throws on a date that does not exist rather than rolling it forward', () => {
     expect(() => formatDate('2026-02-31')).toThrow(/real date/)
   })
+
+  // @story: SCRUM-41
+  // @ac: 1
+  it('accepts a four-digit year below 0100, as a clamped period sends', () => {
+    expect(formatDate('0001-01-01')).toBe('01 Jan 0001')
+    expect(formatDate('0099-12-31')).toBe('31 Dec 0099')
+  })
+
+  // @story: SCRUM-41
+  // @ac: 1
+  it('still rejects a date that does not exist below 0100', () => {
+    expect(() => formatDate('0001-02-31')).toThrow(/real date/)
+  })
 })
 
 describe('formatTime', () => {
@@ -90,6 +103,14 @@ describe('formatDateTimePeriod', () => {
   it('throws when either end is not an ISO date and time', () => {
     expect(() => formatDateTimePeriod('2026-10-20T09:00', '2026-10-21')).toThrow(/Not an ISO date and time/)
     expect(() => formatDateTimePeriod('2026-10-20', '2026-10-21T18:00')).toThrow(/Not an ISO date and time/)
+  })
+
+  // @story: SCRUM-41
+  // @ac: 1, 5
+  it('shows a clamped occupied period end to end, exactly as the API sends it', () => {
+    expect(formatDateTimePeriod('0001-01-01T00:00', '2026-12-15T12:15')).toBe(
+      '01 Jan 0001, 00:00 to 15 Dec 2026, 12:15',
+    )
   })
 })
 

@@ -25,6 +25,8 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | 1.16 | 09-10-2026 | §7: an Event Organiser's own Rejected request shows its form already open, with a Resubmit button and no Cancel | SCRUM-72: the form's only purpose is to resubmit, so there is no action button to open it and nothing to cancel |
 | 1.17 | 09-10-2026 | §7 the booking-new page's warnings gain a line per approved booking and per block already holding the chosen venue over the event's period (`booking-new-warning-approved-booking-<id>`, `booking-new-warning-block-<id>`); deciding a booking request: a refused approval shows the API's message, naming what holds the venue, in the venue page's banner | SCRUM-38 refuses an approval that would double-book a venue and warns the Event Coordinator before raising |
 | 1.18 | 09-10-2026 | §7 the venue page's Booking requests section gains a Withdraw button, own-record scoped to the raising Coordinator, acting at once | SCRUM-77 lets the Coordinator who raised a booking pull it back before Venue Staff decide it |
+| 1.19 | 09-10-2026 | §7 the venue page's Occupied periods section and Current clashes section and their test ids; the warnings and the approval refusal speak of the event's occupied period, widened by the venue's setup and turnaround time (a block keeps its own period) | SCRUM-41 reserves setup and turnaround time either side of a booking, so what holds a venue is its occupied period, not its published one |
+| 1.20 | 09-10-2026 | §7 a successful duration save always closes the form and says `Times updated`; a list whose reload refuses afterwards shows an unavailable notice with a Reload control (`venue-detail-occupied-unavailable`/`-reload-button`, `venue-detail-clashes-unavailable`/`-reload-button`, `venue-detail-bookings-unavailable`/`-reload-button`) instead of its previous rows | SCRUM-41 review: a failed refresh must not leave stale occupied periods or a stale clash list on the page as though they were current |
 
 ## 1. Pages
 
@@ -189,6 +191,30 @@ SCRUM-80 records two durations in whole minutes for the venue — setup time, th
 | Blank-is-zero hint | `venue-detail-times-hint` |
 | Save and Cancel times buttons | `venue-detail-times-save-button`, `venue-detail-times-cancel-button` |
 
+SCRUM-41 adds two sections to the venue page, below the actions and above Blocks: **Occupied periods** and, for Venue Staff only, **Current clashes**.
+
+A duration save and the refresh it triggers are two separate outcomes. **Save** succeeds when the API accepts the times: the form closes and the banner says `Times updated` — that acknowledgment never depends on what the page does next, and an API refusal stays what it always was: the banner shows the message, the form stays open with what was typed, and nothing was written. The page then reads the lists again, one read feeding Occupied periods and Booking requests together (they share it) and one feeding Current clashes. A read that refuses marks its section unavailable: the section shows an unavailable notice with a **Reload** control instead of the rows it held — previous rows, or an empty state claiming nothing clashes, would read as current when they are not — while the other section shows whatever its own read returned. Reload reads both lists again, and each list that answers comes back current. A read that fails on the way into the page still shows in the banner, as it always has.
+
+**Occupied periods** is the venue's availability list, shown to anyone who may view the venue (`venues.view`), earliest occupied period first. One row per Approved booking: the event's name and the booking's occupied period — its published period widened by the venue's setup and turnaround time (AC1) — formatted with `formatDateTimePeriod` (§9), so both endpoints and both dates show when the buffers roll over midnight. The event's name links to the event's request page only for an account with `requests.view`; anyone else sees plain text. The published date and times are never replaced by the buffers: they stay on the Booking requests row below and on the event's own page (AC1). An empty list says only that the venue has no approved bookings — never that it has no blocks or is completely free. The API derives every period at read time from the durations recorded now (AC5). A successful approval brings the booking into this list with the period the API sent back beside the row, and a successful duration save reads this list again — and the Current clashes list — so both show what the new durations make; the bookings themselves are never changed by a save.
+
+| Element | `data-testid` |
+|---|---|
+| Occupied period row (Approved booking) | `venue-detail-occupied-row-<id>` |
+| Occupied period's event name (link with `requests.view`, else plain text) | `venue-detail-occupied-event-<id>` |
+| Occupied period, `formatDateTimePeriod` | `venue-detail-occupied-period-<id>` |
+| No approved bookings | `venue-detail-occupied-empty` |
+| Unavailable notice and its Reload control (after a refused reload) | `venue-detail-occupied-unavailable`, `venue-detail-occupied-reload-button` |
+
+**Current clashes** (SCRUM-41 AC5) is a standing section under Occupied periods, only with `venues.edit`, since only those who may change the durations need it. It lists the Approved bookings of this venue whose occupied periods overlap another's — what the venue's recorded durations make clash right now. Every booking of a clashing pair is listed once, earliest first, so a chain A–B–C names all three. A booking awaiting a decision, a block and a booking of another venue are never listed. Saving durations never changes a booking, and a valid save succeeds even when it exposes a clash; reducing a duration simply drops the pairs it resolved. The event name follows the same link rule as Occupied periods.
+
+| Element | `data-testid` |
+|---|---|
+| Clash row (Approved booking) | `venue-detail-clash-row-<id>` |
+| Clash event name (link with `requests.view`, else plain text) | `venue-detail-clash-event-<id>` |
+| Clash occupied period, `formatDateTimePeriod` | `venue-detail-clash-period-<id>` |
+| Nothing currently clashing | `venue-detail-clashes-empty` |
+| Unavailable notice and its Reload control (after a refused reload) | `venue-detail-clashes-unavailable`, `venue-detail-clashes-reload-button` |
+
 **Booking requests** (SCRUM-36) is a second related-records section on the venue page, below Blocks: raising one happens from the event's own page (below), not here. Status as the exact state-model.md word, as a badge (§12). SCRUM-37 adds the event's expected attendance and its venue requirements, which are the event's chosen layout and facilities (SCRUM-42), each shown `None` when nothing was chosen, as the venue page shows an empty list, so Venue Staff can decide without leaving the page (AC1), the decision once made (AC5, AC9; blank while Requested, then `<Decision> by <username> (<moment>)` and `: <reason>` when one was given, the moment per §9), and a Venue Staff-only action cell per row, the same action-cell pattern as Blocks (§7 above): a Requested row offers Approve and Reject, any other status offers neither.
 
 | Element | `data-testid` |
@@ -200,6 +226,7 @@ SCRUM-80 records two durations in whole minutes for the venue — setup time, th
 | Booking attendance | `venue-detail-booking-attendance-<id>` |
 | Booking layout (`None` when none chosen) | `venue-detail-booking-layout-<id>` |
 | Booking facilities (comma-separated, `None` when none chosen) | `venue-detail-booking-facilities-<id>` |
+| Unavailable notice and its Reload control (after a refused reload) | `venue-detail-bookings-unavailable`, `venue-detail-bookings-reload-button` |
 | Booking decision (blank until decided) | `venue-detail-booking-decision-<id>` |
 | No booking requests | `venue-detail-bookings-empty` |
 | Approve button (Requested row, only with `bookings.decide`) | `venue-detail-booking-approve-button-<id>` |
@@ -208,7 +235,7 @@ SCRUM-80 records two durations in whole minutes for the venue — setup time, th
 
 SCRUM-77 adds Withdraw to a Requested row's action cell, for the Coordinator who raised that specific booking only (not every Coordinator, even though `bookings.edit` is a role-level key) — the same own-record pattern as a Draft's Edit/Delete. It acts at once, no inline form: the criteria ask for no confirmation, the same as a block's Remove.
 
-**Deciding a booking request** opens its inline form as its own row directly below the booking's, inside the table, the same per-row pattern as End block early above (not below the whole Booking requests table): only one of Update venue, Edit times, Block venue, End early and this is open at a time. Reason is required to reject, optional to approve (the same rule as deciding an event request, `ui-guidelines.md` existing request-detail reject/approve pattern). Its test ids use the action as `<field>`, the same convention as request-detail's decide form. An approval refused because an approved booking or a block already holds the venue over an overlapping period (SCRUM-38) shows the API's message in `venue-detail-banner`, naming each holder (`This venue is already committed for an overlapping period: TC38 Holder, 10 Dec 2026, 14:00–17:00.`; a block as `blocked 10 Dec 2026, 13:00 to 10 Dec 2026, 15:00 (Projector replacement)`; several joined with `; `); the booking stays Requested and its decision cell stays blank.
+**Deciding a booking request** opens its inline form as its own row directly below the booking's, inside the table, the same per-row pattern as End block early above (not below the whole Booking requests table): only one of Update venue, Edit times, Block venue, End early and this is open at a time. Reason is required to reject, optional to approve (the same rule as deciding an event request, `ui-guidelines.md` existing request-detail reject/approve pattern). Its test ids use the action as `<field>`, the same convention as request-detail's decide form. An approval refused because an approved booking or a block already holds the venue over an overlapping occupied period (SCRUM-38, widened by SCRUM-41) shows the API's message in `venue-detail-banner`, naming each holder (`This venue is already committed for an overlapping period: TC38 Holder, 10 Dec 2026, 14:00–17:00.`; a block as `blocked 10 Dec 2026, 13:00 to 10 Dec 2026, 15:00 (Projector replacement)`; several joined with `; `); the booking stays Requested and its decision cell stays blank.
 
 | Element | `data-testid` |
 |---|---|
@@ -259,7 +286,7 @@ The booking-new page (`booking-new`): a venue picker (`select`, the active venue
 | Approved booking holding the venue (SCRUM-38) | `booking-new-warning-approved-booking-<id>` (the booking's id) | The venue already holds an approved booking for TC38 Holder, 10 Dec 2026, 14:00–17:00. |
 | Block holding the venue (SCRUM-38) | `booking-new-warning-block-<id>` (the block's id) | The venue is blocked 10 Dec 2026, 13:00 to 10 Dec 2026, 15:00 (Projector replacement). |
 
-SCRUM-38: after the mismatches, one line per approved booking and then per block of the venue that overlaps the event's period, each earliest first; a booking that is not Approved, or a period that only touches the event's, gives no line. The period is formatted with `formatPeriod` for a booking and `formatDateTimePeriod` for a block (§9). Like every other line, it does not stop Raise.
+SCRUM-38: after the mismatches, one line per approved booking and then per block of the venue that overlaps the event's occupied period, each earliest first; a booking that is not Approved, or a period that only touches the event's occupied period, gives no line. SCRUM-41: the occupied period is the event's own period widened by the venue's setup and turnaround time, and each approved booking is compared by its own occupied period, while a block keeps its own recorded period and is never widened. Each line still shows the holder's own period — `formatPeriod` for a booking and `formatDateTimePeriod` for a block (§9). Like every other line, it does not stop Raise.
 
 **Venue search** (SCRUM-33). On the request page, an Event Coordinator sees a Search venues button when the event's status is Approved or Planning, next to Request venue booking; it links to `/requests/:id/venues/search`. For any other status the button is not shown.
 
