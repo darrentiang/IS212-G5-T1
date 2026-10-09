@@ -643,10 +643,13 @@ export default function VenueDetailPage() {
         <Link to="/venues" className="back-link" data-testid="venue-detail-back-link">
           Back to Venues
         </Link>
-        <div className="page-header">
+        <div className="page-header flex flex-wrap items-center justify-between gap-2">
           <h1 className="page-title" data-testid="venue-detail-title">
             Venue
           </h1>
+          <Link to={`/venues/${id}/availability`} className="btn btn-secondary" data-testid="venue-detail-availability-link">
+            View availability
+          </Link>
         </div>
       </div>
 

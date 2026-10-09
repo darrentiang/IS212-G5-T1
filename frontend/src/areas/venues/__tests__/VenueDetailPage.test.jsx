@@ -71,6 +71,17 @@ function renderPage(state) {
 }
 
 describe('VenueDetailPage', () => {
+  // @story: SCRUM-39
+  // @ac: 1, 6
+  it('links to the venue\'s availability calendar', async () => {
+    api.getVenue.mockResolvedValue(HALL_A)
+
+    renderPage()
+
+    const link = await screen.findByTestId('venue-detail-availability-link')
+    expect(link).toHaveAttribute('href', '/venues/3/availability')
+  })
+
   // @story: SCRUM-32
   // @ac: 4, 5
   it('shows recorded layouts and an explicit empty state', async () => {
