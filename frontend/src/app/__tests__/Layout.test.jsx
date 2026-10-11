@@ -3,10 +3,12 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
 import * as authApi from '../../areas/auth/api'
+import * as notificationsApi from '../../areas/notifications/api'
 import { AuthProvider } from '../auth'
 import Layout from '../Layout'
 
 vi.mock('../../areas/auth/api')
+vi.mock('../../areas/notifications/api')
 
 // The real areas.js carries no route with a permission yet (SCRUM-27 owns the
 // feature keys), so the nav filter is tested against a stand-in list.
@@ -15,6 +17,7 @@ vi.mock('../areas', () => ({
     { path: '/requests', element: null, nav: 'Requests' },
     { path: '/venues', element: null, nav: 'Venues', permission: 'venues.view' },
     { path: '/requests/:id', element: null },
+    { path: '/notifications', element: null, nav: 'Notifications' },
   ],
 }))
 
@@ -26,8 +29,9 @@ function Address() {
   return <span data-testid="address">{useLocation().pathname}</span>
 }
 
-async function renderLayout(account) {
+async function renderLayout(account, unreadCount = 0) {
   authApi.me.mockResolvedValue(account)
+  notificationsApi.getUnreadCount.mockResolvedValue({ unread_count: unreadCount })
   render(
     <AuthProvider>
       <MemoryRouter initialEntries={['/requests']}>
@@ -88,6 +92,25 @@ describe('Layout', () => {
     // A route without a nav label gets no link.
     expect(screen.queryByTestId('layout-nav-:id')).not.toBeInTheDocument()
   })
+  // @story: SCRUM-58
+  // @ac: 3
+  it('shows the unread count in brackets on the Notifications link', async () => {
+    await renderLayout({ username: 'org1', roles: ['Event Organiser'], features: [] }, 3)
+
+    const link = screen.getByTestId('layout-nav-notifications')
+    expect(link).toHaveTextContent('Notifications (3)')
+    expect(screen.getByTestId('layout-nav-notifications-count')).toHaveTextContent('3')
+  })
+
+  // @story: SCRUM-58
+  // @ac: 3
+  it('shows no count when there are no unread notifications', async () => {
+    await renderLayout({ username: 'org1', roles: ['Event Organiser'], features: [] }, 0)
+
+    expect(screen.getByTestId('layout-nav-notifications')).toHaveTextContent('Notifications')
+    expect(screen.queryByTestId('layout-nav-notifications-count')).not.toBeInTheDocument()
+  })
+
   // @story: setup
   // @ac: frontend-scaffold
   it('logs the account out and goes to the login page', async () => {

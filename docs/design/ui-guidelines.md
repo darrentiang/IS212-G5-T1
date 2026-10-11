@@ -30,6 +30,7 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | 1.21 | 09-10-2026 | §7 the venue page's Booking requests section gains a Suggestion column, and the Reject form gains an optional suggested venue and suggested period, with their test ids | SCRUM-78 lets Venue Staff suggest another venue or period when they reject a booking request, and the Event Coordinator reads it beside the reason |
 | 1.22 | 09-10-2026 | §1 `/venues/:id/availability`; §7 the venue page's View availability link and the venue-availability page | SCRUM-39 lets an Event Coordinator or Venue Staff see a venue's committed and pending periods on a calendar before raising or deciding a request |
 | 1.23 | 09-10-2026 | §7 the venue-availability page shown one day at a time, reusing the label/value list, with an explicit Free day instead of one flat table of entries; its test ids updated to match | A flat table of only-busy entries did not show which days were open, the very thing AC1 ("judge dates") needs; day-by-day, with Free days shown, makes that legible at a glance |
+| 1.24 | 11-10-2026 | §1 `/notifications`; §7 the notifications page and its test ids; §2's anticipated nav unread count (`layout-nav-notifications-count`) now has a source, `GET /api/notifications/unread-count` | SCRUM-58 lets any logged-in account see, open and mark their own notifications read |
 
 ## 1. Pages
 
@@ -45,6 +46,7 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | `/venues/:id/availability` | `venue-availability` | Feature per `permissions.md` |
 | `/requests/:id/bookings/new` | `booking-new` | Feature per `permissions.md` |
 | `/requests/:id/venues/search` | `venue-search` | Feature per `permissions.md` |
+| `/notifications` | `notifications` | Logged in; every role holds `notifications.view` |
 | — (shown in place of a refused page) | `not-permitted` | Anyone whose account lacks the page's feature |
 
 - Not logged in → any page sends the user to `/login`.
@@ -350,6 +352,23 @@ The page opens to the current week (Monday to Sunday), "current" read from the b
 | Entry period, `formatDateTimePeriod` | `venue-availability-entry-period-<kind>-<id>-<date>` |
 | Entry name (event name for a booking, reason for a block) | `venue-availability-entry-name-<kind>-<id>-<date>` |
 | Entry status (`Approved`, `Pending` or `Block`) | `venue-availability-entry-status-<kind>-<id>-<date>` |
+
+**Notifications** (SCRUM-58). The notifications page (`notifications`) lists this account's own notifications only, newest first, each showing when it was created (`formatDateTime`, §9), its message, and Unread or Read as a badge (its own neutral/info pair, not a state-model.md status — read is a flag, not a transition). A notification's event is named, and opening it navigates there, only when this account may open that event's own page (the same rule `request-detail` itself uses); otherwise nothing about the event is shown beyond the message (AC6) — not even its name. "Opening" a notification is the single action that marks it read, nothing else does: clicking its event name when one is shown, or its own Open button when none is (there is then nowhere to navigate to, so the button exists only to mark it read). Either one marking an already-read notification is a no-op — the row was already Read, and stays so (AC4). Mark all as read marks every currently unread row read in one action (AC5); no row's own control is needed first. No notifications is one sentence instead of the list, same as any other empty list (§6).
+
+| Element | `data-testid` |
+|---|---|
+| Title | `notifications-title` |
+| Banner | `notifications-banner` |
+| Mark all as read button | `notifications-mark-all-button` |
+| No notifications | `notifications-empty` |
+| Row | `notifications-row-<id>` |
+| Created at, `formatDateTime` | `notifications-created-at-<id>` |
+| Message | `notifications-message-<id>` |
+| Read state (`Unread` or `Read`) | `notifications-status-<id>` |
+| Event name (link; shown only when this account may open that event) | `notifications-event-<id>` |
+| Open button (shown only when no event is named) | `notifications-open-button-<id>` |
+
+The nav's unread count (§2, `layout-nav-notifications-count`) comes from `GET /api/notifications/unread-count`, read once at login alongside `/api/me` and re-read after marking one or all read, so every page's count stays current without polling.
 
 ## 8. Not-permitted page
 

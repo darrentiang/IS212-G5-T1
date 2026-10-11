@@ -11,6 +11,7 @@ Every acceptance criterion that changes a status uses a value from these tables.
 | 1.4 | 09-10-2026 | Venue booking request: restored "(conflict check passes)" on Approve, defined the conflict and removed the 1.3 footnote | SCRUM-38 is the story that defines a conflict and enforces it |
 | 1.5 | 09-10-2026 | Venue booking request: the conflict is defined on occupied periods — a booking's period widened by the venue's setup and turnaround time — while a block keeps its own period | SCRUM-41 reserves setup and turnaround time around a booking, so two bookings conflict when their occupied periods overlap, and the decision records that blocks themselves are never widened |
 | 1.6 | 09-10-2026 | Venue booking request: an extreme recorded duration clamps its occupied period at the edge of Python's date range instead of raising, and no maximum duration is invented | SCRUM-41 review: an accepted setup time of 2000000000 minutes made every read of the venue's bookings fail; reads must keep answering |
+| 1.7 | 11-10-2026 | New: Notification, with read as a flag, not a status | SCRUM-58: a notification is created once and never changes status; whether it has been read is a flag on the row, the same pattern as "clarification requested" on an event request |
 
 The front end holds these words in `frontend/src/app/format.js` (`STATUS`); a change here changes that file in the same pull request.
 
@@ -107,3 +108,9 @@ stateDiagram-v2
     [*] --> Registered: Register within the window and capacity
     Registered --> Withdrawn: Withdraw
 ```
+
+## Notification
+
+A notification has no status and no transition: it is created once, addressed to one account, and never changes afterwards except for one flag.
+
+Flag, not a status: **read** (set when the recipient opens it; cleared never — there is no "mark unread"). The same pattern as "clarification requested" on an event request, above.

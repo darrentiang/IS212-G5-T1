@@ -8,7 +8,8 @@ blocks. SCRUM-36: venue booking requests, and a venue's is_active flag
 SCRUM-42: an event request's required layout, facilities and accessibility
 features, chosen from the same fixed lists as a venue's. SCRUM-37: a venue
 booking request's approve/reject decision. SCRUM-43: an event request's
-assigned Event Coordinator and the date it was assigned.
+assigned Event Coordinator and the date it was assigned. SCRUM-58: one
+notification addressed to one account.
 No permission logic here — see backend/permissions.py.
 """
 
@@ -30,8 +31,9 @@ from db import db
 # approve/reject decision (decision, decision_reason, decided_at,
 # decided_by), so 11. SCRUM-43 added an event request's assigned Event
 # Coordinator and assignment date, so 12. SCRUM-78 added a rejected venue
-# booking request's suggested venue and period, so 13.
-SCHEMA_VERSION = 13
+# booking request's suggested venue and period, so 13. SCRUM-58 added the
+# Notification table, so 14.
+SCHEMA_VERSION = 14
 
 
 account_roles = db.Table(
@@ -396,6 +398,38 @@ class VenueBookingRequest(db.Model):
 
     def __repr__(self):
         return f"<VenueBookingRequest {self.id} venue {self.venue_id} event {self.event_request_id} {self.status}>"
+
+
+class Notification(db.Model):
+    """One notification addressed to one account (SCRUM-58, docs/design/state-model.md).
+
+    What creates a row is each triggering story's own concern (SCRUM-62,
+    SCRUM-63, SCRUM-64 — none built yet); this story only reads and shows
+    them, so for now rows come from the seed data (backend/seed/data.json),
+    not from any workflow in this codebase. ``event_request_id`` is nullable:
+    a notification need not be about an event request at all (a future
+    story's venue or equipment notification, say), and SCRUM-58 itself never
+    needs to know which.
+
+    ``read_at`` null means unread; set means read, and when (AC4). There is
+    no separate status column: read is a flag on the row, the same pattern
+    as "clarification requested" on an event request (state-model.md).
+    """
+
+    __tablename__ = "notifications"
+
+    id = db.Column(db.Integer, primary_key=True)
+    recipient_id = db.Column(db.Integer, db.ForeignKey("accounts.id"), nullable=False)
+    event_request_id = db.Column(db.Integer, db.ForeignKey("event_requests.id"), nullable=True)
+    message = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False)
+    read_at = db.Column(db.DateTime, nullable=True)
+
+    recipient = db.relationship("Account", foreign_keys=[recipient_id])
+    event_request = db.relationship("EventRequest", foreign_keys=[event_request_id])
+
+    def __repr__(self):
+        return f"<Notification {self.id} to {self.recipient_id} read={self.read_at is not None}>"
 
 
 class SchemaMeta(db.Model):
