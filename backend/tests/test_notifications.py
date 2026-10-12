@@ -5,8 +5,9 @@ notifications, newest first; the unread count; opening one marks it read and
 an already-read one is unaffected; marking all read; an event is named only
 when the account may open it; an account with none sees an empty list; one
 account can never see, open or mark another's; several roles' notifications
-arrive in one list. No story creates a notification yet (SCRUM-62, 63, 64);
-every row here comes from seed/data.json (team decision, 11-10-2026).
+arrive in one list. The rows these tests read come from seed/data.json;
+creating one is notifications.create_notification(), tested in
+test_create_notification.py.
 """
 
 from datetime import datetime, timezone

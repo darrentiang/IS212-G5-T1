@@ -170,8 +170,9 @@ def seed_database(db, data_path=DEFAULT_DATA_PATH):
                 )
             )
 
-        # SCRUM-58: standing notifications. No story creates these yet
-        # (SCRUM-62, 63, 64 will); until one does, they exist only here.
+        # SCRUM-58: standing notifications, so the inbox has rows to show.
+        # Stories that notify someone add theirs with
+        # notifications.create_notification().
         for entry in data.get("notifications", []):
             db.session.add(
                 Notification(

@@ -3,11 +3,10 @@
 Every rule the acceptance criteria state lives here, next to the query, and
 refuses by raising ApiRefusal; the route never decides (ADR-002).
 
-What creates a notification is each triggering story's own concern (SCRUM-62,
-SCRUM-63, SCRUM-64 — none built yet); nothing here writes a new row for any
-workflow. Rows exist only from the seed data for now (team decision,
-11-10-2026): building a trigger-side creator ahead of the stories that would
-call it risks a shape this story cannot know yet.
+This module only reads and changes the read flag. A row is added by
+notifications.create_notification() (backend/notifications.py), which every
+story that tells someone something calls; it sits outside the areas so no area
+imports another area's services.
 """
 
 from datetime import datetime, timezone

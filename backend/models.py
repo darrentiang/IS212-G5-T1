@@ -403,10 +403,11 @@ class VenueBookingRequest(db.Model):
 class Notification(db.Model):
     """One notification addressed to one account (SCRUM-58, docs/design/state-model.md).
 
-    What creates a row is each triggering story's own concern (SCRUM-62,
-    SCRUM-63, SCRUM-64 — none built yet); this story only reads and shows
-    them, so for now rows come from the seed data (backend/seed/data.json),
-    not from any workflow in this codebase. ``event_request_id`` is nullable:
+    A row is added by notifications.create_notification(), which every story
+    that tells someone something calls (SCRUM-44, 62, 63, 82, 85, 86, 89, 90);
+    this story's own pages only read and show them. The standing rows in
+    backend/seed/data.json exist so those pages have something to show.
+    ``event_request_id`` is nullable:
     a notification need not be about an event request at all (a future
     story's venue or equipment notification, say), and SCRUM-58 itself never
     needs to know which.
