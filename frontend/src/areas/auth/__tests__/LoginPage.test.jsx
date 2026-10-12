@@ -4,10 +4,12 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
 import { ApiError } from '../../../app/http'
 import * as api from '../api'
+import * as notificationsApi from '../../notifications/api'
 import { AuthProvider } from '../../../app/auth'
 import LoginPage from '../LoginPage'
 
 vi.mock('../api')
+vi.mock('../../notifications/api')
 
 function Address() {
   return <span data-testid="address">{useLocation().pathname}</span>
@@ -27,6 +29,7 @@ function renderLoginPage(account) {
   } else {
     api.me.mockRejectedValue(new ApiError(401, 'Not logged in'))
   }
+  notificationsApi.getUnreadCount.mockResolvedValue({ unread_count: 0 })
   render(
     <AuthProvider>
       <MemoryRouter initialEntries={['/login']}>
