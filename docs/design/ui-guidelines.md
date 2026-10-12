@@ -30,6 +30,8 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | 1.21 | 09-10-2026 | §7 the venue page's Booking requests section gains a Suggestion column, and the Reject form gains an optional suggested venue and suggested period, with their test ids | SCRUM-78 lets Venue Staff suggest another venue or period when they reject a booking request, and the Event Coordinator reads it beside the reason |
 | 1.22 | 09-10-2026 | §1 `/venues/:id/availability`; §7 the venue page's View availability link and the venue-availability page | SCRUM-39 lets an Event Coordinator or Venue Staff see a venue's committed and pending periods on a calendar before raising or deciding a request |
 | 1.23 | 09-10-2026 | §7 the venue-availability page shown one day at a time, reusing the label/value list, with an explicit Free day instead of one flat table of entries; its test ids updated to match | A flat table of only-busy entries did not show which days were open, the very thing AC1 ("judge dates") needs; day-by-day, with Free days shown, makes that legible at a glance |
+| 1.24 | 12-10-2026 | §1 `/equipment` route; §1 home-page bullet reworded (every seeded role can now open a page); §7 the equipment inventory page — plain-text type name (no detail page, stated deviation from §6's link rule), per-row Change total with its inline `noValidate` form, `n units` text, and the unavailable-notice ids for a refused refresh | SCRUM-49: Technical Support Staff change stock counts; they and Event Coordinators view inventory |
+| 1.25 | 12-10-2026 | §7 equipment inventory: all stock-edit controls are disabled during a save and its refresh; an initial read failure also offers Reload; an open editor is hidden if editing permission is removed; replies from discarded initial loads are ignored | SCRUM-49 review: prevent switching editors during a pending write and allow recovery from a failed initial read |
 
 ## 1. Pages
 
@@ -45,12 +47,13 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | `/venues/:id/availability` | `venue-availability` | Feature per `permissions.md` |
 | `/requests/:id/bookings/new` | `booking-new` | Feature per `permissions.md` |
 | `/requests/:id/venues/search` | `venue-search` | Feature per `permissions.md` |
+| `/equipment` | `equipment` | Feature per `permissions.md` |
 | — (shown in place of a refused page) | `not-permitted` | Anyone whose account lacks the page's feature |
 
 - Not logged in → any page sends the user to `/login`.
 - **Home** is the first nav entry, in nav order, that the account may open. After logging in, `/`, unknown addresses and the not-permitted page's link all go home (pages send the user to `/`; the app resolves it). Venue Staff therefore land on Venues, an Attendee on Registration, never on a page they cannot open.
 - An account without a page's feature sees the not-permitted page at the same address; it is not redirected.
-- An account that may open **no** page (Technical Support Staff today) gets a welcome home page at `/`, inside the layout: "Welcome, <username>" and one sentence saying there is nothing to do for their role yet. Test ids: `home-title`, `home-message`.
+- An account that may open **no** page gets a welcome home page at `/`, inside the layout: "Welcome, <username>" and one sentence saying there is nothing to do for their role yet. Test ids: `home-title`, `home-message`. Since SCRUM-49 gives Technical Support Staff the Equipment page, every role seeded today can open at least one page — the welcome page remains for an account whose roles open none (none exists in the seed), never a redirect to a page they cannot use.
 
 ## 2. Layout
 
@@ -350,6 +353,22 @@ The page opens to the current week (Monday to Sunday), "current" read from the b
 | Entry period, `formatDateTimePeriod` | `venue-availability-entry-period-<kind>-<id>-<date>` |
 | Entry name (event name for a booking, reason for a block) | `venue-availability-entry-name-<kind>-<id>-<date>` |
 | Entry status (`Approved`, `Pending` or `Block`) | `venue-availability-entry-status-<kind>-<id>-<date>` |
+
+**Equipment inventory** (SCRUM-49). The equipment page (`equipment`) lists every recognised equipment type and its total units, a plain table per §6, reachable with `equipment.view` — Technical Support Staff and Event Coordinator. The first cell is the type's name as **plain text, not a link**: there is no per-type detail page, so §6's linking rule has nothing to point at (recorded here as the deliberate deviation). The total reads `<n> units` (`5 units`, `0 units`, `1 unit`); a zero total keeps the type listed (AC4 note). Only an account with `equipment.edit` (Technical Support Staff) is offered **Change total** on a row; it opens an inline form as its own row directly below that row (the §7.13 per-row rule): a `number` input with **no native `required` or `min`**, the form `noValidate` like every other form (so a typed fraction reaches the server and the API's refusal is what shows), a blank caught by the page's own required check with a message under the field and nothing sent, then Save and Cancel. It is the page's only inline form, so one-form-at-a-time holds trivially. A refusal appears in `equipment-banner` word-for-word with the form left open and its entry kept, and nothing stored changes — a reduction below the reservation minimum shows the API message naming the required total. A successful save closes the form, shows `Total units updated` as the success banner and reads the list again: **that acknowledgment never depends on the refresh**, and a refused refresh replaces the table with an unavailable notice and a Reload control instead of leaving previous rows looking current (the SCRUM-41 rule, ids below). While a save and its follow-up refresh are pending, the stock input, Save, Cancel and every row's Change total button are disabled, so a pending save cannot close a newly opened editor. An initial inventory read failure also shows the error banner and the unavailable notice with Reload; it is not shown as an empty inventory. A late reply from a discarded initial load cannot replace the current inventory or show an obsolete error. If the current account loses `equipment.edit`, an already-open editor is hidden along with the change controls; the API remains the authority. Coordinator viewing needs no narrower rule than the page itself.
+
+| Element | `data-testid` |
+|---|---|
+| Title (`Equipment inventory`) | `equipment-title` |
+| Banner | `equipment-banner` |
+| Row | `equipment-row-<id>` |
+| Type name (plain text) | `equipment-name-<id>` |
+| Total units, `<n> units` (`1 unit`) | `equipment-units-<id>` |
+| Change total button (only with `equipment.edit`) | `equipment-edit-button-<id>` |
+| Inline form input | `equipment-edit-units-input` |
+| Message under an empty field | `equipment-edit-units-error` |
+| Save and Cancel buttons | `equipment-edit-save-button`, `equipment-edit-cancel-button` |
+| No equipment types | `equipment-empty` |
+| Unavailable notice and its Reload control (after an initial read or refresh failure) | `equipment-unavailable`, `equipment-reload-button` |
 
 ## 8. Not-permitted page
 

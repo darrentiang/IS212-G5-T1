@@ -1,4 +1,4 @@
-"""Role → feature matrix — SCRUM-27, SCRUM-31, SCRUM-29, SCRUM-36, SCRUM-33, SCRUM-37 (ADR-002).
+"""Role → feature matrix — SCRUM-27, SCRUM-31, SCRUM-29, SCRUM-36, SCRUM-33, SCRUM-37, SCRUM-49 (ADR-002).
 
 Direct transcription of docs/design/permissions.md. An account may hold
 several roles (Q-06, D-09); it may do anything any of its roles allows.
@@ -21,6 +21,7 @@ VENUES_SEARCH = "venues.search"  # SCRUM-33: search venues for an event (Event C
 BOOKINGS_EDIT = "bookings.edit"  # SCRUM-36: raise a venue booking request (Event Coordinator)
 BOOKINGS_DECIDE = "bookings.decide"  # SCRUM-37: approve or reject one (Venue Staff)
 EQUIPMENT_VIEW = "equipment.view"
+EQUIPMENT_EDIT = "equipment.edit"  # SCRUM-49: change an equipment type's total units
 REGISTRATION_VIEW = "registration.view"
 INTERNAL_NOTES_VIEW = "internal_notes.view"
 NOTIFICATIONS_VIEW = "notifications.view"
@@ -36,6 +37,7 @@ ALL_FEATURES = frozenset(
         BOOKINGS_EDIT,
         BOOKINGS_DECIDE,
         EQUIPMENT_VIEW,
+        EQUIPMENT_EDIT,
         REGISTRATION_VIEW,
         INTERNAL_NOTES_VIEW,
         NOTIFICATIONS_VIEW,
@@ -56,6 +58,7 @@ ROLE_FEATURES = {
         VENUES_VIEW,
         VENUES_SEARCH,
         BOOKINGS_EDIT,
+        EQUIPMENT_VIEW,  # SCRUM-49 AC1: view the inventory and its totals
         REGISTRATION_VIEW,
         INTERNAL_NOTES_VIEW,
         NOTIFICATIONS_VIEW,
@@ -69,6 +72,7 @@ ROLE_FEATURES = {
     },
     "Technical Support Staff": {
         EQUIPMENT_VIEW,
+        EQUIPMENT_EDIT,  # SCRUM-49 AC2/AC7: change a type's total units
         NOTIFICATIONS_VIEW,
     },
     "Attendee": {
