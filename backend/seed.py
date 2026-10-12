@@ -30,6 +30,7 @@ from models import (
     Account,
     EventRequest,
     Facility,
+    Notification,
     Role,
     RoomLayout,
     SchemaMeta,
@@ -117,38 +118,39 @@ def seed_database(db, data_path=DEFAULT_DATA_PATH):
             layouts[name] = layout
             db.session.add(layout)
 
+        event_requests = {}
         for entry in data.get("event_requests", []):
             owner = accounts[entry["created_by"]]
             optional_fields = {
                 field: entry[field] for field in EventRequest.REQUIRED_FIELDS if field in entry
             }
-            db.session.add(
-                EventRequest(
-                    name=entry["name"],
-                    purpose=entry.get("purpose"),
-                    status=entry["status"],
-                    created_by=owner,
-                    registration_enabled=bool(entry.get("registration_enabled", False)),
-                    coordinator_notes=entry.get("coordinator_notes"),
-                    submitted_at=parse_datetime(entry.get("submitted_at")),
-                    # SCRUM-43: standing events already assigned to a coordinator,
-                    # so the open-event counts have something to count.
-                    assigned_coordinator=(
-                        accounts[entry["assigned_coordinator"]]
-                        if entry.get("assigned_coordinator")
-                        else None
-                    ),
-                    assigned_at=parse_datetime(entry.get("assigned_at")),
-                    # SCRUM-42: the optional requirements chosen from the fixed lists.
-                    layout=layouts[entry["layout"]] if entry.get("layout") else None,
-                    facilities=[facilities[name] for name in entry.get("facilities", [])],
-                    accessibility_features=[
-                        accessibility_features[name]
-                        for name in entry.get("accessibility_features", [])
-                    ],
-                    **{k: v for k, v in optional_fields.items() if k not in ("name", "purpose")},
-                )
+            event_request = EventRequest(
+                name=entry["name"],
+                purpose=entry.get("purpose"),
+                status=entry["status"],
+                created_by=owner,
+                registration_enabled=bool(entry.get("registration_enabled", False)),
+                coordinator_notes=entry.get("coordinator_notes"),
+                submitted_at=parse_datetime(entry.get("submitted_at")),
+                # SCRUM-43: standing events already assigned to a coordinator,
+                # so the open-event counts have something to count.
+                assigned_coordinator=(
+                    accounts[entry["assigned_coordinator"]]
+                    if entry.get("assigned_coordinator")
+                    else None
+                ),
+                assigned_at=parse_datetime(entry.get("assigned_at")),
+                # SCRUM-42: the optional requirements chosen from the fixed lists.
+                layout=layouts[entry["layout"]] if entry.get("layout") else None,
+                facilities=[facilities[name] for name in entry.get("facilities", [])],
+                accessibility_features=[
+                    accessibility_features[name]
+                    for name in entry.get("accessibility_features", [])
+                ],
+                **{k: v for k, v in optional_fields.items() if k not in ("name", "purpose")},
             )
+            db.session.add(event_request)
+            event_requests[entry["name"]] = event_request
 
         for entry in data.get("venues", []):
             db.session.add(
@@ -165,6 +167,20 @@ def seed_database(db, data_path=DEFAULT_DATA_PATH):
                         accessibility_features[name]
                         for name in entry.get("accessibility_features", [])
                     ],
+                )
+            )
+
+        # SCRUM-58: standing notifications, so the inbox has rows to show.
+        # Stories that notify someone add theirs with
+        # notifications.create_notification().
+        for entry in data.get("notifications", []):
+            db.session.add(
+                Notification(
+                    recipient=accounts[entry["recipient"]],
+                    event_request=event_requests[entry["event"]] if entry.get("event") else None,
+                    message=entry["message"],
+                    created_at=parse_datetime(entry["created_at"]),
+                    read_at=parse_datetime(entry.get("read_at")),
                 )
             )
 

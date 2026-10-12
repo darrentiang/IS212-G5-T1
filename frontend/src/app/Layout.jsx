@@ -7,7 +7,7 @@ import { routes } from './areas'
 const pageOf = (path) => path.split('/').filter(Boolean).at(-1)
 
 export default function Layout() {
-  const { account, can, logout } = useAuth()
+  const { account, can, logout, unreadCount } = useAuth()
   const navigate = useNavigate()
 
   // A link that would lead to the not-permitted page is not shown.
@@ -36,6 +36,10 @@ export default function Layout() {
                 data-testid={`layout-nav-${pageOf(route.path)}`}
               >
                 {route.nav}
+                {/* SCRUM-58: the unread count, only on the Notifications link, only while there is one. */}
+                {route.path === '/notifications' && unreadCount > 0 && (
+                  <> (<span data-testid="layout-nav-notifications-count">{unreadCount}</span>)</>
+                )}
               </NavLink>
             ))}
           </nav>

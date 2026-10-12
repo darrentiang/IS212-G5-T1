@@ -27,7 +27,7 @@ Kept current by every story that adds an action: the row is added or changed in 
 | Raise a change request on a confirmed event | Own only | No | No | No | No |
 | Decide a change request | No | Assigned coordinator | No | No | No |
 | View internal planning information (coordinator notes, booking requests, equipment requirements, decisions, reasons) | No | Yes | Venue-related only | Equipment-related only | Never |
-| View own notifications | Yes | Yes | Yes | Yes | Yes |
+| View, open and mark own notifications as read | Yes | Yes | Yes | Yes | Yes |
 
 Rule: an action not listed as permitted for any of the account's roles is refused, a message is shown, and no data changes.
 
@@ -70,3 +70,4 @@ Keys used in `backend/permissions.py` and on API routes / `features` from `/api/
 | 1.11 | 09-10-2026 | Rule \* reworded: assignment is now recorded; enforcement still pending | SCRUM-43 records who is assigned; narrowing "assigned coordinator" rows is a separate decision for the Product Owner |
 | 1.12 | 09-10-2026 | "Raise or withdraw a venue booking request" split into its own raise row (unchanged, still marked \*) and a withdraw row restricted to "Own only (whoever raised it)"; Rule \* reworded to say withdrawing is unaffected by the assigned-coordinator gap | SCRUM-77: withdrawing is restricted to the Coordinator who raised that specific booking (AC4), a stricter, different rule from the unenforced event-level "assigned coordinator"; the old combined row read as if any Event Coordinator could withdraw any booking |
 | 1.13 | 09-10-2026 | "View a venue's availability calendar" row, Event Coordinator and Venue Staff, no new feature key | SCRUM-39: the calendar reuses `venues.view` exactly, already held by both; the story's own AC6 ("venues they manage") was reworded to any venue during drafting, since no story has ever built per-venue Venue Staff assignment (team decision, 09-10-2026) |
+| 1.14 | 11-10-2026 | "View own notifications" reworded to "View, open and mark own notifications as read"; no new feature key | SCRUM-58: opening and marking read are the same own-record action as viewing, just reusing `notifications.view`, the same way withdrawing a booking reused `bookings.edit` (SCRUM-77) |

@@ -13,9 +13,11 @@ vi.mock('../areas', () => ({
   },
 }))
 vi.mock('../../areas/auth/api')
+vi.mock('../../areas/notifications/api')
 
 import { ApiError } from '../http'
 import * as authApi from '../../areas/auth/api'
+import * as notificationsApi from '../../areas/notifications/api'
 import App, { RequireFeature } from '../App'
 import { AuthProvider } from '../auth'
 import LoginPage from '../../areas/auth/LoginPage'
@@ -47,6 +49,7 @@ function Address() {
 
 beforeEach(() => {
   mocks.routes = [LOGIN, REQUESTS, VENUES, REGISTRATION]
+  notificationsApi.getUnreadCount.mockResolvedValue({ unread_count: 0 })
 })
 
 afterEach(() => {
