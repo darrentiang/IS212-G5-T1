@@ -27,3 +27,9 @@ class Config:
 
     # SQLAlchemy's change-tracking signals cost memory and nothing uses them.
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+
+    # How Account.set_password hashes. Werkzeug's default, scrypt, is slow on
+    # purpose, which is right for real accounts. Only the pytest app fixture
+    # swaps in a cheap method: it seeds every account for every test. Hashes
+    # name their method, so check_password verifies either kind.
+    PASSWORD_HASH_METHOD = "scrypt"

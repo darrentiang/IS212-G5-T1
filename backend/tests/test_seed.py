@@ -58,6 +58,36 @@ def test_passwords_are_stored_hashed(app):
 
 
 # @story: setup
+# @ac: test-speed
+def test_default_password_hash_is_scrypt():
+    # No PASSWORD_HASH_METHOD override: what seed.py and the running app use.
+    default = create_app({"TESTING": True, "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:"})
+    with default.app_context():
+        account = Account(username="hash-default")
+        account.set_password("Passw0rd!")
+
+        assert account.password_hash.startswith("scrypt:")
+        assert account.check_password("Passw0rd!")
+        assert not account.check_password("wrong")
+        db.engine.dispose()
+
+
+# @story: setup
+# @ac: test-speed
+def test_test_config_password_hash_is_honoured(app):
+    # conftest.py sets PASSWORD_HASH_METHOD to "pbkdf2:sha256:1" (one round).
+    account = Account(username="hash-test")
+    account.set_password("Passw0rd!")
+    seeded = db.session.query(Account).filter_by(username="org1").one()
+
+    assert account.password_hash.startswith("pbkdf2:sha256:1$")
+    assert seeded.password_hash.startswith("pbkdf2:sha256:1$")
+    assert account.check_password("Passw0rd!")
+    assert seeded.check_password("Passw0rd!")
+    assert not account.check_password("wrong")
+
+
+# @story: setup
 # @ac: sqlite-seed
 def test_schema_meta_holds_the_current_schema_version(app):
     rows = db.session.query(SchemaMeta).all()

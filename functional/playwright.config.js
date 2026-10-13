@@ -15,7 +15,11 @@ export default defineConfig({
   workers: 1,
   fullyParallel: false,
   timeout: 30_000,
+  // We retry to classify a test as flaky, not to make CI pass: a test that
+  // fails and then passes on its retry is reported as flaky, and in CI any
+  // flaky test fails the run. The retry also records the trace (below).
   retries: 1,
+  failOnFlakyTests: !!process.env.CI,
   reporter: [
     ['html', { open: 'never' }],
     ['json', { outputFile: 'test-results/functional-results.json' }],

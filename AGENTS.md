@@ -27,7 +27,9 @@ Read this file first in every session, then the documents it names, before touch
 1. Read §1 documents and the story.
 2. Draft functional test cases with `PROMPT.md`; a developer curates with `CURATION.md`, a second reviews; rows go into the team test sheet. No code before this.
 3. Build. Backend rules first (unit tests as you go) in `backend/areas/<area>/`, then the API route, then the front end per `docs/design/frontend.md`, inside the area folder the story's Area column maps to (pages call their area's `api.js`, never `fetch`).
-4. Write the Playwright spec and unit tests per `AUTOMATION.md`. Unit tests for a story live in that story's feature test file (`backend/tests/test_<feature>.py`, `frontend/src/areas/<area>/__tests__/<Name>Page.test.jsx`) and test only what the story adds or changes, never other features. Run all three suites locally; they print coverage.
+4. Write the Playwright spec and unit tests per `AUTOMATION.md`. Unit tests for a story live in that story's feature test file (`backend/tests/test_<feature>.py`, `frontend/src/areas/<area>/__tests__/<Name>Page.test.jsx`) and test only what the story adds or changes, never other features.
+   - Test data (backend): new tests build the data they depend on with helpers from `backend/tests/factories.py` and pass the values that matter explicitly. From the seed they may rely only on reference data (roles and the fixed lists: facilities, accessibility features, layouts, equipment types) and the seeded accounts used to log in. Existing tests move to this style when their story is next touched; no bulk rewrite.
+   - Development loop: while building, run only the affected test file(s) with `pytest <file> --no-cov`. Run the full backend suite (with coverage), Vitest and Playwright once, before reporting back; they print coverage.
 5. Open the pull request: title `SCRUM-nn: …`; description states what was built, which TC IDs are covered, and where AI was used. CI must be green. A Developer other than the author approves; the author merges; the branch is deleted.
 
 ## 5. Definition of Done (per story)

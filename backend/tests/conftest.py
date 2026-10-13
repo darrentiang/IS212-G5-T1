@@ -15,8 +15,18 @@ def app():
 
     Every test gets its own database; nothing a test does reaches the
     development database in backend/instance/.
+
+    Passwords are hashed with one round of PBKDF2 instead of scrypt: seeding
+    hashes every seeded account's password for every test, and scrypt made
+    that most of the suite's run time. Production keeps scrypt (config.py).
     """
-    app = create_app({"TESTING": True, "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:"})
+    app = create_app(
+        {
+            "TESTING": True,
+            "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
+            "PASSWORD_HASH_METHOD": "pbkdf2:sha256:1",
+        }
+    )
     with app.app_context():
         _db.create_all()
         seed_database(_db)

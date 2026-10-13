@@ -13,6 +13,7 @@ notification addressed to one account.
 No permission logic here — see backend/permissions.py.
 """
 
+from flask import current_app
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from db import db
@@ -70,7 +71,9 @@ class Account(db.Model):
     roles = db.relationship("Role", secondary=account_roles, backref="accounts")
 
     def set_password(self, password):
-        self.password_hash = generate_password_hash(password)
+        self.password_hash = generate_password_hash(
+            password, method=current_app.config["PASSWORD_HASH_METHOD"]
+        )
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)

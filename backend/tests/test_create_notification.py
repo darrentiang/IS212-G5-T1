@@ -15,12 +15,9 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from db import db
-from models import Account, EventRequest, Notification
+from factories import account
+from models import EventRequest, Notification
 from notifications import create_notification
-
-
-def account(username):
-    return db.session.query(Account).filter_by(username=username).one()
 
 
 def event(name="Annual Dinner"):

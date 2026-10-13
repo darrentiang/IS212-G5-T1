@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 
 from areas.requests import services
 from db import db
+from factories import account
 from models import Account, EventRequest, Role
 
 FIELDS = {
@@ -24,10 +25,6 @@ FIELDS = {
 }
 
 ASSIGNED_ON = datetime(2026, 9, 1, 9, 0)
-
-
-def account(username):
-    return db.session.query(Account).filter_by(username=username).one()
 
 
 def login_as(client, username):

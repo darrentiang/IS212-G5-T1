@@ -23,7 +23,8 @@ import pytest
 
 import occupancy
 from db import db
-from models import Account, EventRequest, Venue, VenueBlock, VenueBookingRequest
+from factories import account
+from models import EventRequest, Venue, VenueBlock, VenueBookingRequest
 
 DATE = "2026-12-15"
 HELD = "This venue is already committed for an overlapping period: "
@@ -40,10 +41,6 @@ EVENT_FIELDS = {
 def login(client, username):
     resp = client.post("/api/login", json={"username": username, "password": "Passw0rd!"})
     assert resp.status_code == 200
-
-
-def account(username):
-    return db.session.query(Account).filter_by(username=username).one()
 
 
 def add_venue(name, setup_time=0, turnaround_time=0):

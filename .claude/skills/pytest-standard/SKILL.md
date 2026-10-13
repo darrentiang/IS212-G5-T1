@@ -11,7 +11,15 @@ Functional test cases live in the team test sheet and are proved by Playwright, 
 
 All backend tests go in `backend/tests/`. File naming: `test_<feature>.py`.
 
-The `app` fixture in `backend/tests/conftest.py` gives every test a fresh in-memory database, created and seeded from `backend/seed/data.json` by `seed_database`. Tests never touch the development database in `backend/instance/app.db`, so running pytest cannot disturb a developer's data and no test needs to clean up after another. When a story needs standing data of its own (a venue, an event, an equipment unit), add rows to `seed/data.json` and bump `SCHEMA_VERSION` in `backend/models.py` in the same pull request; every test and every Playwright run then starts from that same data.
+The `app` fixture in `backend/tests/conftest.py` gives every test a fresh in-memory database, created and seeded from `backend/seed/data.json` by `seed_database`. Tests never touch the development database in `backend/instance/app.db`, so running pytest cannot disturb a developer's data and no test needs to clean up after another.
+
+## Test data
+
+- For a unit test, the seed is reference data and login accounts only: the roles, the fixed lists (facilities, accessibility features, layouts, equipment types) and the seeded accounts used to log in. A new test relies on nothing else from it.
+- Everything else a new test depends on (an event, a booking, a block, a venue) it builds itself with the helpers in `backend/tests/factories.py`, passing the values that matter explicitly so a reader sees them in the test: `make_event(name="Gala", status="Approved", date="2026-12-10", start_time="14:00", end_time="16:00")`. When a story needs a kind of record no helper builds yet, add the helper to `factories.py`, not rows to `seed/data.json`.
+- Existing tests move to this style when their story is next touched; no bulk rewrite.
+- Standing data that the Playwright specs read is a separate rule (`docs/test-cases/AUTOMATION.md`): it still lives in `seed/data.json`.
+- When a change adds standing rows to `seed/data.json` (Playwright standing data) or changes a model, bump `SCHEMA_VERSION` in `backend/models.py` in the same pull request, so `app.py` refuses a stale database and `seed.py --reset` rebuilds it.
 
 The code those tests exercise lives in `backend/areas/<area>/`: `routes.py` for the endpoints, `services.py` for the rules, one area per folder and the same eight areas as the front end (`docs/design/frontend.md` §2 decides which). Models stay in `backend/models.py`. A service refuses by raising `ApiRefusal(status, message)` from `backend/errors.py` and never builds a response itself; every error reply the API sends, ours or Flask's own, is `{"message": "…"}` with the matching status, so a test asserts `resp.get_json()["message"]` whatever went wrong.
 
@@ -116,9 +124,9 @@ Read the missed lines, not the percentage. 100% coverage proves every line ran, 
 
 ```bash
 cd backend
-python -m pytest tests/ -v                    # all tests
-python -m pytest tests/test_events.py -v      # one file
-python -m pytest tests/test_events.py::test_create_event_success -v  # one test
+python -m pytest tests/test_events.py --no-cov  # while building: only the affected file(s)
+python -m pytest tests/test_events.py::test_create_event_success --no-cov  # one test
+python -m pytest tests/ -v                      # all tests, with coverage: once, before reporting back
 ```
 
 ## Definition of Done for tests
