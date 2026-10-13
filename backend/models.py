@@ -32,8 +32,10 @@ from db import db
 # decided_by), so 11. SCRUM-43 added an event request's assigned Event
 # Coordinator and assignment date, so 12. SCRUM-78 added a rejected venue
 # booking request's suggested venue and period, so 13. SCRUM-58 added the
-# Notification table, so 14.
-SCHEMA_VERSION = 14
+# Notification table, so 14. SCRUM-49 added seeded equipment types with
+# their total stock and event-linked equipment reservations (Reserved/
+# Released storage only), so 15.
+SCHEMA_VERSION = 15
 
 
 account_roles = db.Table(
@@ -398,6 +400,67 @@ class VenueBookingRequest(db.Model):
 
     def __repr__(self):
         return f"<VenueBookingRequest {self.id} venue {self.venue_id} event {self.event_request_id} {self.status}>"
+
+
+class EquipmentType(db.Model):
+    """A recognised equipment type and the total units held of it (SCRUM-49).
+
+    Seeded data: there is no workflow that creates, renames, deletes or
+    retires a type (docs/design/permissions.md, "View equipment inventory"
+    and "Maintain equipment inventory"). An edit changes only total_units —
+    never the name or any other attribute. Zero is a valid total and keeps
+    the type listed; per-event availability is SCRUM-50 and reserving is
+    SCRUM-51. No permission logic here — see backend/permissions.py.
+    """
+
+    __tablename__ = "equipment_types"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(128), unique=True, nullable=False)
+    total_units = db.Column(db.Integer, nullable=False)
+
+    reservations = db.relationship("Reservation", backref="equipment_type")
+
+    def to_dict(self):
+        return {"id": self.id, "name": self.name, "total_units": self.total_units}
+
+    def __repr__(self):
+        return f"<EquipmentType {self.id} {self.name}>"
+
+
+class Reservation(db.Model):
+    """Units of an equipment type committed for an event period (SCRUM-49 storage).
+
+    SCRUM-49 adds the record only: no endpoint creates, releases or lists
+    reservations — those workflows belong to SCRUM-51. The event link is
+    required and survives release. The period is a snapshot of the event's
+    period taken when the reservation is created: a real date, HH:MM times,
+    start strictly before end (state-model.md, "Equipment reservation",
+    v1.7). status is exactly "Reserved" or "Released", the state model's own
+    words; only Reserved commits stock, and only inside its period.
+    """
+
+    __tablename__ = "reservations"
+
+    STATUSES = ("Reserved", "Released")
+
+    id = db.Column(db.Integer, primary_key=True)
+    equipment_type_id = db.Column(
+        db.Integer, db.ForeignKey("equipment_types.id"), nullable=False
+    )
+    event_request_id = db.Column(
+        db.Integer, db.ForeignKey("event_requests.id"), nullable=False
+    )
+    quantity = db.Column(db.Integer, nullable=False)
+    date = db.Column(db.String(10), nullable=False)  # ISO yyyy-mm-dd
+    start_time = db.Column(db.String(5), nullable=False)  # HH:MM
+    end_time = db.Column(db.String(5), nullable=False)  # HH:MM, strictly after start_time
+    status = db.Column(db.String(32), nullable=False, default="Reserved")
+
+    event_request = db.relationship("EventRequest", backref="equipment_reservations")
+
+    def __repr__(self):
+        return f"<Reservation {self.id} type {self.equipment_type_id} {self.status}>"
 
 
 class Notification(db.Model):

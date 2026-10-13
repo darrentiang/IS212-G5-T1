@@ -1,4 +1,12 @@
 import { defineConfig, devices } from '@playwright/test'
+import { CLOCK_FILE } from './tests/helpers/clock.js'
+
+// Before the backend starts, any clock override left behind by a crashed run
+// is deleted: a stale pinned file must never freeze time for the other specs
+// in this run (SCRUM-49 plan §5). The backend then seeds the baseline and
+// appends SCRUM-49's fixture rows (types, events, reservations) via
+// seed.py --extra — normal demo data stays in seed/data.json alone.
+const clearStaleClock = `python -c "import os,sys;p=sys.argv[1];os.path.exists(p) and os.remove(p)" "${CLOCK_FILE.replace(/\\/g, '/')}" &&`
 
 export default defineConfig({
   testDir: './tests',
@@ -22,8 +30,12 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: 'python ../backend/seed.py --reset && python ../backend/app.py',
+      command: `${clearStaleClock} python ../backend/seed.py --reset && python ../backend/seed.py --extra fixtures/scrum49.json && python ../backend/app.py`,
       port: 5000,
+      // Cross-platform way to hand the backend the override path; the file
+      // itself is only ever written by SCRUM-49.spec.js (and cleared in
+      // its beforeEach/afterEach).
+      env: { ...process.env, CONNECTSPHERE_CLOCK_FILE: CLOCK_FILE },
       reuseExistingServer: !process.env.CI,
       timeout: 15_000,
     },

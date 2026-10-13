@@ -1,0 +1,144 @@
+{
+  "equipment_types": [
+    { "name": "SCRUM-49 TC01 Projector", "total_units": 5 },
+    { "name": "SCRUM-49 TC02 Projector", "total_units": 5 },
+    { "name": "SCRUM-49 TC03 Projector", "total_units": 5 },
+    { "name": "SCRUM-49 TC04 Projector", "total_units": 5 },
+    { "name": "SCRUM-49 TC05 Projector", "total_units": 5 },
+    { "name": "SCRUM-49 TC06 Projector", "total_units": 5 },
+    { "name": "SCRUM-49 TC07 Projector", "total_units": 10 },
+    { "name": "SCRUM-49 TC08 Projector", "total_units": 10 },
+    { "name": "SCRUM-49 TC09 Projector", "total_units": 10 },
+    { "name": "SCRUM-49 TC10 Projector", "total_units": 10 },
+    { "name": "SCRUM-49 TC11 Projector", "total_units": 10 },
+    { "name": "SCRUM-49 TC12 Projector", "total_units": 5 }
+  ],
+  "event_requests": [
+    {
+      "name": "SCRUM-49 TC07 Session A",
+      "created_by": "org1",
+      "status": "Approved",
+      "date": "2026-12-15",
+      "start_time": "10:00",
+      "end_time": "12:00",
+      "attendance": 30,
+      "purpose": "SCRUM-49 fixture",
+      "description": "Reservation fixture for TC-SCRUM-49-07"
+    },
+    {
+      "name": "SCRUM-49 TC07 Session B",
+      "created_by": "org1",
+      "status": "Approved",
+      "date": "2026-12-15",
+      "start_time": "11:30",
+      "end_time": "12:30",
+      "attendance": 30,
+      "purpose": "SCRUM-49 fixture",
+      "description": "Reservation fixture for TC-SCRUM-49-07"
+    },
+    {
+      "name": "SCRUM-49 TC08 Session A",
+      "created_by": "org1",
+      "status": "Approved",
+      "date": "2026-12-15",
+      "start_time": "10:00",
+      "end_time": "12:00",
+      "attendance": 30,
+      "purpose": "SCRUM-49 fixture",
+      "description": "Reservation fixture for TC-SCRUM-49-08",
+      "equipment_requirements": "Projector"
+    },
+    {
+      "name": "SCRUM-49 TC08 Session B",
+      "created_by": "org1",
+      "status": "Approved",
+      "date": "2026-12-15",
+      "start_time": "11:30",
+      "end_time": "12:30",
+      "attendance": 30,
+      "purpose": "SCRUM-49 fixture",
+      "description": "Reservation fixture for TC-SCRUM-49-08",
+      "equipment_requirements": "Projector"
+    },
+    {
+      "name": "SCRUM-49 TC09 Session A",
+      "created_by": "org1",
+      "status": "Approved",
+      "date": "2026-12-15",
+      "start_time": "10:00",
+      "end_time": "12:00",
+      "attendance": 30,
+      "purpose": "SCRUM-49 fixture",
+      "description": "Reservation fixture for TC-SCRUM-49-09"
+    },
+    {
+      "name": "SCRUM-49 TC09 Session B",
+      "created_by": "org1",
+      "status": "Approved",
+      "date": "2026-12-15",
+      "start_time": "11:30",
+      "end_time": "12:30",
+      "attendance": 30,
+      "purpose": "SCRUM-49 fixture",
+      "description": "Reservation fixture for TC-SCRUM-49-09"
+    },
+    {
+      "name": "SCRUM-49 TC10 Session A",
+      "created_by": "org1",
+      "status": "Approved",
+      "date": "2026-12-15",
+      "start_time": "12:00",
+      "end_time": "13:00",
+      "attendance": 30,
+      "purpose": "SCRUM-49 fixture",
+      "description": "Reservation fixture for TC-SCRUM-49-10"
+    },
+    {
+      "name": "SCRUM-49 TC10 Session B",
+      "created_by": "org1",
+      "status": "Approved",
+      "date": "2026-12-15",
+      "start_time": "14:00",
+      "end_time": "15:00",
+      "attendance": 30,
+      "purpose": "SCRUM-49 fixture",
+      "description": "Reservation fixture for TC-SCRUM-49-10"
+    },
+    {
+      "name": "SCRUM-49 TC11 Past Session",
+      "created_by": "org1",
+      "status": "Completed",
+      "date": "2026-12-14",
+      "start_time": "10:00",
+      "end_time": "12:00",
+      "attendance": 30,
+      "purpose": "SCRUM-49 fixture",
+      "description": "Past reservation fixture for TC-SCRUM-49-11",
+      "equipment_requirements": "Projector"
+    },
+    {
+      "name": "SCRUM-49 TC11 Released Session",
+      "created_by": "org1",
+      "status": "Approved",
+      "date": "2026-12-16",
+      "start_time": "10:00",
+      "end_time": "12:00",
+      "attendance": 30,
+      "purpose": "SCRUM-49 fixture",
+      "description": "Released reservation fixture for TC-SCRUM-49-11",
+      "equipment_requirements": "Projector"
+    }
+  ],
+  "reservations": [
+    { "equipment_type": "SCRUM-49 TC07 Projector", "event": "SCRUM-49 TC07 Session A", "quantity": 2, "status": "Reserved" },
+    { "equipment_type": "SCRUM-49 TC07 Projector", "event": "SCRUM-49 TC07 Session B", "quantity": 3, "status": "Reserved" },
+    { "equipment_type": "SCRUM-49 TC08 Projector", "event": "SCRUM-49 TC08 Session A", "quantity": 2, "status": "Reserved" },
+    { "equipment_type": "SCRUM-49 TC08 Projector", "event": "SCRUM-49 TC08 Session B", "quantity": 3, "status": "Reserved" },
+    { "equipment_type": "SCRUM-49 TC09 Projector", "event": "SCRUM-49 TC09 Session A", "quantity": 2, "status": "Reserved" },
+    { "equipment_type": "SCRUM-49 TC09 Projector", "event": "SCRUM-49 TC09 Session B", "quantity": 3, "status": "Reserved" },
+    { "equipment_type": "SCRUM-49 TC10 Projector", "event": "SCRUM-49 TC10 Session A", "quantity": 6, "status": "Reserved" },
+    { "equipment_type": "SCRUM-49 TC10 Projector", "event": "SCRUM-49 TC10 Session B", "quantity": 6, "status": "Reserved" },
+    { "equipment_type": "SCRUM-49 TC11 Projector", "event": "SCRUM-49 TC11 Past Session", "quantity": 8, "status": "Reserved" },
+    { "equipment_type": "SCRUM-49 TC11 Projector", "event": "SCRUM-49 TC11 Released Session", "quantity": 6, "status": "Released" }
+  ]
+}

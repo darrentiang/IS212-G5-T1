@@ -26,6 +26,7 @@ Abbreviations in the column headings: **Org** Event Organiser · **Coord** Event
 | Maintain venue records and layouts; block a venue | No | No | No | Yes | No | No | No |
 | Raise or withdraw a venue booking request; cancel an approved booking; place or release a venue hold | No | Assigned only | No | No | No | No | No |
 | Approve or reject a venue booking | No | No | No | Yes | No | No | No |
+| View equipment inventory | No | Yes | No | No | Yes | No | No |
 | Record equipment requirements | No | Assigned only | No | No | View | View, events in Safety Check | No |
 | Maintain equipment inventory; reserve or release; withdraw from service | No | No | No | No | Yes | No | No |
 | View confirmed events open for registration | No | Yes | No | No | No | No | Yes |
@@ -53,7 +54,8 @@ Keys used in `backend/permissions.py` and on API routes / `features` from `/api/
 | safety.decide | No | No | No | No | No | Yes | No |
 | venues.view | No | Yes | Yes | Yes | No | Yes | No |
 | venues.edit | No | No | No | Yes | No | No | No |
-| equipment.view | No | No | No | No | Yes | No | No |
+| equipment.view | No | Yes | No | No | Yes | No | No |
+| equipment.edit | No | No | No | No | Yes | No | No |
 | registration.view | No | Yes | No | No | No | No | Yes |
 | internal_notes.view | No | Yes | Yes | No | No | No | No |
 | notifications.view | Yes | Yes | Yes | Yes | Yes | Yes | Yes |

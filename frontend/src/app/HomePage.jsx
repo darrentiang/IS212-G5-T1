@@ -1,8 +1,9 @@
 import { useAuth } from './auth'
 
-// Home for an account that may open no page yet (today: Technical Support
-// Staff). It sits inside the layout, so the account still sees who it is
-// logged in as and can log out (docs/design/ui-guidelines.md §1).
+// Home for an account that may open no page yet (none of the seeded roles
+// since SCRUM-49 gave Technical Support Staff the Equipment page). It sits
+// inside the layout, so the account still sees who it is logged in as and
+// can log out (docs/design/ui-guidelines.md §1).
 export default function HomePage() {
   const { account } = useAuth()
 
