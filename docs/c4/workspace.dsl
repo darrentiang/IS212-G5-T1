@@ -8,6 +8,7 @@ workspace "ConnectSphere" "Event Planning and Venue Booking System — release 1
         coordinator = person "Event Coordinator" "Internal liaison who reviews, approves and plans events." "Internal"
         venueStaff = person "Venue Staff" "Internal staff who maintain venues and decide venue booking requests." "Internal"
         techStaff = person "Technical Support Staff" "Internal staff who maintain equipment and reservations." "Internal"
+        safetyOfficer = person "Safety Officer" "Internal staff who review the operational safety of an event in Safety Check and approve or reject it." "Internal"
 
         // --- Software system in scope ---
         connectSphere = softwareSystem "ConnectSphere Platform" "Single system for planning events from request to confirmation: requests, approval, venues, equipment, registration, in-app notifications." {
@@ -27,6 +28,7 @@ workspace "ConnectSphere" "Event Planning and Venue Booking System — release 1
         coordinator -> webApp "Reviews requests and plans events using" "HTTPS"
         venueStaff -> webApp "Maintains venues and decides bookings using" "HTTPS"
         techStaff -> webApp "Maintains equipment and reservations using" "HTTPS"
+        safetyOfficer -> webApp "Reviews and decides safety checks using" "HTTPS"
 
         webApp -> apiApp "Makes API calls to (session cookie)" "JSON / HTTPS"
         apiApp -> database "Reads from and writes to" "SQL"

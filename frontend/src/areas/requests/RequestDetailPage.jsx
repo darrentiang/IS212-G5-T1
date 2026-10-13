@@ -2,12 +2,15 @@ import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import { useAuth } from '../../app/auth'
 import { STATUS, formatDate, formatDateTime, formatTime, statusBadgeClass } from '../../app/format'
+import SafetyCheckSection from './SafetyCheckSection'
 import {
   approveRequest,
+  approveSafetyCheck,
   deleteDraft,
   getRequest,
   getRequestOptions,
   rejectRequest,
+  rejectSafetyCheck,
   resubmitRequest,
   submitDraft,
   updateDraft,
@@ -33,6 +36,10 @@ import {
 // venues free for the event; that page belongs to the venues area.
 // SCRUM-72: the Organiser who created a Rejected request revises it in a form
 // that is already open and resubmits it (state-model.md: 'Rejected -> Submitted').
+// SCRUM-89: a Safety Officer opening an event in Safety Check sees its Approved
+// bookings and equipment, adds a note per area and approves or rejects it; the
+// decision then sends them back to Requests, where the event has left the list.
+// An Event Coordinator sees the decisions made on the event.
 
 // Same order and labels as RequestNewPage's form (ui-guidelines.md §7): FIELDS
 // come before the Venue requirements and Accessibility needs groups,
@@ -210,6 +217,23 @@ const openDecision = (action) => {
   }
 
   const canDecide = Boolean(can?.('requests.decide')) && row?.status === STATUS.REQUEST.SUBMITTED
+
+  // SCRUM-89: the Safety Officer's decision, then back to the list with the outcome.
+  const handleSafetyDecision = async (send, banner) => {
+    setSubmitting(true)
+    try {
+      await send()
+      navigate('/requests', { state: { banner: `${row.name}: ${banner}` } })
+    } catch (error) {
+      setBanner(error.message)
+      setSuccessBanner(null)
+      setSubmitting(false)
+    }
+  }
+  const handleSafetyApprove = (notes) =>
+    handleSafetyDecision(() => approveSafetyCheck(id, notes), 'approved, now Confirmed')
+  const handleSafetyReject = (reasonText, notes) =>
+    handleSafetyDecision(() => rejectSafetyCheck(id, reasonText, notes), 'rejected, back in Planning')
   const canRaiseBooking =
     Boolean(can?.('bookings.edit')) &&
     [STATUS.REQUEST.APPROVED, STATUS.REQUEST.PLANNING].includes(row?.status)
@@ -604,6 +628,18 @@ const openDecision = (action) => {
             </div>
           )}
         </div>
+      )}
+
+      {/* SCRUM-89: review an event in Safety Check, and decide it. */}
+      {!loading && row && (row.safety_check || row.safety_decisions?.length > 0) && (
+        <SafetyCheckSection
+          decisions={row.safety_decisions}
+          safetyCheck={row.safety_check}
+          canDecide={Boolean(can?.('safety.decide')) && row.status === STATUS.REQUEST.SAFETY_CHECK}
+          submitting={submitting}
+          onApprove={handleSafetyApprove}
+          onReject={handleSafetyReject}
+        />
       )}
 
       {/* SCRUM-30: edit any field of an own Draft, including the name. */}

@@ -4,6 +4,7 @@
     "Event Coordinator",
     "Venue Staff",
     "Technical Support Staff",
+    "Safety Officer",
     "Attendee"
   ],
   "accounts": [
@@ -53,6 +54,14 @@
       "organisation": null,
       "roles": [
         "Technical Support Staff"
+      ]
+    },
+    {
+      "username": "safety1",
+      "password": "Passw0rd!",
+      "organisation": null,
+      "roles": [
+        "Safety Officer"
       ]
     },
     {
@@ -196,6 +205,192 @@
       "submitted_at": "2026-08-22T10:00:00+00:00",
       "assigned_coordinator": "multi1",
       "assigned_at": "2026-08-23T09:00:00+00:00"
+    },
+    {
+      "name": "Harbour Gala",
+      "purpose": "Client gala dinner",
+      "status": "Safety Check",
+      "created_by": "org1",
+      "registration_enabled": false,
+      "coordinator_notes": null,
+      "description": "Seated gala dinner by the harbour",
+      "date": "2027-06-10",
+      "start_time": "18:00",
+      "end_time": "22:00",
+      "attendance": 150,
+      "equipment_requirements": "None needed",
+      "registration_needs": "No registration",
+      "submitted_at": "2026-09-20T09:00:00+00:00",
+      "assigned_coordinator": "coord1",
+      "assigned_at": "2026-09-21T09:00:00+00:00",
+      "safety_check_at": "2026-10-08T09:00:00+00:00",
+      "layout": "Banquet",
+      "accessibility_features": [
+        "Step-free access",
+        "Hearing loop"
+      ]
+    },
+    {
+      "name": "Night Market",
+      "purpose": "Evening food market",
+      "status": "Safety Check",
+      "created_by": "org1",
+      "registration_enabled": false,
+      "coordinator_notes": null,
+      "description": "Stalls and food in one hall",
+      "date": "2027-07-01",
+      "start_time": "16:00",
+      "end_time": "22:00",
+      "attendance": 50,
+      "equipment_requirements": "None needed",
+      "registration_needs": "No registration",
+      "submitted_at": "2026-09-20T09:00:00+00:00",
+      "assigned_coordinator": "coord2",
+      "assigned_at": "2026-09-21T09:00:00+00:00",
+      "safety_check_at": "2026-10-09T09:00:00+00:00",
+      "layout": "Exhibition",
+      "accessibility_features": [
+        "Step-free access"
+      ]
+    },
+    {
+      "name": "Tech Summit",
+      "purpose": "Client technology summit",
+      "status": "Safety Check",
+      "created_by": "org2",
+      "registration_enabled": false,
+      "coordinator_notes": null,
+      "description": "One-day summit with keynote sessions",
+      "date": "2027-06-17",
+      "start_time": "09:00",
+      "end_time": "17:00",
+      "attendance": 300,
+      "equipment_requirements": "None needed",
+      "registration_needs": "No registration",
+      "submitted_at": "2026-09-20T09:00:00+00:00",
+      "assigned_coordinator": "coord1",
+      "assigned_at": "2026-09-21T09:00:00+00:00",
+      "safety_check_at": "2026-10-10T09:00:00+00:00",
+      "layout": "Theatre",
+      "accessibility_features": [
+        "Hearing loop"
+      ]
+    },
+    {
+      "name": "Lantern Fair",
+      "purpose": "Community lantern fair",
+      "status": "Safety Check",
+      "created_by": "org1",
+      "registration_enabled": false,
+      "coordinator_notes": null,
+      "description": "Evening fair, sent again after a rejection",
+      "date": "2027-06-24",
+      "start_time": "17:00",
+      "end_time": "21:00",
+      "attendance": 80,
+      "equipment_requirements": "None needed",
+      "registration_needs": "No registration",
+      "submitted_at": "2026-09-20T09:00:00+00:00",
+      "assigned_coordinator": "coord1",
+      "assigned_at": "2026-09-21T09:00:00+00:00",
+      "safety_check_at": "2026-10-11T09:00:00+00:00",
+      "layout": "Exhibition",
+      "accessibility_features": [
+        "Step-free access"
+      ]
+    },
+    {
+      "name": "Book Fair",
+      "purpose": "Community book fair",
+      "status": "Safety Check",
+      "created_by": "org1",
+      "registration_enabled": false,
+      "coordinator_notes": null,
+      "description": "Daytime fair in a seminar room",
+      "date": "2027-07-08",
+      "start_time": "10:00",
+      "end_time": "16:00",
+      "attendance": 60,
+      "equipment_requirements": "None needed",
+      "registration_needs": "No registration",
+      "submitted_at": "2026-09-20T09:00:00+00:00",
+      "assigned_coordinator": "coord1",
+      "assigned_at": "2026-09-21T09:00:00+00:00",
+      "safety_check_at": "2026-10-11T10:00:00+00:00",
+      "layout": "Exhibition",
+      "accessibility_features": [
+        "Step-free access"
+      ]
+    },
+    {
+      "name": "Garden Concert",
+      "purpose": "Evening garden concert",
+      "status": "Safety Check",
+      "created_by": "org2",
+      "registration_enabled": false,
+      "coordinator_notes": null,
+      "description": "Open-air concert",
+      "date": "2027-07-15",
+      "start_time": "18:00",
+      "end_time": "21:00",
+      "attendance": 200,
+      "equipment_requirements": "None needed",
+      "registration_needs": "No registration",
+      "submitted_at": "2026-09-20T09:00:00+00:00",
+      "assigned_coordinator": "coord1",
+      "assigned_at": "2026-09-21T09:00:00+00:00",
+      "safety_check_at": "2026-10-11T11:00:00+00:00",
+      "layout": "Theatre",
+      "accessibility_features": [
+        "Hearing loop"
+      ]
+    },
+    {
+      "name": "Robotics Expo",
+      "purpose": "School robotics expo",
+      "status": "Safety Check",
+      "created_by": "org1",
+      "registration_enabled": false,
+      "coordinator_notes": null,
+      "description": "Student demonstrations",
+      "date": "2027-07-22",
+      "start_time": "09:00",
+      "end_time": "15:00",
+      "attendance": 120,
+      "equipment_requirements": "None needed",
+      "registration_needs": "No registration",
+      "submitted_at": "2026-09-20T09:00:00+00:00",
+      "assigned_coordinator": "coord1",
+      "assigned_at": "2026-09-21T09:00:00+00:00",
+      "safety_check_at": "2026-10-11T12:00:00+00:00",
+      "layout": "Exhibition",
+      "accessibility_features": [
+        "Step-free access",
+        "Hearing loop"
+      ]
+    },
+    {
+      "name": "Film Night",
+      "purpose": "Short film screening",
+      "status": "Safety Check",
+      "created_by": "org1",
+      "registration_enabled": false,
+      "coordinator_notes": null,
+      "description": "Screening with a Q and A",
+      "date": "2027-07-29",
+      "start_time": "19:00",
+      "end_time": "22:00",
+      "attendance": 90,
+      "equipment_requirements": "None needed",
+      "registration_needs": "No registration",
+      "submitted_at": "2026-09-20T09:00:00+00:00",
+      "assigned_coordinator": "coord2",
+      "assigned_at": "2026-09-21T09:00:00+00:00",
+      "safety_check_at": "2026-10-11T13:00:00+00:00",
+      "layout": "Theatre",
+      "accessibility_features": [
+        "Reserved seating"
+      ]
     }
   ],
   "facilities": [
@@ -323,6 +518,100 @@
       "message": "A venue booking you manage was approved.",
       "created_at": "2026-10-09T11:00:00+00:00",
       "read_at": null
+    }
+  ],
+  "venue_bookings": [
+    {
+      "event": "Harbour Gala",
+      "venue": "Auditorium",
+      "status": "Approved",
+      "raised_by": "coord1",
+      "raised_at": "2026-09-25T09:00:00+00:00",
+      "decided_by": "venue1",
+      "decided_at": "2026-09-26T09:00:00+00:00"
+    },
+    {
+      "event": "Tech Summit",
+      "venue": "Auditorium",
+      "status": "Approved",
+      "raised_by": "coord1",
+      "raised_at": "2026-09-25T09:00:00+00:00",
+      "decided_by": "venue1",
+      "decided_at": "2026-09-26T09:00:00+00:00"
+    },
+    {
+      "event": "Lantern Fair",
+      "venue": "Seminar Room 1",
+      "status": "Approved",
+      "raised_by": "coord1",
+      "raised_at": "2026-09-25T09:00:00+00:00",
+      "decided_by": "venue1",
+      "decided_at": "2026-09-26T09:00:00+00:00"
+    },
+    {
+      "event": "Night Market",
+      "venue": "Seminar Room 1",
+      "status": "Approved",
+      "raised_by": "coord2",
+      "raised_at": "2026-09-25T09:00:00+00:00",
+      "decided_by": "venue1",
+      "decided_at": "2026-09-26T09:00:00+00:00"
+    },
+    {
+      "event": "Night Market",
+      "venue": "Auditorium",
+      "status": "Rejected",
+      "raised_by": "coord2",
+      "raised_at": "2026-09-25T09:00:00+00:00",
+      "decided_by": "venue1",
+      "decided_at": "2026-09-26T09:00:00+00:00",
+      "decision_reason": "Auditorium is held for another event."
+    },
+    {
+      "event": "Book Fair",
+      "venue": "Seminar Room 1",
+      "status": "Approved",
+      "raised_by": "coord1",
+      "raised_at": "2026-09-25T09:00:00+00:00",
+      "decided_by": "venue1",
+      "decided_at": "2026-09-26T09:00:00+00:00"
+    },
+    {
+      "event": "Garden Concert",
+      "venue": "Auditorium",
+      "status": "Approved",
+      "raised_by": "coord1",
+      "raised_at": "2026-09-25T09:00:00+00:00",
+      "decided_by": "venue1",
+      "decided_at": "2026-09-26T09:00:00+00:00"
+    },
+    {
+      "event": "Robotics Expo",
+      "venue": "Auditorium",
+      "status": "Approved",
+      "raised_by": "coord1",
+      "raised_at": "2026-09-25T09:00:00+00:00",
+      "decided_by": "venue1",
+      "decided_at": "2026-09-26T09:00:00+00:00"
+    },
+    {
+      "event": "Film Night",
+      "venue": "Auditorium",
+      "status": "Approved",
+      "raised_by": "coord2",
+      "raised_at": "2026-09-25T09:00:00+00:00",
+      "decided_by": "venue1",
+      "decided_at": "2026-09-26T09:00:00+00:00"
+    }
+  ],
+  "safety_decisions": [
+    {
+      "event": "Lantern Fair",
+      "decision": "Rejected",
+      "reason": "Exits not marked",
+      "notes": {},
+      "decided_by": "safety1",
+      "decided_at": "2026-10-05T10:00:00+00:00"
     }
   ]
 }
