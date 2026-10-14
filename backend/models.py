@@ -165,10 +165,10 @@ class EventRequest(db.Model):
     assigned_coordinator_id = db.Column(db.Integer, db.ForeignKey("accounts.id"), nullable=True)
     assigned_at = db.Column(db.DateTime, nullable=True)
 
-    # SCRUM-89: when the event was sent for its safety check (UTC). Written by
-    # SCRUM-53 when it moves an event to Safety Check; SCRUM-89 orders its list
-    # by it, so the event that has been there longest comes first. Until
-    # SCRUM-53 is merged only the seed data sets it.
+    # SCRUM-89: when the event was sent for its safety check (UTC). SCRUM-53
+    # writes it when it moves an event to Safety Check; SCRUM-89 orders its list
+    # by it, so the event that has been there longest comes first. The seed
+    # data also sets it, for events that stand in Safety Check.
     safety_check_at = db.Column(db.DateTime, nullable=True)
 
     # SCRUM-42: one required layout or none; any number of facilities and

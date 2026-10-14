@@ -609,16 +609,6 @@ def test_safety_officer_cannot_edit_the_event_or_its_arrangements(client, app):
     assert booking.status == "Approved"
 
 
-# ---- stubs: replaced when SCRUM-53 lands --------------------------------------
-
-
-# @story: SCRUM-89
-# @ac: 2
-@pytest.mark.skip(reason="PENDING SCRUM-53: sending an event for safety check records safety_check_at")
-def test_an_event_sent_for_safety_check_appears_in_the_list_with_its_sent_time(client, app):
-    raise AssertionError("send an event with SCRUM-53 and prove the list shows it, longest first")
-
-
 # @story: SCRUM-89
 # @ac: 5
 def test_a_decision_names_its_event_and_outcome(app):

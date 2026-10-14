@@ -97,6 +97,14 @@ export const getRequestOptions = () => request('GET', '/api/request-options')
 // 403:     { message }   any other status; the same 403 as for every record the account may not open
 // GET /api/requests lists the events in Safety Check for that account, longest there first.
 
+// POST /api/requests/:id/send-for-safety-check   (SCRUM-53)
+// 200:     the event, now Safety Check, with safety_check_at (ISO UTC) set
+// 400:     { message }   the event is not ready: the message lists each outstanding
+//          arrangement after "Outstanding:", separated by semicolons
+// 403/404/409: { message }   403 an account without safety.send; 404 an event that is not
+//          this account's (not assigned to it, or unknown); 409 the event is not in Planning
+export const sendForSafetyCheck = (id) => request('POST', `/api/requests/${id}/send-for-safety-check`)
+
 // POST /api/requests/:id/safety/approve   (SCRUM-89)
 // body:    { notes }   optional; { area: text }, a blank note is not kept
 // 200:     the event, now Confirmed

@@ -35,6 +35,7 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | 1.26 | 12-10-2026 | §7 equipment inventory: all stock-edit controls are disabled during a save and its refresh; an initial read failure also offers Reload; an open editor is hidden if editing permission is removed; replies from discarded initial loads are ignored | SCRUM-49 review: prevent switching editors during a pending write and allow recovery from a failed initial read (was 1.25 on the branch; renumbered after SCRUM-58's 1.24 merged first) |
 | 1.27 | 13-10-2026 | §7 the request page's Safety check section (a Safety Officer's review of an event in Safety Check, with its note-per-area form and Approve and Reject buttons) and Safety decisions section, and their test ids; §12 Safety Check badge colour | SCRUM-89 lets the Safety Officer review, note and decide an event in Safety Check from the request page; the decision returns them to Requests |
 | 1.28 | 14-10-2026 | §7 the Decide form's Changes needed in checkboxes and Request changes button; the Changes requested card for an Event Coordinator; a decision's Areas line | SCRUM-90 lets the Safety Officer send an event back with the areas to change, and the coordinator reads them on the event |
+| 1.29 | 14-10-2026 | §7 the request page's Send for safety check button and Sent for safety check line, and how a refusal lists what is outstanding | SCRUM-53 lets the assigned Event Coordinator send a Planning event for safety check |
 
 ## 1. Pages
 
@@ -174,6 +175,13 @@ While the page is waiting for the API it renders the title row and nothing below
 | Request changes button (SCRUM-90) | `request-detail-safety-request-changes-button` |
 | One decision's areas (SCRUM-90) | `request-detail-safety-decision-<id>-areas` |
 | Changes requested section (an Event Coordinator, while the event is in Planning; SCRUM-90), its areas, reason, one area's note and who and when | `request-detail-requested-changes`, `-areas`, `-reason`, `-note-<area>`, `-by` |
+
+**Send for safety check (SCRUM-53).** An event in Planning shows its assigned Event Coordinator, and only them, one primary Send for safety check button in the action row. It acts at once (no inline form). On success the banner says `Sent for safety check`, the status shows Safety Check and the page gains a Sent for safety check line with the date and time it was sent (§9), which stays while the event is in Safety Check or Confirmed. A refusal shows its reason in the page's banner and the page is read again, so a send made from another tab is shown as it now stands; when the event is not ready the banner lists each outstanding arrangement after `Outstanding:`, separated by semicolons.
+
+| Element | `data-testid` |
+|---|---|
+| Send for safety check button (assigned coordinator, Planning only) | `request-detail-send-safety-button` |
+| Sent for safety check date and time (Safety Check or Confirmed) | `request-detail-safety-check-at` |
 
 **A list of related records on a detail page** (a venue's blocks) is a section under the fields with an `h2` and a table per §6. Its ids carry the record's name in place of the page's own list ids, so they cannot clash with the page's fields: `<page>-<record>-row-<id>`, one cell `<page>-<record>-<field>-<id>`, and `<page>-<records>-empty` when there are none. A per-row action's confirm/reason form opens as its own row directly below the one it acts on (a `<td colspan>` spanning the table), never below the whole table: in a long list, a form that opens far from its row is a form the user cannot find.
 
