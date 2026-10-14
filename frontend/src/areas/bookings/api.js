@@ -25,9 +25,11 @@ export const raiseBooking = (requestId, venueId) =>
 //          | { type: 'end_time', end_time, opening_time, closing_time }
 //          | { type: 'layout' | 'facility' | 'accessibility_feature', name }
 //          | { type: 'approved_booking', id, event_request_name, date, start_time, end_time }
+//          | { type: 'hold', id, event_request_name, date, start_time, end_time }
 //          | { type: 'block', id, start, end, reason } ]
-//          one per mismatch, then one per approved booking and per block
-//          overlapping the event's period (SCRUM-38 AC7); [] when the venue
+//          one per mismatch, then one per approved booking, per other event's
+//          Held hold (SCRUM-84) and per block overlapping the event's
+//          occupied period (SCRUM-38 AC7); [] when the venue
 //          fits; nothing is stored
 // 401/403/404: { message }
 export const checkVenue = (requestId, venueId) =>

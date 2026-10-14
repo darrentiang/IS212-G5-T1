@@ -9,8 +9,20 @@ the seeded accounts it logs in as.
 Every helper runs inside the pytest ``app`` fixture's app context.
 """
 
+from datetime import datetime, timezone
+
 from db import db
-from models import AccessibilityFeature, Account, EventRequest, Facility, RoomLayout
+from models import (
+    AccessibilityFeature,
+    Account,
+    EventRequest,
+    Facility,
+    RoomLayout,
+    Venue,
+    VenueBlock,
+    VenueBookingRequest,
+    VenueHold,
+)
 
 
 def account(username):
@@ -56,3 +68,66 @@ def make_event(
 
 def _named(model, name):
     return db.session.query(model).filter_by(name=name).one()
+
+
+def make_venue(*, name, max_capacity=60, setup_time=0, turnaround_time=0, location="Test Block", **fields):
+    """Store one active venue and return the row. Any other Venue column goes in fields."""
+    venue = Venue(
+        name=name,
+        location=location,
+        max_capacity=max_capacity,
+        setup_time=setup_time,
+        turnaround_time=turnaround_time,
+        **fields,
+    )
+    db.session.add(venue)
+    db.session.commit()
+    return venue
+
+
+def make_booking(*, event, venue, status, raised_by="coord1"):
+    """Store one booking request of the venue for the event, its period copied from the event."""
+    booking = VenueBookingRequest(
+        venue=venue,
+        event_request=event,
+        status=status,
+        date=event.date,
+        start_time=event.start_time,
+        end_time=event.end_time,
+        attendance=event.attendance,
+        raised_by=account(raised_by),
+        raised_at=datetime.now(timezone.utc),
+    )
+    db.session.add(booking)
+    db.session.commit()
+    return booking
+
+
+def make_block(*, venue, starts_at, ends_at, reason="Maintenance"):
+    """Store one block of the venue; starts_at and ends_at are ISO local date-times."""
+    block = VenueBlock(
+        venue=venue,
+        starts_at=datetime.fromisoformat(starts_at),
+        ends_at=datetime.fromisoformat(ends_at),
+        reason=reason,
+        created_by=account("venue1"),
+        created_at=datetime.now(timezone.utc),
+    )
+    db.session.add(block)
+    db.session.commit()
+    return block
+
+
+def make_hold(*, event, venue, expires_at, status="Held", placed_by="coord1"):
+    """Store one venue hold (SCRUM-84); expires_at is an ISO local date-time."""
+    hold = VenueHold(
+        venue=venue,
+        event_request=event,
+        status=status,
+        expires_at=datetime.fromisoformat(expires_at),
+        placed_by=account(placed_by),
+        placed_at=datetime.now(timezone.utc),
+    )
+    db.session.add(hold)
+    db.session.commit()
+    return hold

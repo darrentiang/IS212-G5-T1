@@ -3,7 +3,7 @@
 of a Venue), SCRUM-41 (Reserve Setup and Turnaround Time Around a Booking),
 SCRUM-42 (Warn When a Requested Venue Appears Unsuitable), SCRUM-77
 (Withdraw a Venue Booking Request) and SCRUM-78 (Suggest an Alternative When
-Rejecting a Venue Booking).
+Rejecting a Venue Booking) and SCRUM-84 (Place a Tentative Venue Hold).
 
 Every rule the acceptance criteria state lives here, next to the query, and
 refuses by raising ApiRefusal; the route never decides (ADR-002).
@@ -19,14 +19,22 @@ place, occupancy.py, shared with venue search; rejecting is never checked.
 SCRUM-41 widens that occupied period by the venue's setup and turnaround time
 on both sides of every comparison, and lists the Approved bookings of a venue
 whose occupied periods clash (AC5) without changing any of them.
+
+SCRUM-84 adds a venue hold: the event's assigned Event Coordinator holds a
+venue for the event's occupied period until an expiry. A Held hold of another
+event holds the venue in occupancy.py exactly as an Approved booking does, so
+search, approval and the warnings see it with no check of their own; approving
+the event's own booking request for the venue releases its hold.
 """
 
 from datetime import datetime, timezone
 
+import clock
 import occupancy
+from areas.requests.services import start_planning_if_approved
 from db import db
 from errors import ApiRefusal
-from models import EventRequest, Venue, VenueBookingRequest
+from models import EventRequest, Venue, VenueBookingRequest, VenueHold
 
 # AC2: only these event statuses may receive a booking request.
 RAISABLE_STATUSES = ("Approved", "Planning")
@@ -281,15 +289,26 @@ def _block_text(block):
     return f"blocked {start} to {end} ({block.reason})"
 
 
-def _refuse_if_venue_held(booking):
+def _hold_text(hold):
+    """'Hold Seminar, 05 Dec 2026, 10:00–12:00': the event and its published
+    period, the same wording as a booking (SCRUM-84 AC3, AC4)."""
+    event = hold.event_request
+    day = datetime.strptime(event.date, "%Y-%m-%d").strftime(DATE_TEXT_FORMAT)
+    return f"{event.name}, {day}, {event.start_time}–{event.end_time}"
+
+
+def _refuse_if_held(venue, starts_at, ends_at, asking_event):
     """SCRUM-38 AC1-AC3, AC5: refuse 409 while anything holds the venue for an
-    overlapping period, naming every holder: bookings first, then blocks, each
-    earliest first. The booking's occupied period is compared, so SCRUM-41's
-    setup and turnaround time widen both sides together."""
-    holders = occupancy.venue_holders(booking.venue, *occupancy.occupied_period(booking))
-    named = [_booking_text(row) for row in holders.bookings] + [
-        _block_text(row) for row in holders.blocks
-    ]
+    overlapping period, naming every holder: bookings first, then holds
+    (SCRUM-84), then blocks, each earliest first. The caller passes an occupied
+    period, so SCRUM-41's setup and turnaround time widen both sides together,
+    and the asking event, whose own holds never hold the venue against it."""
+    holders = occupancy.venue_holders(venue, starts_at, ends_at, asking_event)
+    named = (
+        [_booking_text(row) for row in holders.bookings]
+        + [_hold_text(row) for row in holders.holds]
+        + [_block_text(row) for row in holders.blocks]
+    )
     if named:
         raise ApiRefusal(409, HELD_MESSAGE.format("; ".join(named)))
 
@@ -300,9 +319,19 @@ def approve_booking(venue_id, booking_id, account, data):
     SCRUM-38: the conflict check runs after the awaiting-a-decision check and
     before anything is written, so a refused approval leaves the booking
     Requested with no decision (AC6).
+
+    SCRUM-84 AC6: another event's Held hold refuses the approval as an
+    Approved booking does, while the event's own hold never does; once
+    approved, the event's Held hold on this venue is Released in the same
+    commit as the decision.
     """
     booking = _get_decidable_booking(venue_id, booking_id)
-    _refuse_if_venue_held(booking)
+    _refuse_if_held(
+        booking.venue, *occupancy.occupied_period(booking), asking_event=booking.event_request
+    )
+    for hold in booking.event_request.venue_holds:
+        if hold.venue_id == booking.venue_id and occupancy.is_holding(hold):
+            _release(hold)
     return _record_decision(booking, account, "Approved", _optional_reason(data))
 
 
@@ -479,6 +508,9 @@ def venue_warnings(event_request, venue):
     block of the venue that overlaps the event's occupied period, each carrying
     what its line names. They are warnings only: raising stays allowed.
 
+    SCRUM-84 AC4: one warning per other event's Held hold, between the
+    bookings and the blocks; the event's own hold gives none (AC6).
+
     SCRUM-41: the holder lookup compares the event's occupied period — its own
     period widened by this venue's setup and turnaround time — while each line
     still shows the holder's own published period or the block's own period,
@@ -522,6 +554,7 @@ def venue_warnings(event_request, venue):
         *occupancy.buffered_period(
             venue, event_request.date, event_request.start_time, event_request.end_time
         ),
+        asking_event=event_request,
     )
     for booking in holders.bookings:
         warnings.append(
@@ -532,6 +565,17 @@ def venue_warnings(event_request, venue):
                 "date": booking.date,
                 "start_time": booking.start_time,
                 "end_time": booking.end_time,
+            }
+        )
+    for hold in holders.holds:
+        warnings.append(
+            {
+                "type": "hold",
+                "id": hold.id,
+                "event_request_name": hold.event_request.name,
+                "date": hold.event_request.date,
+                "start_time": hold.event_request.start_time,
+                "end_time": hold.event_request.end_time,
             }
         )
     for block in holders.blocks:
@@ -546,3 +590,167 @@ def venue_warnings(event_request, venue):
         )
 
     return warnings
+
+
+# --- SCRUM-84: venue holds ---------------------------------------------------
+
+# AC1: only these event statuses may have a venue held.
+HOLDABLE_STATUSES = ("Approved", "Planning")
+
+HELD = occupancy.HOLDING_HOLD_STATUS
+RELEASED = "Released"
+
+EXPIRY_FORMAT = "%Y-%m-%d %H:%M"
+
+
+def _get_assigned_event(account, event_request_id):
+    """The event if the account is its assigned Event Coordinator, else refuse 404.
+
+    A write answers 404 when the record is not the account's (permissions.md),
+    the same rule SCRUM-53 applies to sending for safety check. SCRUM-87 owns
+    the functional rows for this; the rule is enforced here.
+    """
+    event_request = db.session.get(EventRequest, event_request_id)
+    if event_request is None or event_request.assigned_coordinator_id != account.id:
+        raise ApiRefusal(404, "Event request not found.")
+    return event_request
+
+
+def _expiry(data):
+    """The expiry as a naive local date-time, from expiry_date and expiry_time (AC1)."""
+    day = _text(data, "expiry_date")
+    time = _text(data, "expiry_time")
+    if day is None or time is None:
+        raise ApiRefusal(400, "Enter an expiry date and time.")
+    try:
+        return datetime.strptime(f"{day} {time}", EXPIRY_FORMAT)
+    except ValueError:
+        raise ApiRefusal(400, "The expiry must be a valid date and time.")
+
+
+def place_hold(account, event_request_id, data):
+    """Place a hold on one venue for one event (AC1-AC3, AC8).
+
+    Only the event's assigned Event Coordinator, only for an Approved or
+    Planning event (AC1). AC2: the expiry is strictly after now and strictly
+    before the event's published start, the start of the event itself and not
+    of its occupied period (PO decision). AC3: refused while another event's
+    Approved booking or Held hold, or a block, overlaps the period the hold
+    would cover, naming each; touching is not overlapping. An event may hold a
+    venue only once at a time (PO decision at curation, as SCRUM-36 AC9
+    refuses a second request), and a venue the event already has an Approved
+    booking for, or a retired venue, cannot be held (PO decisions, 15-10-2026).
+    Every check runs before anything is written,
+    so a refusal records nothing. AC8: an Approved event moves to Planning in
+    the same commit as the hold.
+    """
+    event_request = _get_assigned_event(account, event_request_id)
+    if event_request.status not in HOLDABLE_STATUSES:
+        raise ApiRefusal(400, "A venue can be held only for an Approved or Planning event.")
+
+    venue_id = data.get("venue_id")
+    if venue_id is None:
+        raise ApiRefusal(400, "Choose a venue.")
+    venue = _get_venue(venue_id)
+    if not venue.is_active:
+        # PO decision, 15-10-2026: the same refusal as SCRUM-36 AC10.
+        raise ApiRefusal(400, "This venue has been retired and cannot be booked.")
+
+    expires_at = _expiry(data)
+    if expires_at <= clock.now_local():
+        raise ApiRefusal(400, "The expiry must be in the future.")
+    if expires_at >= occupancy.moment(event_request.date, event_request.start_time):
+        raise ApiRefusal(400, "The expiry must be before the event's start.")
+
+    for hold in event_request.venue_holds:
+        if hold.venue_id == venue.id and occupancy.is_holding(hold):
+            raise ApiRefusal(400, "This event already holds this venue.")
+    # PO decision, 15-10-2026: the event's own Approved booking is not a
+    # conflict naming the event itself; a hold on a venue it has booked is
+    # refused for what it is.
+    for booking in event_request.booking_requests:
+        if booking.venue_id == venue.id and booking.status == occupancy.HOLDING_BOOKING_STATUS:
+            raise ApiRefusal(400, f"This event already has an approved booking for {venue.name}.")
+
+    _refuse_if_held(
+        venue,
+        *occupancy.buffered_period(
+            venue, event_request.date, event_request.start_time, event_request.end_time
+        ),
+        asking_event=event_request,
+    )
+
+    hold = VenueHold(
+        venue=venue,
+        event_request=event_request,
+        status=HELD,
+        expires_at=expires_at,
+        placed_by=account,
+        placed_at=datetime.now(timezone.utc),
+    )
+    db.session.add(hold)
+    start_planning_if_approved(event_request)
+    db.session.commit()
+    return hold
+
+
+def _release(hold):
+    """Held -> Released, not committed: the caller commits it."""
+    hold.status = RELEASED
+    hold.released_at = datetime.now(timezone.utc)
+
+
+def release_hold(account, event_request_id, hold_id):
+    """Held -> Released, by the event's assigned Event Coordinator (AC7).
+
+    A hold of another event is not found: the address names both, and they
+    must agree. A hold that is no longer Held is refused with its status,
+    nothing changed.
+    """
+    event_request = _get_assigned_event(account, event_request_id)
+    hold = db.session.get(VenueHold, hold_id)
+    if hold is None or hold.event_request_id != event_request.id:
+        raise ApiRefusal(404, "Venue hold not found.")
+    if not occupancy.is_holding(hold):
+        raise ApiRefusal(409, f"This hold is already {hold.status}.")
+    _release(hold)
+    db.session.commit()
+    return hold
+
+
+def list_holds_for_event(event_request_id):
+    """Every hold of one event, oldest first (AC1, AC6, AC7)."""
+    event_request = _get_event_request(event_request_id)
+    return sorted(event_request.venue_holds, key=lambda hold: (hold.placed_at, hold.id))
+
+
+def list_holds_for_venue(venue_id):
+    """Every hold of one venue, oldest first (AC5)."""
+    venue = _get_venue(venue_id)
+    return sorted(venue.holds, key=lambda hold: (hold.placed_at, hold.id))
+
+
+def hold_to_dict(hold):
+    """Public JSON for a hold: its venue and event, the event's published period,
+    the occupied period it covers (derived at every read, never stored), its
+    expiry (naive local, the block wire format) and its status."""
+    occupied_start, occupied_end = occupancy.hold_period(hold)
+    event = hold.event_request
+    return {
+        "id": hold.id,
+        "venue_id": hold.venue_id,
+        "venue_name": hold.venue.name,
+        "event_request_id": hold.event_request_id,
+        "event_request_name": event.name,
+        "status": hold.status,
+        "date": event.date,
+        "start_time": event.start_time,
+        "end_time": event.end_time,
+        # Same wire format as booking_to_dict: always four-digit years.
+        "occupied_start": occupied_start.isoformat(timespec="minutes"),
+        "occupied_end": occupied_end.isoformat(timespec="minutes"),
+        "expires_at": hold.expires_at.isoformat(timespec="minutes"),
+        "placed_by": hold.placed_by.username,
+        "placed_at": hold.placed_at.isoformat(),
+        "released_at": hold.released_at.isoformat() if hold.released_at else None,
+    }

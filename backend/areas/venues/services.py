@@ -434,7 +434,8 @@ def search_venues(event_request_id, location, accessibility_features=(), layout=
     and never sent by the caller. AC2: only venues whose maximum capacity is at
     least that attendance. AC3 and AC5: a venue is left out when the event's
     occupied period overlaps an approved booking's occupied period or a block;
-    periods that only touch at a boundary do not overlap. AC4: a booking that
+    periods that only touch at a boundary do not overlap; SCRUM-84 AC4 leaves
+    out a venue another event's Held hold covers the same way. AC4: a booking that
     is not Approved never leaves a venue out. AC6: a location, when given, must
     match the venue's recorded location exactly; none given means no
     restriction. AC8: nothing matching is an empty list, not a refusal.
@@ -495,6 +496,7 @@ def search_venues(event_request_id, location, accessibility_features=(), layout=
         if _is_free(
             venue,
             *occupancy.buffered_period(venue, event.date, event.start_time, event.end_time),
+            asking_event=event,
         )
         and _records_every(venue.accessibility_features, required_features)
         and _records_every(venue.facilities, required_facilities)
@@ -517,12 +519,13 @@ def _records_every(rows, required_names):
     return required_names <= {row.name for row in rows}
 
 
-def _is_free(venue, starts_at, ends_at):
-    """True when no block and no approved booking of the venue overlaps the
-    occupied period: the one overlap rule, shared with SCRUM-38 (occupancy.py).
-    The caller passes the candidate's occupied period (SCRUM-41)."""
-    holders = occupancy.venue_holders(venue, starts_at, ends_at)
-    return not holders.bookings and not holders.blocks
+def _is_free(venue, starts_at, ends_at, asking_event):
+    """True when no block, no approved booking and no other event's Held hold
+    of the venue overlaps the occupied period: the one overlap rule, shared
+    with SCRUM-38 (occupancy.py). The caller passes the candidate's occupied
+    period (SCRUM-41) and the event searching, whose own holds never leave the
+    venue out (SCRUM-84 AC4, AC6)."""
+    return not occupancy.venue_holders(venue, starts_at, ends_at, asking_event).any()
 
 
 def search_to_dict(event, venues):

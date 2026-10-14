@@ -496,4 +496,4 @@ def test_venue_holders_is_empty_for_a_free_venue(app):
         venue(), occupancy.moment(DATE, "12:00"), occupancy.moment(DATE, "14:00")
     )
 
-    assert holders == occupancy.Holders(bookings=[], blocks=[])
+    assert holders == occupancy.Holders(bookings=[], blocks=[], holds=[])

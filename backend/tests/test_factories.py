@@ -5,8 +5,10 @@ AGENTS.md §4 and docs/test-cases/AUTOMATION.md.
 """
 
 from db import db
-from factories import account, make_event
-from models import EventRequest
+from datetime import datetime
+
+from factories import account, make_block, make_booking, make_event, make_hold, make_venue
+from models import EventRequest, VenueBlock, VenueBookingRequest, VenueHold
 
 
 # @story: setup
@@ -66,3 +68,24 @@ def test_make_event_links_requirements_by_name_and_passes_other_fields(app):
     assert sorted(f.name for f in stored.facilities) == ["Projector", "Wi-Fi"]
     assert [f.name for f in stored.accessibility_features] == ["Hearing loop"]
     assert stored.purpose == "Client showcase"
+
+
+# @story: setup
+# @ac: test-speed
+def test_venue_booking_block_and_hold_helpers_store_the_given_values(app):
+    venue = make_venue(name="Factory Room", setup_time=15, turnaround_time=20)
+    event = make_event(
+        name="Factory Event", status="Planning", date="2026-12-05", start_time="10:00", end_time="12:00"
+    )
+    booking = make_booking(event=event, venue=venue, status="Approved")
+    block = make_block(venue=venue, starts_at="2026-12-06T08:00", ends_at="2026-12-06T09:00")
+    hold = make_hold(event=event, venue=venue, expires_at="2026-12-04T17:00")
+
+    db.session.expire_all()
+    assert (venue.setup_time, venue.turnaround_time, venue.is_active) == (15, 20, True)
+    stored_booking = db.session.get(VenueBookingRequest, booking.id)
+    assert (stored_booking.status, stored_booking.date, stored_booking.start_time) == ("Approved", "2026-12-05", "10:00")
+    assert db.session.get(VenueBlock, block.id).ends_at == datetime(2026, 12, 6, 9, 0)
+    stored_hold = db.session.get(VenueHold, hold.id)
+    assert (stored_hold.status, stored_hold.expires_at) == ("Held", datetime(2026, 12, 4, 17, 0))
+    assert stored_hold.placed_by.username == "coord1"
