@@ -11,6 +11,7 @@ import {
   getRequestOptions,
   rejectRequest,
   rejectSafetyCheck,
+  requestSafetyChanges,
   resubmitRequest,
   submitDraft,
   updateDraft,
@@ -40,6 +41,9 @@ import {
 // bookings and equipment, adds a note per area and approves or rejects it; the
 // decision then sends them back to Requests, where the event has left the list.
 // An Event Coordinator sees the decisions made on the event.
+// SCRUM-90: the Safety Officer may instead request changes (a reason and the
+// areas to change); the coordinator then sees them while the event is in
+// Planning, until it is sent for safety check again.
 
 // Same order and labels as RequestNewPage's form (ui-guidelines.md §7): FIELDS
 // come before the Venue requirements and Accessibility needs groups,
@@ -234,6 +238,11 @@ const openDecision = (action) => {
     handleSafetyDecision(() => approveSafetyCheck(id, notes), 'approved, now Confirmed')
   const handleSafetyReject = (reasonText, notes) =>
     handleSafetyDecision(() => rejectSafetyCheck(id, reasonText, notes), 'rejected, back in Planning')
+  const handleSafetyRequestChanges = (reasonText, areas, notes) =>
+    handleSafetyDecision(
+      () => requestSafetyChanges(id, reasonText, areas, notes),
+      'changes requested, back in Planning',
+    )
   const canRaiseBooking =
     Boolean(can?.('bookings.edit')) &&
     [STATUS.REQUEST.APPROVED, STATUS.REQUEST.PLANNING].includes(row?.status)
@@ -631,14 +640,18 @@ const openDecision = (action) => {
       )}
 
       {/* SCRUM-89: review an event in Safety Check, and decide it. */}
-      {!loading && row && (row.safety_check || row.safety_decisions?.length > 0) && (
+      {!loading &&
+        row &&
+        (row.safety_check || row.requested_changes || row.safety_decisions?.length > 0) && (
         <SafetyCheckSection
           decisions={row.safety_decisions}
           safetyCheck={row.safety_check}
+          requestedChanges={row.requested_changes}
           canDecide={Boolean(can?.('safety.decide')) && row.status === STATUS.REQUEST.SAFETY_CHECK}
           submitting={submitting}
           onApprove={handleSafetyApprove}
           onReject={handleSafetyReject}
+          onRequestChanges={handleSafetyRequestChanges}
         />
       )}
 

@@ -9,6 +9,7 @@ accessibility features are chosen from.
 SCRUM-43: approving a request assigns an Event Coordinator (no route of its own).
 SCRUM-72: revise and resubmit a Rejected request.
 SCRUM-89: the Safety Officer approves or rejects an event in Safety Check.
+SCRUM-90: the Safety Officer returns it to Planning with the changes it needs.
 """
 
 from flask import Blueprint, g, jsonify, request as flask_request
@@ -101,6 +102,16 @@ def reject_safety_check(request_id):
     account = g.account
     data = flask_request.get_json(silent=True) or {}
     updated = services.reject_safety_check(account, request_id, data)
+    return jsonify(services.request_detail_dict(updated, account)), 200
+
+
+@bp.post("/requests/<int:request_id>/safety/request-changes")
+@require(SAFETY_DECIDE)
+def request_safety_changes(request_id):
+    """SCRUM-90: Safety Check -> Planning; a reason and at least one area are required."""
+    account = g.account
+    data = flask_request.get_json(silent=True) or {}
+    updated = services.request_safety_changes(account, request_id, data)
     return jsonify(services.request_detail_dict(updated, account)), 200
 
 

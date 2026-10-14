@@ -391,6 +391,145 @@
       "accessibility_features": [
         "Reserved seating"
       ]
+    },
+    {
+      "name": "Chess Open",
+      "purpose": "Open chess tournament",
+      "status": "Safety Check",
+      "created_by": "org1",
+      "registration_enabled": false,
+      "coordinator_notes": null,
+      "description": "Tournament over one day",
+      "date": "2027-08-05",
+      "start_time": "10:00",
+      "end_time": "18:00",
+      "attendance": 90,
+      "equipment_requirements": "None needed",
+      "registration_needs": "No registration",
+      "submitted_at": "2026-09-20T09:00:00+00:00",
+      "assigned_coordinator": "coord1",
+      "assigned_at": "2026-09-21T09:00:00+00:00",
+      "safety_check_at": "2026-10-12T09:00:00+00:00",
+      "layout": "Exhibition",
+      "accessibility_features": [
+        "Step-free access"
+      ]
+    },
+    {
+      "name": "Spring Recital",
+      "purpose": "School spring recital",
+      "status": "Safety Check",
+      "created_by": "org2",
+      "registration_enabled": false,
+      "coordinator_notes": null,
+      "description": "Student recital in a seminar room",
+      "date": "2027-08-12",
+      "start_time": "15:00",
+      "end_time": "17:00",
+      "attendance": 60,
+      "equipment_requirements": "None needed",
+      "registration_needs": "No registration",
+      "submitted_at": "2026-09-20T09:00:00+00:00",
+      "assigned_coordinator": "coord2",
+      "assigned_at": "2026-09-21T09:00:00+00:00",
+      "safety_check_at": "2026-10-12T10:00:00+00:00",
+      "layout": "Theatre",
+      "accessibility_features": [
+        "Hearing loop"
+      ]
+    },
+    {
+      "name": "Dance Night",
+      "purpose": "Community dance night",
+      "status": "Safety Check",
+      "created_by": "org1",
+      "registration_enabled": false,
+      "coordinator_notes": null,
+      "description": "Evening social dance",
+      "date": "2027-08-19",
+      "start_time": "19:00",
+      "end_time": "23:00",
+      "attendance": 180,
+      "equipment_requirements": "None needed",
+      "registration_needs": "No registration",
+      "submitted_at": "2026-09-20T09:00:00+00:00",
+      "assigned_coordinator": "coord1",
+      "assigned_at": "2026-09-21T09:00:00+00:00",
+      "safety_check_at": "2026-10-12T11:00:00+00:00",
+      "layout": "Banquet",
+      "accessibility_features": [
+        "Step-free access",
+        "Reserved seating"
+      ]
+    },
+    {
+      "name": "Maker Faire",
+      "purpose": "Makers and crafts fair",
+      "status": "Safety Check",
+      "created_by": "org1",
+      "registration_enabled": false,
+      "coordinator_notes": null,
+      "description": "Stalls for local makers",
+      "date": "2027-08-26",
+      "start_time": "10:00",
+      "end_time": "17:00",
+      "attendance": 70,
+      "equipment_requirements": "None needed",
+      "registration_needs": "No registration",
+      "submitted_at": "2026-09-20T09:00:00+00:00",
+      "assigned_coordinator": "coord1",
+      "assigned_at": "2026-09-21T09:00:00+00:00",
+      "safety_check_at": "2026-10-12T12:00:00+00:00",
+      "layout": "Exhibition",
+      "accessibility_features": [
+        "Step-free access"
+      ]
+    },
+    {
+      "name": "Jazz Brunch",
+      "purpose": "Sunday jazz brunch",
+      "status": "Safety Check",
+      "created_by": "org2",
+      "registration_enabled": false,
+      "coordinator_notes": null,
+      "description": "Sent again after changes were requested",
+      "date": "2027-09-02",
+      "start_time": "11:00",
+      "end_time": "14:00",
+      "attendance": 110,
+      "equipment_requirements": "None needed",
+      "registration_needs": "No registration",
+      "submitted_at": "2026-09-20T09:00:00+00:00",
+      "assigned_coordinator": "coord1",
+      "assigned_at": "2026-09-21T09:00:00+00:00",
+      "safety_check_at": "2026-10-12T13:00:00+00:00",
+      "layout": "Banquet",
+      "accessibility_features": [
+        "Hearing loop"
+      ]
+    },
+    {
+      "name": "Quiz Night",
+      "purpose": "Staff quiz night",
+      "status": "Safety Check",
+      "created_by": "org1",
+      "registration_enabled": false,
+      "coordinator_notes": null,
+      "description": "Evening quiz in a seminar room",
+      "date": "2027-09-09",
+      "start_time": "18:00",
+      "end_time": "21:00",
+      "attendance": 45,
+      "equipment_requirements": "None needed",
+      "registration_needs": "No registration",
+      "submitted_at": "2026-09-20T09:00:00+00:00",
+      "assigned_coordinator": "coord1",
+      "assigned_at": "2026-09-21T09:00:00+00:00",
+      "safety_check_at": "2026-10-12T14:00:00+00:00",
+      "layout": "Classroom",
+      "accessibility_features": [
+        "Step-free access"
+      ]
     }
   ],
   "facilities": [
@@ -602,6 +741,60 @@
       "raised_at": "2026-09-25T09:00:00+00:00",
       "decided_by": "venue1",
       "decided_at": "2026-09-26T09:00:00+00:00"
+    },
+    {
+      "event": "Chess Open",
+      "venue": "Auditorium",
+      "status": "Approved",
+      "raised_by": "coord1",
+      "raised_at": "2026-09-25T09:00:00+00:00",
+      "decided_by": "venue1",
+      "decided_at": "2026-09-26T09:00:00+00:00"
+    },
+    {
+      "event": "Spring Recital",
+      "venue": "Seminar Room 1",
+      "status": "Approved",
+      "raised_by": "coord2",
+      "raised_at": "2026-09-25T09:00:00+00:00",
+      "decided_by": "venue1",
+      "decided_at": "2026-09-26T09:00:00+00:00"
+    },
+    {
+      "event": "Dance Night",
+      "venue": "Auditorium",
+      "status": "Approved",
+      "raised_by": "coord1",
+      "raised_at": "2026-09-25T09:00:00+00:00",
+      "decided_by": "venue1",
+      "decided_at": "2026-09-26T09:00:00+00:00"
+    },
+    {
+      "event": "Maker Faire",
+      "venue": "Seminar Room 1",
+      "status": "Approved",
+      "raised_by": "coord1",
+      "raised_at": "2026-09-25T09:00:00+00:00",
+      "decided_by": "venue1",
+      "decided_at": "2026-09-26T09:00:00+00:00"
+    },
+    {
+      "event": "Jazz Brunch",
+      "venue": "Auditorium",
+      "status": "Approved",
+      "raised_by": "coord1",
+      "raised_at": "2026-09-25T09:00:00+00:00",
+      "decided_by": "venue1",
+      "decided_at": "2026-09-26T09:00:00+00:00"
+    },
+    {
+      "event": "Quiz Night",
+      "venue": "Seminar Room 1",
+      "status": "Approved",
+      "raised_by": "coord1",
+      "raised_at": "2026-09-25T09:00:00+00:00",
+      "decided_by": "venue1",
+      "decided_at": "2026-09-26T09:00:00+00:00"
     }
   ],
   "safety_decisions": [
@@ -612,6 +805,17 @@
       "notes": {},
       "decided_by": "safety1",
       "decided_at": "2026-10-05T10:00:00+00:00"
+    },
+    {
+      "event": "Jazz Brunch",
+      "decision": "Changes requested",
+      "reason": "Sound desk has no power feed",
+      "notes": {},
+      "areas": [
+        "technical_arrangements"
+      ],
+      "decided_by": "safety1",
+      "decided_at": "2026-10-07T10:00:00+00:00"
     }
   ]
 }

@@ -20,7 +20,7 @@ Kept current by every story that adds an action: the row is added or changed in 
 | Withdraw a venue booking request before a decision | No | Own only (whoever raised it) | No | No | No | No |
 | See warnings that a venue appears unsuitable for an event, before raising a venue booking request | No | Yes* | No | No | No | No |
 | Approve or reject a venue booking | No | No | Yes | No | No | No |
-| Approve or reject a safety check | No | No | No | No | Yes | No |
+| Approve, reject or request changes on a safety check | No | No | No | No | Yes | No |
 | View equipment inventory | No | Yes | No | Yes | No | No |
 | Record equipment requirements | No | Assigned coordinator | No | View | View, events in Safety Check | No |
 | Maintain equipment inventory; reserve or release; withdraw from service | No | No | No | Yes | No | No |
@@ -77,3 +77,4 @@ Keys used in `backend/permissions.py` and on API routes / `features` from `/api/
 | 1.14 | 11-10-2026 | "View own notifications" reworded to "View, open and mark own notifications as read"; no new feature key | SCRUM-58: opening and marking read are the same own-record action as viewing, just reusing `notifications.view`, the same way withdrawing a booking reused `bookings.edit` (SCRUM-77) |
 | 1.15 | 12-10-2026 | "View equipment inventory" row (Event Coordinator and Technical Support Staff); `equipment.view` granted to Event Coordinator; new `equipment.edit` key for Technical Support Staff only | SCRUM-49: AC1 lets both roles view the inventory and its totals, while AC2/AC7 restrict changing a stock count to Technical Support Staff; the action table had no row for merely viewing inventory, and the existing "Maintain equipment inventory" row already covers editing (was 1.14 on the branch; renumbered after SCRUM-58's 1.14 merged first) |
 | 1.16 | 13-10-2026 | New role Safety Officer (a column in both tables); `safety.decide` for the Safety Officer; "Approve or reject a safety check" row; Safety Officer may view event requests and internal planning information for events in Safety Check, and has `requests.view` and `notifications.view`; the object rule "events in Safety Check" is added to the 403-read, 404-write Rule. Not granted yet: `venues.view` and `equipment.view` (the venues and equipment a Safety Officer sees come with the event, so they cannot browse the inventory or venues) | SCRUM-89 (this story's slice of `target/permissions.md` v1.7); SCRUM-90 adds "request changes" to the row |
+| 1.17 | 14-10-2026 | "Approve or reject a safety check" becomes "Approve, reject or request changes on a safety check"; no new feature key (`safety.decide` covers it) | SCRUM-90: requesting changes is another decision the Safety Officer makes under the same key |

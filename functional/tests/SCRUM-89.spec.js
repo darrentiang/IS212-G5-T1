@@ -72,6 +72,7 @@ test('the seeded Safety Officer account can log in and is recognised as a Safety
 // @ac: 2
 test('events in Safety Check are listed, the one that has been there longest first', async ({ page }) => {
   await login(page, 'safety1')
+  await expect(page.locator('[data-testid^="requests-row-"]').first()).toBeVisible()
 
   const names = await page.locator('[data-testid^="requests-row-"] a').allTextContents()
   expect(names.indexOf('Harbour Gala')).toBeGreaterThanOrEqual(0)

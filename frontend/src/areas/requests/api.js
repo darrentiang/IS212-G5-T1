@@ -104,6 +104,18 @@ export const getRequestOptions = () => request('GET', '/api/request-options')
 export const approveSafetyCheck = (id, notes) =>
   request('POST', `/api/requests/${id}/safety/approve`, { notes })
 
+// POST /api/requests/:id/safety/request-changes   (SCRUM-90)
+// body:    { reason, areas, notes }   reason required; areas required, one or both of
+//          venue_arrangements, technical_arrangements; notes as above (optional)
+// 200:     the event, now Planning
+// 400/403/404: { message }   400 when the reason is blank or no area is given
+// An Event Coordinator's event detail also carries
+//          requested_changes: { id, decision, reason, notes, areas, decided_at, decided_by } | null
+//          while the event is in Planning and has not been sent for safety check again.
+// A decision in safety_decisions has areas: [area] (empty unless it is a request for changes)
+export const requestSafetyChanges = (id, reason, areas, notes) =>
+  request('POST', `/api/requests/${id}/safety/request-changes`, { reason, areas, notes })
+
 // POST /api/requests/:id/safety/reject   (SCRUM-89)
 // body:    { reason, notes }   reason required; notes as above
 // 200:     the event, now Planning
