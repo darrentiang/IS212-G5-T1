@@ -13,6 +13,7 @@ import {
   rejectSafetyCheck,
   requestSafetyChanges,
   resubmitRequest,
+  sendForSafetyCheck,
   submitDraft,
   updateDraft,
 } from './api'
@@ -44,6 +45,9 @@ import {
 // SCRUM-90: the Safety Officer may instead request changes (a reason and the
 // areas to change); the coordinator then sees them while the event is in
 // Planning, until it is sent for safety check again.
+// SCRUM-53: the event's assigned Event Coordinator sends a Planning event for
+// safety check; a refusal lists what is outstanding, and the date and time it
+// was sent is shown once it is in Safety Check.
 
 // Same order and labels as RequestNewPage's form (ui-guidelines.md §7): FIELDS
 // come before the Venue requirements and Accessibility needs groups,
@@ -221,6 +225,33 @@ const openDecision = (action) => {
   }
 
   const canDecide = Boolean(can?.('requests.decide')) && row?.status === STATUS.REQUEST.SUBMITTED
+
+  // SCRUM-53: offered to the assigned coordinator only; the API refuses anyone else.
+  const canSend =
+    Boolean(can?.('safety.send')) &&
+    row?.status === STATUS.REQUEST.PLANNING &&
+    row?.assigned_coordinator === account?.username
+
+  const handleSend = async () => {
+    setSubmitting(true)
+    try {
+      const updated = await sendForSafetyCheck(id)
+      setRow(updated)
+      setBanner(null)
+      setSuccessBanner('Sent for safety check')
+    } catch (error) {
+      setBanner(error.message)
+      setSuccessBanner(null)
+      // The refusal may mean it was already sent (another tab): show it as it now stands.
+      try {
+        setRow(await getRequest(id))
+      } catch (reloadError) {
+        setBanner(reloadError.message)
+      }
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   // SCRUM-89: the Safety Officer's decision, then back to the list with the outcome.
   const handleSafetyDecision = async (send, banner) => {
@@ -517,6 +548,13 @@ const openDecision = (action) => {
                 <span className={statusBadgeClass(row.status)}>{row.status}</span>
               </dd>
             </div>
+            {row.safety_check_at &&
+              [STATUS.REQUEST.SAFETY_CHECK, STATUS.REQUEST.CONFIRMED].includes(row.status) && (
+                <div>
+                  <dt>Sent for safety check</dt>
+                  <dd data-testid="request-detail-safety-check-at">{formatDateTime(row.safety_check_at)}</dd>
+                </div>
+              )}
             <div>
               <dt>Created by</dt>
               <dd data-testid="request-detail-created-by">{row.created_by}</dd>
@@ -608,6 +646,21 @@ const openDecision = (action) => {
                 data-testid="request-detail-submit-button"
               >
                 Submit
+              </button>
+            </div>
+          )}
+
+          {/* SCRUM-53: the assigned coordinator sends a Planning event for safety check. */}
+          {canSend && (
+            <div className="flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={handleSend}
+                className="btn btn-primary"
+                data-testid="request-detail-send-safety-button"
+              >
+                Send for safety check
               </button>
             </div>
           )}

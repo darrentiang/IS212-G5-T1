@@ -10,12 +10,20 @@ SCRUM-43: approving a request assigns an Event Coordinator (no route of its own)
 SCRUM-72: revise and resubmit a Rejected request.
 SCRUM-89: the Safety Officer approves or rejects an event in Safety Check.
 SCRUM-90: the Safety Officer returns it to Planning with the changes it needs.
+SCRUM-53: the assigned Event Coordinator sends a Planning event for safety check.
 """
 
 from flask import Blueprint, g, jsonify, request as flask_request
 
 from areas.requests import services
-from permissions import REQUESTS_DECIDE, REQUESTS_EDIT, REQUESTS_VIEW, SAFETY_DECIDE, require
+from permissions import (
+    REQUESTS_DECIDE,
+    REQUESTS_EDIT,
+    REQUESTS_VIEW,
+    SAFETY_DECIDE,
+    SAFETY_SEND,
+    require,
+)
 
 bp = Blueprint("requests", __name__, url_prefix="/api")
 
@@ -85,6 +93,15 @@ def reject_request(request_id):
     data = flask_request.get_json(silent=True) or {}
     updated = services.reject_request(account, request_id, data)
     return jsonify(services.request_detail_dict(updated, account)), 200
+@bp.post("/requests/<int:request_id>/send-for-safety-check")
+@require(SAFETY_SEND)
+def send_for_safety_check(request_id):
+    """SCRUM-53: Planning -> Safety Check; the assigned coordinator only."""
+    account = g.account
+    updated = services.send_for_safety_check(account, request_id)
+    return jsonify(services.request_detail_dict(updated, account)), 200
+
+
 @bp.post("/requests/<int:request_id>/safety/approve")
 @require(SAFETY_DECIDE)
 def approve_safety_check(request_id):

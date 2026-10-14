@@ -6,6 +6,7 @@ which replace the free-text venue requirements and accessibility needs.
 SCRUM-43: approving a request assigns the Event Coordinator with the fewest open events.
 SCRUM-72: revise and resubmit a Rejected request.
 SCRUM-89: the Safety Officer lists, opens, approves and rejects events in Safety Check.
+SCRUM-53: the assigned Event Coordinator sends a Planning event for safety check.
 
 Object rules from permissions.md / ADR-002 live here next to the query.
 """
@@ -25,6 +26,7 @@ from models import (
     RoomLayout,
     SafetyDecision,
 )
+from models import VenueBookingRequest
 from notifications import create_notification
 from permissions import INTERNAL_NOTES_VIEW, can
 
@@ -742,3 +744,82 @@ def request_safety_changes(account, request_id, data):
     return _record_safety_decision(
         event_request, account, CHANGES_REQUESTED, reason, notes, areas
     )
+
+
+def _booking_is_marked_venue_unavailable(booking):
+    """Whether an Approved booking carries the Venue unavailable marker (AC2).
+
+    STUB, replaced when SCRUM-82 (Darren) adds the marker: it is set on an
+    Approved booking when a block is created over its occupied period. Until
+    then no booking has one. Prove the replacement with the pending test in
+    tests/test_safety_send.py.
+    """
+    return False
+
+
+def _unapproved_equipment_requirements(event_request):
+    """The event's equipment requirements that are not Approved, as short texts (AC2).
+
+    STUB, replaced when SCRUM-48 (record) and SCRUM-81 (review) exist: return
+    one text per requirement whose status is Requested or Declined, such as
+    ``"Projector, 2 (Requested)"``. Until then nothing is recorded, so none
+    is outstanding. Prove the replacement with the pending tests in
+    tests/test_safety_send.py.
+    """
+    return []
+
+
+def _outstanding_arrangements(event_request):
+    """What stops the event being sent for safety check, one text each (AC2, AC3).
+
+    Empty means ready: at least one Approved venue booking, none of them marked
+    Venue unavailable, no venue booking request awaiting a decision, and every
+    recorded equipment requirement Approved (an event with none is not
+    blocked). Rejected and Withdrawn requests are not arrangements.
+    """
+    bookings = sorted(event_request.booking_requests, key=lambda row: row.id)
+    approved = [row for row in bookings if row.status == "Approved"]
+    outstanding = []
+    if not approved:
+        outstanding.append("No Approved venue booking")
+    for row in bookings:
+        if row.status == "Requested":
+            outstanding.append(f"The venue booking request for {row.venue.name} is awaiting a decision")
+    for row in approved:
+        if _booking_is_marked_venue_unavailable(row):
+            outstanding.append(f"The booking at {row.venue.name} is marked Venue unavailable")
+    outstanding.extend(_unapproved_equipment_requirements(event_request))
+    return outstanding
+
+
+def send_for_safety_check(account, request_id):
+    """Planning -> Safety Check (state-model.md, SCRUM-53).
+
+    Only the event's assigned Event Coordinator (AC7: a write answers 404 when
+    the record is not the account's, permissions.md), only from Planning (AC1)
+    and only when nothing is outstanding (AC2, AC3). Every check runs before
+    anything is written. The time it was sent is what SCRUM-89 orders its list
+    by (AC4), and a later one is what clears any changes the Safety Officer
+    asked for (SCRUM-90).
+    """
+    event_request = db.session.get(EventRequest, request_id)
+    if event_request is None or event_request.assigned_coordinator_id != account.id:
+        raise ApiRefusal(404, "Event request not found.")
+    if event_request.status != "Planning":
+        raise ApiRefusal(
+            409,
+            "Only an event in Planning can be sent for safety check; "
+            f"this event is {event_request.status}.",
+        )
+    outstanding = _outstanding_arrangements(event_request)
+    if outstanding:
+        raise ApiRefusal(
+            400,
+            "This event cannot be sent for safety check yet. Outstanding: "
+            + "; ".join(outstanding)
+            + ".",
+        )
+    event_request.status = SAFETY_CHECK
+    event_request.safety_check_at = datetime.now(timezone.utc)
+    db.session.commit()
+    return event_request

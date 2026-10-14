@@ -1,4 +1,4 @@
-"""Role → feature matrix — SCRUM-27, SCRUM-31, SCRUM-29, SCRUM-36, SCRUM-33, SCRUM-37, SCRUM-49, SCRUM-89 (ADR-002).
+"""Role → feature matrix — SCRUM-27, SCRUM-31, SCRUM-29, SCRUM-36, SCRUM-33, SCRUM-37, SCRUM-49, SCRUM-89, SCRUM-53 (ADR-002).
 
 Direct transcription of docs/design/permissions.md. An account may hold
 several roles (Q-06, D-09); it may do anything any of its roles allows.
@@ -20,6 +20,7 @@ VENUES_EDIT = "venues.edit"  # SCRUM-31: maintain venue records (Venue Staff)
 VENUES_SEARCH = "venues.search"  # SCRUM-33: search venues for an event (Event Coordinator)
 BOOKINGS_EDIT = "bookings.edit"  # SCRUM-36: raise a venue booking request (Event Coordinator)
 BOOKINGS_DECIDE = "bookings.decide"  # SCRUM-37: approve or reject one (Venue Staff)
+SAFETY_SEND = "safety.send"  # SCRUM-53: send a Planning event for safety check (Event Coordinator)
 SAFETY_DECIDE = "safety.decide"  # SCRUM-89: approve or reject an event in Safety Check (Safety Officer)
 EQUIPMENT_VIEW = "equipment.view"
 EQUIPMENT_EDIT = "equipment.edit"  # SCRUM-49: change an equipment type's total units
@@ -37,6 +38,7 @@ ALL_FEATURES = frozenset(
         VENUES_SEARCH,
         BOOKINGS_EDIT,
         BOOKINGS_DECIDE,
+        SAFETY_SEND,
         SAFETY_DECIDE,
         EQUIPMENT_VIEW,
         EQUIPMENT_EDIT,
@@ -60,6 +62,7 @@ ROLE_FEATURES = {
         VENUES_VIEW,
         VENUES_SEARCH,
         BOOKINGS_EDIT,
+        SAFETY_SEND,  # SCRUM-53: only the assigned coordinator, enforced in the service
         EQUIPMENT_VIEW,  # SCRUM-49 AC1: view the inventory and its totals
         REGISTRATION_VIEW,
         INTERNAL_NOTES_VIEW,
