@@ -4,13 +4,14 @@ What coverage the team aims for, what is excluded and why, and what a reviewer c
 
 | Version | Date | Change | Reason |
 |---|---|---|---|
+| 1.3 | 14-10-2026 | Target: coverage is measured on the full run before reporting back and on every CI run; single-file `--no-cov` runs while building measure nothing | The development loop now runs only the affected test file(s) with `--no-cov` (`AUTOMATION.md`), so "every run" was no longer true |
 | 1.2 | 24-09-2026 | Reviewer check 4: an unreachable branch questions the code first | Stale-response guards in fetch-once effects created branches only tests that asserted nothing could reach; the guards were removed instead |
 | 1.1 | 16-09-2026 | `routes.jsx` excluded | The UI shell tests mock the combined route list, which left the per-area lists unexecuted |
 | 1.0 | 16-09-2026 | Initial policy | The rubric asks for 100 % coverage or a stated reason; the measured numbers include entry points nothing can unit-test, so the exclusions and the target needed writing down |
 
 ## Target
 
-**100 % of the files a story touches.** Not 100 % of the repository: a file no story has reached yet is not this story's debt. Coverage is measured on every run of all three suites and printed in the terminal and on the pull request summary page.
+**100 % of the files a story touches.** Not 100 % of the repository: a file no story has reached yet is not this story's debt. Coverage is measured on the full run of all three suites a developer makes before reporting back, and on every CI run, and is printed in the terminal and on the pull request summary page. While building, only the affected test file(s) run, with `pytest <file> --no-cov` (`AUTOMATION.md`); those runs measure nothing.
 
 A story that cannot reach 100 % of its own files says so in the pull request description, naming the lines and the reason. That is a decision the reviewer reads and accepts or rejects; it is not a silent gap.
 

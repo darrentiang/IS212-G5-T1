@@ -5,7 +5,7 @@ Read this before writing Playwright or unit tests for a story. The test-case row
 ## Order
 1. The story's rows exist in the "Test cases" tab, curated and reviewed (see `PROMPT.md`). If they do not, stop: write and curate the rows first.
 2. Build the story.
-3. Write the tests below. Run all three suites locally.
+3. Write the tests below. While building, run only the affected test file(s) with `pytest <file> --no-cov`. Run the full backend suite (with coverage), Vitest and Playwright once, before reporting back.
 4. Open the pull request. CI runs the suites and appends every Playwright result to the "Executions" tab against its TC ID. CI never edits the "Test cases" tab. Unit test results stay in the CI log.
 
 ## Playwright (functional tests) — `functional/tests/<story key>.spec.js`
@@ -32,6 +32,7 @@ Read this before writing Playwright or unit tests for a story. The test-case row
   # @story: SCRUM-26
   # @ac: 3
   ```
+- **Backend test data:** new tests build the data they depend on with helpers from `backend/tests/factories.py` and pass the values that matter explicitly. From the seed they may rely only on reference data (roles and the fixed lists: facilities, accessibility features, layouts, equipment types) and the seeded accounts used to log in. Existing tests move to this style when their story is next touched; no bulk rewrite. (The Playwright standing-data rule above is separate: there, one SQLite file is shared by every spec in a run.)
 - Backend rules come from `docs/design/state-model.md` and `docs/design/permissions.md`; a unit test that contradicts either is wrong, not the document.
 - Frontend unit tests stay minimal: rendering and behaviour the functional tests do not cover. Mock the area's API module (`frontend/src/areas/<area>/api.js`), not `fetch`.
 

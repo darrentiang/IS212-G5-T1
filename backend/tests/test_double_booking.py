@@ -23,7 +23,8 @@ import pytest
 import occupancy
 from areas.bookings.services import venue_warnings
 from db import db
-from models import Account, EventRequest, Venue, VenueBlock, VenueBookingRequest
+from factories import account
+from models import EventRequest, Venue, VenueBlock, VenueBookingRequest
 
 DATE = "2026-12-10"
 SEMINAR_ROOM_1 = "Seminar Room 1"
@@ -46,10 +47,6 @@ def login(client, username):
 
 def venue(name=SEMINAR_ROOM_1):
     return db.session.query(Venue).filter_by(name=name).one()
-
-
-def account(username):
-    return db.session.query(Account).filter_by(username=username).one()
 
 
 def make_event(name, start, end, date=DATE):
