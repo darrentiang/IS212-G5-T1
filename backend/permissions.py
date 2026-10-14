@@ -1,4 +1,4 @@
-"""Role → feature matrix — SCRUM-27, SCRUM-31, SCRUM-29, SCRUM-36, SCRUM-33, SCRUM-37, SCRUM-49 (ADR-002).
+"""Role → feature matrix — SCRUM-27, SCRUM-31, SCRUM-29, SCRUM-36, SCRUM-33, SCRUM-37, SCRUM-49, SCRUM-89 (ADR-002).
 
 Direct transcription of docs/design/permissions.md. An account may hold
 several roles (Q-06, D-09); it may do anything any of its roles allows.
@@ -20,6 +20,7 @@ VENUES_EDIT = "venues.edit"  # SCRUM-31: maintain venue records (Venue Staff)
 VENUES_SEARCH = "venues.search"  # SCRUM-33: search venues for an event (Event Coordinator)
 BOOKINGS_EDIT = "bookings.edit"  # SCRUM-36: raise a venue booking request (Event Coordinator)
 BOOKINGS_DECIDE = "bookings.decide"  # SCRUM-37: approve or reject one (Venue Staff)
+SAFETY_DECIDE = "safety.decide"  # SCRUM-89: approve or reject an event in Safety Check (Safety Officer)
 EQUIPMENT_VIEW = "equipment.view"
 EQUIPMENT_EDIT = "equipment.edit"  # SCRUM-49: change an equipment type's total units
 REGISTRATION_VIEW = "registration.view"
@@ -36,6 +37,7 @@ ALL_FEATURES = frozenset(
         VENUES_SEARCH,
         BOOKINGS_EDIT,
         BOOKINGS_DECIDE,
+        SAFETY_DECIDE,
         EQUIPMENT_VIEW,
         EQUIPMENT_EDIT,
         REGISTRATION_VIEW,
@@ -74,6 +76,12 @@ ROLE_FEATURES = {
         EQUIPMENT_VIEW,
         EQUIPMENT_EDIT,  # SCRUM-49 AC2/AC7: change a type's total units
         NOTIFICATIONS_VIEW,
+    },
+    "Safety Officer": {
+        REQUESTS_VIEW,  # events in Safety Check only (service filter)
+        SAFETY_DECIDE,
+        NOTIFICATIONS_VIEW,
+        # Cannot edit an event or its arrangements (SCRUM-89 AC10).
     },
     "Attendee": {
         REGISTRATION_VIEW,  # confirmed events with registration only

@@ -19,7 +19,8 @@ def app():
     app = create_app({"TESTING": True, "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:"})
     with app.app_context():
         _db.create_all()
-        seed_database(_db)
+        # No standing booking requests: the booking tests count every one.
+        seed_database(_db, standing_bookings=False)
         yield app
         _db.session.remove()
         _db.drop_all()

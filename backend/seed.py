@@ -39,8 +39,10 @@ from models import (
     Reservation,
     Role,
     RoomLayout,
+    SafetyDecision,
     SchemaMeta,
     Venue,
+    VenueBookingRequest,
 )
 
 DEFAULT_DATA_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "seed", "data.json")
@@ -74,8 +76,14 @@ def parse_datetime(value):
     return datetime.fromisoformat(value.replace("Z", "+00:00"))
 
 
-def seed_database(db, data_path=DEFAULT_DATA_PATH):
+def seed_database(db, data_path=DEFAULT_DATA_PATH, standing_bookings=True):
     """Create the tables, insert the seed data and record the schema version.
+
+    ``standing_bookings`` is whether the venue booking requests in the seed file
+    are inserted. A developer's database and the functional tests have them (an
+    event in Safety Check needs Approved bookings to be reviewed, SCRUM-89); the
+    pytest ``app`` fixture leaves them out, because the booking tests count and
+    list every booking request and each creates exactly the ones it needs.
 
     Raises AlreadySeededError if the database already holds seed data; nothing
     is written in that case. Any other failure is rolled back, so the database
@@ -156,6 +164,10 @@ def seed_database(db, data_path=DEFAULT_DATA_PATH):
                     else None
                 ),
                 assigned_at=parse_datetime(entry.get("assigned_at")),
+                # SCRUM-89: events already in Safety Check, so the Safety
+                # Officer has something to list and decide. SCRUM-53 sets this
+                # when it moves an event there.
+                safety_check_at=parse_datetime(entry.get("safety_check_at")),
                 # SCRUM-42: the optional requirements chosen from the fixed lists.
                 layout=layouts[entry["layout"]] if entry.get("layout") else None,
                 facilities=[facilities[name] for name in entry.get("facilities", [])],
@@ -168,8 +180,9 @@ def seed_database(db, data_path=DEFAULT_DATA_PATH):
             db.session.add(event_request)
             event_requests[entry["name"]] = event_request
 
+        venues = {}
         for entry in data.get("venues", []):
-            db.session.add(
+            venue = (
                 Venue(
                     name=entry["name"],
                     location=entry["location"],
@@ -183,6 +196,46 @@ def seed_database(db, data_path=DEFAULT_DATA_PATH):
                         accessibility_features[name]
                         for name in entry.get("accessibility_features", [])
                     ],
+                )
+            )
+            venues[entry["name"]] = venue
+            db.session.add(venue)
+
+        # SCRUM-89: venue booking requests on the standing events, so a Safety
+        # Officer opening an event in Safety Check sees its Approved bookings.
+        # The date, times and attendance are copied from the event, as raising
+        # a booking does (SCRUM-36 AC3).
+        for entry in data.get("venue_bookings", []) if standing_bookings else []:
+            event_request = event_requests[entry["event"]]
+            db.session.add(
+                VenueBookingRequest(
+                    venue=venues[entry["venue"]],
+                    event_request=event_request,
+                    status=entry["status"],
+                    date=event_request.date,
+                    start_time=event_request.start_time,
+                    end_time=event_request.end_time,
+                    attendance=event_request.attendance,
+                    raised_by=accounts[entry["raised_by"]],
+                    raised_at=parse_datetime(entry["raised_at"]),
+                    decision=entry["status"] if entry.get("decided_by") else None,
+                    decision_reason=entry.get("decision_reason"),
+                    decided_at=parse_datetime(entry.get("decided_at")),
+                    decided_by=accounts[entry["decided_by"]] if entry.get("decided_by") else None,
+                )
+            )
+
+        # SCRUM-89: decisions the Safety Officer already made, so "earlier
+        # decisions stay visible" has a standing example.
+        for entry in data.get("safety_decisions", []):
+            db.session.add(
+                SafetyDecision(
+                    event_request=event_requests[entry["event"]],
+                    decision=entry["decision"],
+                    reason=entry.get("reason"),
+                    notes=entry.get("notes", {}),
+                    decided_at=parse_datetime(entry["decided_at"]),
+                    decided_by=accounts[entry["decided_by"]],
                 )
             )
 

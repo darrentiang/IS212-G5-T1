@@ -80,3 +80,33 @@ export const deleteDraft = (id) => request('DELETE', `/api/requests/${id}`)
 // 200:     { layouts: [name], facilities: [name], accessibility_features: [name] }   in list order
 // 401/403: { message }
 export const getRequestOptions = () => request('GET', '/api/request-options')
+
+// GET /api/requests/:id for an account holding the Safety Officer role (SCRUM-89)
+// 200:     only while the event is in Safety Check; the fields above, plus
+//          safety_decisions: [ { id, decision, reason, notes, decided_at, decided_by } ]
+//            decision: 'Approved' | 'Rejected'; reason: text | null; notes: { area: text },
+//            only areas that have a note; oldest decision first. An Event Coordinator
+//            receives safety_decisions too.
+//          safety_check: { sent_at, note_areas: [area],
+//            venue_bookings: [ { id, date, start_time, end_time,
+//              venue: { id, name, location, max_capacity, layouts, facilities,
+//                       accessibility_features } } ],       Approved bookings only
+//            equipment_requirements: [] }                    empty until SCRUM-48 and SCRUM-81
+//          area is one of attendance, capacity_and_layout, emergency_access, accessibility,
+//          equipment_placement, crowd_movement, venue_restrictions
+// 403:     { message }   any other status; the same 403 as for every record the account may not open
+// GET /api/requests lists the events in Safety Check for that account, longest there first.
+
+// POST /api/requests/:id/safety/approve   (SCRUM-89)
+// body:    { notes }   optional; { area: text }, a blank note is not kept
+// 200:     the event, now Confirmed
+// 400/403/404: { message }   404 when the event is not in Safety Check (one message for every case)
+export const approveSafetyCheck = (id, notes) =>
+  request('POST', `/api/requests/${id}/safety/approve`, { notes })
+
+// POST /api/requests/:id/safety/reject   (SCRUM-89)
+// body:    { reason, notes }   reason required; notes as above
+// 200:     the event, now Planning
+// 400/403/404: { message }   400 when the reason is blank
+export const rejectSafetyCheck = (id, reason, notes) =>
+  request('POST', `/api/requests/${id}/safety/reject`, { reason, notes })

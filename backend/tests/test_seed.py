@@ -19,23 +19,34 @@ ROLE_NAMES = {
     "Event Coordinator",
     "Venue Staff",
     "Technical Support Staff",
+    "Safety Officer",
     "Attendee",
 }
 
-ACCOUNT_USERNAMES = {"org1", "org2", "coord1", "coord2", "venue1", "tech1", "att1", "multi1"}
+ACCOUNT_USERNAMES = {
+    "org1",
+    "org2",
+    "coord1",
+    "coord2",
+    "venue1",
+    "tech1",
+    "safety1",
+    "att1",
+    "multi1",
+}
 
 
 # @story: setup
 # @ac: sqlite-seed
-def test_seeding_creates_the_five_roles(app):
+def test_seeding_creates_the_six_roles(app):
     roles = db.session.query(Role).all()
-    assert len(roles) == 5
+    assert len(roles) == 6
     assert {role.name for role in roles} == ROLE_NAMES
 
 
 # @story: setup
 # @ac: sqlite-seed
-def test_seeding_creates_the_eight_accounts_with_their_roles(app):
+def test_seeding_creates_the_nine_accounts_with_their_roles(app):
     accounts = db.session.query(Account).all()
     assert {account.username for account in accounts} == ACCOUNT_USERNAMES
 

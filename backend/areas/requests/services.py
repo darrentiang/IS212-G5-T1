@@ -5,19 +5,51 @@ SCRUM-42: the optional required layout, facilities and accessibility features,
 which replace the free-text venue requirements and accessibility needs.
 SCRUM-43: approving a request assigns the Event Coordinator with the fewest open events.
 SCRUM-72: revise and resubmit a Rejected request.
+SCRUM-89: the Safety Officer lists, opens, approves and rejects events in Safety Check.
 
 Object rules from permissions.md / ADR-002 live here next to the query.
 """
 
 from datetime import date, datetime, timezone
 
+from sqlalchemy import or_
+
 from db import db
 from errors import ApiRefusal
-from models import AccessibilityFeature, Account, EventRequest, Facility, Role, RoomLayout
+from models import (
+    AccessibilityFeature,
+    Account,
+    EventRequest,
+    Facility,
+    Role,
+    RoomLayout,
+    SafetyDecision,
+)
+from notifications import create_notification
 from permissions import INTERNAL_NOTES_VIEW, can
 
 ORGANISER_ROLE = "Event Organiser"
 COORDINATOR_ROLE = "Event Coordinator"
+SAFETY_OFFICER_ROLE = "Safety Officer"
+
+SAFETY_CHECK = "Safety Check"
+
+# The areas the Safety Officer may leave a note against (SCRUM-89 AC4); the keys
+# are what the API takes and returns.
+SAFETY_NOTE_AREAS = (
+    "attendance",
+    "capacity_and_layout",
+    "emergency_access",
+    "accessibility",
+    "equipment_placement",
+    "crowd_movement",
+    "venue_restrictions",
+)
+
+# One sentence for an event that does not exist and for one that is not in
+# Safety Check, so a decision never confirms an event the Safety Officer may
+# not see (permissions.md: a write answers 404 when the record is not theirs).
+NOT_IN_SAFETY_CHECK = "No event in Safety Check was found with that number."
 
 
 def visible_requests(account):
@@ -25,11 +57,24 @@ def visible_requests(account):
 
     Event Coordinator (including multi-role coordinators): all except Draft.
     Event Organiser only: own requests, any status.
+    Safety Officer: events in Safety Check, the one that has been there
+    longest first (SCRUM-89 AC2); one with no recorded time sorts last.
     """
     query = db.session.query(EventRequest)
     if account.has_role(COORDINATOR_ROLE):
         return query.filter(EventRequest.status != "Draft").order_by(EventRequest.id).all()
-    return query.filter(EventRequest.created_by_id == account.id).order_by(EventRequest.id).all()
+    own = EventRequest.created_by_id == account.id
+    if account.has_role(SAFETY_OFFICER_ROLE):
+        return (
+            query.filter(or_(own, EventRequest.status == SAFETY_CHECK))
+            .order_by(
+                EventRequest.safety_check_at.is_(None),
+                EventRequest.safety_check_at,
+                EventRequest.id,
+            )
+            .all()
+        )
+    return query.filter(own).order_by(EventRequest.id).all()
 
 
 def get_visible_request(account, request_id):
@@ -49,6 +94,8 @@ def get_visible_request(account, request_id):
         return event_request
     if account.has_role(ORGANISER_ROLE) and event_request.created_by_id == account.id:
         return event_request
+    if account.has_role(SAFETY_OFFICER_ROLE) and event_request.status == SAFETY_CHECK:
+        return event_request
     raise ApiRefusal(403, "You do not have permission to perform this action.")
 
 
@@ -62,7 +109,76 @@ def request_detail_dict(event_request, account):
     payload = request_to_dict(event_request)
     if can(account, INTERNAL_NOTES_VIEW):
         payload["coordinator_notes"] = event_request.coordinator_notes
+    reviewing = account.has_role(SAFETY_OFFICER_ROLE) and event_request.status == SAFETY_CHECK
+    if can(account, INTERNAL_NOTES_VIEW) or reviewing:
+        payload["safety_decisions"] = [
+            _safety_decision_to_dict(row) for row in event_request.safety_decisions
+        ]
+    if reviewing:
+        payload["safety_check"] = _safety_check_to_dict(event_request)
     return payload
+
+
+def _safety_decision_to_dict(decision):
+    return {
+        "id": decision.id,
+        "decision": decision.decision,
+        "reason": decision.reason,
+        "notes": decision.notes or {},
+        "decided_at": decision.decided_at.isoformat(),
+        "decided_by": decision.decided_by.username,
+    }
+
+
+def _approved_equipment_requirements(event_request):
+    """The event's Approved equipment requirements, for the Safety Officer (AC3).
+
+    STUB, replaced when equipment requirements exist: SCRUM-48 records them and
+    SCRUM-81 approves them (Hong Yi). Until then nothing is recorded, so the
+    list is empty. When it is replaced, return one dict per requirement whose
+    status is Approved, and prove it with the pending test in
+    tests/test_safety_check.py.
+    """
+    return []
+
+
+def _safety_check_to_dict(event_request):
+    """What the Safety Officer reviews on an event in Safety Check (AC3).
+
+    Only Approved venue bookings are listed: a Rejected or Withdrawn booking is
+    not an arrangement the event has.
+    """
+    bookings = [
+        row
+        for row in sorted(event_request.booking_requests, key=lambda row: row.id)
+        if row.status == "Approved"
+    ]
+    sent_at = event_request.safety_check_at
+    return {
+        "sent_at": sent_at.isoformat() if sent_at else None,
+        "note_areas": list(SAFETY_NOTE_AREAS),
+        "venue_bookings": [
+            {
+                "id": booking.id,
+                "date": booking.date,
+                "start_time": booking.start_time,
+                "end_time": booking.end_time,
+                "venue": {
+                    "id": booking.venue.id,
+                    "name": booking.venue.name,
+                    "location": booking.venue.location,
+                    "max_capacity": booking.venue.max_capacity,
+                    "layouts": [row.name for row in booking.venue.layouts],
+                    "facilities": [row.name for row in booking.venue.facilities],
+                    "accessibility_features": [
+                        row.name for row in booking.venue.accessibility_features
+                    ],
+                },
+            }
+            for booking in bookings
+        ],
+        "equipment_requirements": _approved_equipment_requirements(event_request),
+    }
 
 
 def _require_organiser(account):
@@ -481,3 +597,80 @@ def delete_draft(account, request_id):
 
     db.session.delete(event_request)
     db.session.commit()
+
+
+def _get_event_in_safety_check(request_id):
+    """The event if it is in Safety Check, else one refusal for every other case.
+
+    AC9: an event in any other status cannot be decided. An unknown id and an
+    event outside Safety Check answer alike, so the reply never says which.
+    """
+    event_request = db.session.get(EventRequest, request_id)
+    if event_request is None or event_request.status != SAFETY_CHECK:
+        raise ApiRefusal(404, NOT_IN_SAFETY_CHECK)
+    return event_request
+
+
+def _safety_notes(data):
+    """The note per area from the request, blank notes dropped (AC4)."""
+    raw = (data or {}).get("notes")
+    if raw is None:
+        return {}
+    if not isinstance(raw, dict):
+        raise ApiRefusal(400, "Notes must be given as one note for each area.")
+    cleaned = {}
+    for area, text in raw.items():
+        if area not in SAFETY_NOTE_AREAS:
+            raise ApiRefusal(400, f"A note cannot be recorded against '{area}'.")
+        if not isinstance(text, str):
+            raise ApiRefusal(400, f"The note for '{area}' must be text.")
+        if text.strip():
+            cleaned[area] = text.strip()
+    return {area: cleaned[area] for area in SAFETY_NOTE_AREAS if area in cleaned}
+
+
+def _record_safety_decision(event_request, account, decision, reason, notes):
+    """Keep the decision, move the event on and tell its coordinator (AC5-AC8)."""
+    db.session.add(
+        SafetyDecision(
+            event_request=event_request,
+            decision=decision,
+            reason=reason,
+            notes=notes,
+            decided_at=datetime.now(timezone.utc),
+            decided_by_id=account.id,
+        )
+    )
+    name = event_request.name
+    if decision == "Approved":
+        event_request.status = "Confirmed"
+        message = f'Your event "{name}" passed its safety check and is now Confirmed.'
+    else:
+        event_request.status = "Planning"
+        message = (
+            f'Your event "{name}" was rejected at its safety check and is back in '
+            f"Planning. Reason: {reason}"
+        )
+    # No assigned coordinator: the decision still goes through and nobody is
+    # told (the same rule as SCRUM-63 AC5).
+    if event_request.assigned_coordinator is not None:
+        create_notification(event_request.assigned_coordinator, message, event_request)
+    db.session.commit()
+    return event_request
+
+
+def approve_safety_check(account, request_id, data):
+    """Safety Check -> Confirmed (state-model.md). Notes are optional."""
+    event_request = _get_event_in_safety_check(request_id)
+    notes = _safety_notes(data)
+    return _record_safety_decision(event_request, account, "Approved", None, notes)
+
+
+def reject_safety_check(account, request_id, data):
+    """Safety Check -> Planning (state-model.md). A reason is required."""
+    event_request = _get_event_in_safety_check(request_id)
+    reason = _optional_reason(data)
+    if not reason:
+        raise ApiRefusal(400, "A reason is required to reject.")
+    notes = _safety_notes(data)
+    return _record_safety_decision(event_request, account, "Rejected", reason, notes)

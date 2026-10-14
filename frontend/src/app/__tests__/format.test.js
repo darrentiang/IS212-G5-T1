@@ -124,6 +124,7 @@ describe('STATUS', () => {
       'Approved',
       'Rejected',
       'Planning',
+      'Safety Check',
       'Confirmed',
       'Completed',
       'Cancelled',

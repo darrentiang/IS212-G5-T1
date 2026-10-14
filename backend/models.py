@@ -9,7 +9,8 @@ SCRUM-42: an event request's required layout, facilities and accessibility
 features, chosen from the same fixed lists as a venue's. SCRUM-37: a venue
 booking request's approve/reject decision. SCRUM-43: an event request's
 assigned Event Coordinator and the date it was assigned. SCRUM-58: one
-notification addressed to one account.
+notification addressed to one account. SCRUM-89: the Safety Check status, when
+an event was sent for its safety check, and the Safety Officer's decisions.
 No permission logic here — see backend/permissions.py.
 """
 
@@ -34,8 +35,9 @@ from db import db
 # booking request's suggested venue and period, so 13. SCRUM-58 added the
 # Notification table, so 14. SCRUM-49 added seeded equipment types with
 # their total stock and event-linked equipment reservations (Reserved/
-# Released storage only), so 15.
-SCHEMA_VERSION = 15
+# Released storage only), so 15. SCRUM-89 added an event request's
+# safety_check_at and the SafetyDecision table, so 16.
+SCHEMA_VERSION = 16
 
 
 account_roles = db.Table(
@@ -103,7 +105,17 @@ class EventRequest(db.Model):
 
     __tablename__ = "event_requests"
 
-    STATUSES = ("Draft", "Submitted", "Approved", "Rejected", "Planning", "Confirmed", "Completed", "Cancelled")
+    STATUSES = (
+        "Draft",
+        "Submitted",
+        "Approved",
+        "Rejected",
+        "Planning",
+        "Safety Check",
+        "Confirmed",
+        "Completed",
+        "Cancelled",
+    )
 
     # The fields an Event Organiser must record; all required to submit
     # (state-model.md AC1). Column names match the API's snake_case field
@@ -149,6 +161,12 @@ class EventRequest(db.Model):
     assigned_coordinator_id = db.Column(db.Integer, db.ForeignKey("accounts.id"), nullable=True)
     assigned_at = db.Column(db.DateTime, nullable=True)
 
+    # SCRUM-89: when the event was sent for its safety check (UTC). Written by
+    # SCRUM-53 when it moves an event to Safety Check; SCRUM-89 orders its list
+    # by it, so the event that has been there longest comes first. Until
+    # SCRUM-53 is merged only the seed data sets it.
+    safety_check_at = db.Column(db.DateTime, nullable=True)
+
     # SCRUM-42: one required layout or none; any number of facilities and
     # accessibility features. Ordered as the fixed lists are.
     layout_id = db.Column(db.Integer, db.ForeignKey("room_layouts.id"), nullable=True)
@@ -157,6 +175,11 @@ class EventRequest(db.Model):
     decided_by = db.relationship("Account", foreign_keys=[decided_by_id])
     assigned_coordinator = db.relationship("Account", foreign_keys=[assigned_coordinator_id])
     layout = db.relationship("RoomLayout")
+    safety_decisions = db.relationship(
+        "SafetyDecision",
+        order_by="SafetyDecision.decided_at, SafetyDecision.id",
+        back_populates="event_request",
+    )
     facilities = db.relationship(
         "Facility", secondary="event_request_facilities", order_by="Facility.id"
     )
@@ -190,6 +213,7 @@ class EventRequest(db.Model):
                 self.assigned_coordinator.username if self.assigned_coordinator else None
             ),
             "assigned_at": self.assigned_at.isoformat() if self.assigned_at else None,
+            "safety_check_at": self.safety_check_at.isoformat() if self.safety_check_at else None,
             "layout": self.layout.name if self.layout else None,
             "facilities": [row.name for row in self.facilities],
             "accessibility_features": [row.name for row in self.accessibility_features],
@@ -461,6 +485,34 @@ class Reservation(db.Model):
 
     def __repr__(self):
         return f"<Reservation {self.id} type {self.equipment_type_id} {self.status}>"
+
+
+class SafetyDecision(db.Model):
+    """One decision the Safety Officer made on an event in Safety Check (SCRUM-89).
+
+    A row is added for every decision and never changed, so an event that goes
+    through Safety Check more than once keeps every earlier decision and its
+    reason (AC5). ``decision`` is Approved or Rejected; requesting changes is
+    SCRUM-90 and adds its own value. ``notes`` holds the optional note per
+    area as ``{area: text}``; only areas with a note are present.
+    ``decided_at`` is UTC, like the other decision timestamps.
+    """
+
+    __tablename__ = "safety_decisions"
+
+    id = db.Column(db.Integer, primary_key=True)
+    event_request_id = db.Column(db.Integer, db.ForeignKey("event_requests.id"), nullable=False)
+    decision = db.Column(db.String(32), nullable=False)
+    reason = db.Column(db.Text, nullable=True)
+    notes = db.Column(db.JSON, nullable=False, default=dict)
+    decided_at = db.Column(db.DateTime, nullable=False)
+    decided_by_id = db.Column(db.Integer, db.ForeignKey("accounts.id"), nullable=False)
+
+    event_request = db.relationship("EventRequest", back_populates="safety_decisions")
+    decided_by = db.relationship("Account", foreign_keys=[decided_by_id])
+
+    def __repr__(self):
+        return f"<SafetyDecision {self.id} event {self.event_request_id} {self.decision}>"
 
 
 class Notification(db.Model):

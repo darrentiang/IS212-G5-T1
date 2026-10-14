@@ -33,6 +33,7 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | 1.24 | 11-10-2026 | §1 `/notifications`; §7 the notifications page and its test ids; §2's anticipated nav unread count (`layout-nav-notifications-count`) now has a source, `GET /api/notifications/unread-count` | SCRUM-58 lets any logged-in account see, open and mark their own notifications read |
 | 1.25 | 12-10-2026 | §1 `/equipment` route; §1 home-page bullet reworded (every seeded role can now open a page); §7 the equipment inventory page — plain-text type name (no detail page, stated deviation from §6's link rule), per-row Change total with its inline `noValidate` form, `n units` text, and the unavailable-notice ids for a refused refresh | SCRUM-49: Technical Support Staff change stock counts; they and Event Coordinators view inventory (was 1.24 on the branch; renumbered after SCRUM-58's 1.24 merged first) |
 | 1.26 | 12-10-2026 | §7 equipment inventory: all stock-edit controls are disabled during a save and its refresh; an initial read failure also offers Reload; an open editor is hidden if editing permission is removed; replies from discarded initial loads are ignored | SCRUM-49 review: prevent switching editors during a pending write and allow recovery from a failed initial read (was 1.25 on the branch; renumbered after SCRUM-58's 1.24 merged first) |
+| 1.27 | 13-10-2026 | §7 the request page's Safety check section (a Safety Officer's review of an event in Safety Check, with its note-per-area form and Approve and Reject buttons) and Safety decisions section, and their test ids; §12 Safety Check badge colour | SCRUM-89 lets the Safety Officer review, note and decide an event in Safety Check from the request page; the decision returns them to Requests |
 
 ## 1. Pages
 
@@ -150,6 +151,22 @@ While the page is waiting for the API it renders the title row and nothing below
 | Flag | `<page>-<flag>-flag` | `request-detail-clarification-flag` |
 | Assigned coordinator (SCRUM-43; shown once assigned) | `<page>-assigned-coordinator` | `request-detail-assigned-coordinator` |
 | Assignment date (SCRUM-43; shown with the coordinator, `03 Oct 2026`) | `<page>-assigned-at` | `request-detail-assigned-at` |
+
+**Safety check (SCRUM-89).** An Event Coordinator or Safety Officer opening an event that has had a safety decision sees a Safety decisions section below the details: each decision as `<Decision> by <username> on <moment>`, its reason when it has one, and each note as `<Area>: <text>`, oldest first. A Safety Officer opening an event in Safety Check also sees a Safety check card: the date and time it was sent, its Approved venue bookings (venue and location, period, maximum capacity, supported layouts, facilities, accessibility features, each `None` when empty), and its Approved equipment requirements (`None.` until equipment is recorded). Below it is one Decide form, always open, with one optional note per area (Attendance, Capacity and layout, Emergency access, Accessibility, Equipment placement, Crowd movement, Venue restrictions), a Reason field, and Reject and Approve buttons. Reject with a blank reason shows `Reason is required.` and sends nothing. A decision returns the user to the Requests page with a banner `<event name>: approved, now Confirmed` or `<event name>: rejected, back in Planning`; a refused decision shows the reason in the page's banner and stays. An account without `safety.decide` sees no form.
+
+| Element | `data-testid` |
+|---|---|
+| Safety check card | `request-detail-safety-check` |
+| Date and time sent | `request-detail-safety-sent-at` |
+| Approved booking, its venue, period, capacity, layouts, facilities, accessibility features | `request-detail-safety-booking-<id>`, `-venue`, `-period`, `-capacity`, `-layouts`, `-facilities`, `-accessibility` |
+| No Approved booking; no Approved equipment requirement | `request-detail-safety-bookings-empty`, `request-detail-safety-equipment-empty` |
+| Approved equipment requirement list | `request-detail-safety-equipment` |
+| Safety decisions section | `request-detail-safety-decisions` |
+| One decision, its decision word, reason and one area's note | `request-detail-safety-decision-<id>`, `-decision`, `-reason`, `-note-<area>` |
+| Decide form | `request-detail-safety-form` |
+| Note field for an area (`emergency-access`, `crowd-movement`, …) | `request-detail-safety-note-<area>` |
+| Reason field and its error | `request-detail-safety-reason-input`, `request-detail-safety-reason-error` |
+| Reject and Approve buttons | `request-detail-safety-reject-button`, `request-detail-safety-approve-button` |
 
 **A list of related records on a detail page** (a venue's blocks) is a section under the fields with an `h2` and a table per §6. Its ids carry the record's name in place of the page's own list ids, so they cannot clash with the page's fields: `<page>-<record>-row-<id>`, one cell `<page>-<record>-<field>-<id>`, and `<page>-<records>-empty` when there are none. A per-row action's confirm/reason form opens as its own row directly below the one it acts on (a `<td colspan>` spanning the table), never below the whole table: in a long list, a form that opens far from its row is a form the user cannot find.
 
@@ -424,6 +441,7 @@ How pages look (tokens, type, spacing and the shared classes) is in `visual-styl
 | Submitted | Info |
 | Approved | Success |
 | Planning | Warning |
+| Safety Check | Warning |
 | Confirmed | Success |
 | Rejected | Danger |
 | Cancelled | Danger |

@@ -33,6 +33,7 @@ ROLE_COLUMNS = [
     "Event Coordinator",
     "Venue Staff",
     "Technical Support Staff",
+    "Safety Officer",
     "Attendee",
 ]
 
@@ -52,7 +53,7 @@ def _parse_feature_keys_table(markdown_text):
         if not line.startswith("|") or line.startswith("| Key") or line.startswith("|---"):
             continue
         cells = [c.strip() for c in line.strip("|").split("|")]
-        if len(cells) != 6:
+        if len(cells) != 7:
             continue
         key = cells[0]
         rows[key] = {role: cells[i + 1] == "Yes" for i, role in enumerate(ROLE_COLUMNS)}
