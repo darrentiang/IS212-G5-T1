@@ -94,6 +94,7 @@ export const STATUS = Object.freeze({
   RESERVATION: group(['Reserved', 'Released']),
   UNIT: group(['In Service', 'Out of Service']),
   REGISTRATION: group(['Registered', 'Withdrawn']),
+  HOLD: group(['Held', 'Released']),
 })
 
 // Status -> badge class (docs/design/ui-guidelines.md, Look). Keyed by the
@@ -111,6 +112,8 @@ const BADGE = Object.freeze({
   [STATUS.REQUEST.COMPLETED]: 'badge-neutral',
   [STATUS.BOOKING.REQUESTED]: 'badge-info',
   [STATUS.BOOKING.WITHDRAWN]: 'badge-neutral',
+  [STATUS.HOLD.HELD]: 'badge-warning',
+  [STATUS.HOLD.RELEASED]: 'badge-neutral',
 })
 
 // 'Submitted' -> 'badge badge-info'

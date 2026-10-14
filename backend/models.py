@@ -11,6 +11,7 @@ booking request's approve/reject decision. SCRUM-43: an event request's
 assigned Event Coordinator and the date it was assigned. SCRUM-58: one
 notification addressed to one account. SCRUM-89: the Safety Check status, when
 an event was sent for its safety check, and the Safety Officer's decisions.
+SCRUM-84: a tentative hold on a venue for an event.
 No permission logic here — see backend/permissions.py.
 """
 
@@ -38,8 +39,8 @@ from db import db
 # their total stock and event-linked equipment reservations (Reserved/
 # Released storage only), so 15. SCRUM-89 added an event request's
 # safety_check_at and the SafetyDecision table, so 16. SCRUM-90 added a
-# safety decision's areas, so 17.
-SCHEMA_VERSION = 17
+# safety decision's areas, so 17. SCRUM-84 added the VenueHold table, so 18.
+SCHEMA_VERSION = 18
 
 
 account_roles = db.Table(
@@ -428,6 +429,39 @@ class VenueBookingRequest(db.Model):
 
     def __repr__(self):
         return f"<VenueBookingRequest {self.id} venue {self.venue_id} event {self.event_request_id} {self.status}>"
+
+
+class VenueHold(db.Model):
+    """The assigned Event Coordinator's tentative hold on a venue for an event (SCRUM-84).
+
+    expires_at is a naive local date-time, the same convention as a block's
+    starts_at and ends_at; placed_at and released_at are UTC, like a booking
+    request's raised_at. The period a hold covers is never stored: it is the
+    event's own period widened by the venue's current setup and turnaround
+    time (occupancy.hold_period), so a later change to either duration moves
+    it, as it moves a booking's. Expired is SCRUM-85's; this story has only
+    Held and Released.
+    """
+
+    __tablename__ = "venue_holds"
+
+    STATUSES = ("Held", "Released")
+
+    id = db.Column(db.Integer, primary_key=True)
+    venue_id = db.Column(db.Integer, db.ForeignKey("venues.id"), nullable=False)
+    event_request_id = db.Column(db.Integer, db.ForeignKey("event_requests.id"), nullable=False)
+    status = db.Column(db.String(32), nullable=False, default="Held")
+    expires_at = db.Column(db.DateTime, nullable=False)
+    placed_by_id = db.Column(db.Integer, db.ForeignKey("accounts.id"), nullable=False)
+    placed_at = db.Column(db.DateTime, nullable=False)
+    released_at = db.Column(db.DateTime, nullable=True)
+
+    venue = db.relationship("Venue", backref="holds")
+    event_request = db.relationship("EventRequest", backref="venue_holds")
+    placed_by = db.relationship("Account", foreign_keys=[placed_by_id])
+
+    def __repr__(self):
+        return f"<VenueHold {self.id} venue {self.venue_id} event {self.event_request_id} {self.status}>"
 
 
 class EquipmentType(db.Model):

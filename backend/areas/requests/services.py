@@ -7,6 +7,7 @@ SCRUM-43: approving a request assigns the Event Coordinator with the fewest open
 SCRUM-72: revise and resubmit a Rejected request.
 SCRUM-89: the Safety Officer lists, opens, approves and rejects events in Safety Check.
 SCRUM-53: the assigned Event Coordinator sends a Planning event for safety check.
+SCRUM-84: an Approved event moves to Planning when its first hold is placed.
 
 Object rules from permissions.md / ADR-002 live here next to the query.
 """
@@ -507,6 +508,17 @@ def _assign_coordinator(event_request):
     event_request.status = "Planning"
     event_request.assigned_coordinator_id = coordinator.id
     event_request.assigned_at = datetime.now(timezone.utc)
+
+
+def start_planning_if_approved(event_request):
+    """Approved -> Planning when the first hold or booking request is raised
+    for the event (state-model.md); any other status is left as it is.
+
+    Nothing is committed: the caller commits it with the hold (SCRUM-84 AC8)
+    or, from SCRUM-86, with the booking request that started planning.
+    """
+    if event_request.status == "Approved":
+        event_request.status = "Planning"
 
 
 def _record_decision(event_request, account, decision, reason):

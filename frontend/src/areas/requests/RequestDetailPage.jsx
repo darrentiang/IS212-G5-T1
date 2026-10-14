@@ -3,13 +3,18 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import { useAuth } from '../../app/auth'
 import { STATUS, formatDate, formatDateTime, formatTime, statusBadgeClass } from '../../app/format'
 import SafetyCheckSection from './SafetyCheckSection'
+import VenueHoldsSection from './VenueHoldsSection'
 import {
   approveRequest,
   approveSafetyCheck,
   deleteDraft,
   getRequest,
   getRequestOptions,
+  listHolds,
+  listVenues,
+  placeHold,
   rejectRequest,
+  releaseHold,
   rejectSafetyCheck,
   requestSafetyChanges,
   resubmitRequest,
@@ -48,6 +53,10 @@ import {
 // SCRUM-53: the event's assigned Event Coordinator sends a Planning event for
 // safety check; a refusal lists what is outstanding, and the date and time it
 // was sent is shown once it is in Safety Check.
+// SCRUM-84: everyone who may view venues sees the event's Venue holds; its
+// assigned Event Coordinator places a hold from there while the event is
+// Approved or Planning (placing the first moves an Approved event to
+// Planning), and releases a Held one.
 
 // Same order and labels as RequestNewPage's form (ui-guidelines.md §7): FIELDS
 // come before the Venue requirements and Accessibility needs groups,
@@ -139,6 +148,8 @@ export default function RequestDetailPage() {
   const [options, setOptions] = useState(null)
   const [resubmitValues, setResubmitValues] = useState(null)
   const [resubmitErrors, setResubmitErrors] = useState({})
+  const [holds, setHolds] = useState(null)
+  const [holdVenues, setHoldVenues] = useState([])
 
   // Keyed to id: a reply for the request the user has left can
   // arrive after the current one, so a stale reply is ignored
@@ -274,6 +285,97 @@ const openDecision = (action) => {
       () => requestSafetyChanges(id, reasonText, areas, notes),
       'changes requested, back in Planning',
     )
+  // SCRUM-84: the holds are read with venues.view; a Draft can have none.
+  const canSeeHolds = Boolean(can?.('venues.view')) && Boolean(row) && row.status !== STATUS.REQUEST.DRAFT
+  // Offered to the assigned coordinator only; the API refuses anyone else.
+  const isAssignedCoordinator =
+    Boolean(can?.('bookings.edit')) && row?.assigned_coordinator === account?.username
+  const canPlaceHold =
+    isAssignedCoordinator && [STATUS.REQUEST.APPROVED, STATUS.REQUEST.PLANNING].includes(row?.status)
+
+  // Keyed to id, like the request itself (docs/design/frontend.md section 7).
+  useEffect(() => {
+    if (!canSeeHolds) return undefined
+    let active = true
+    listHolds(id)
+      .then((data) => {
+        if (active) setHolds(data)
+      })
+      .catch((error) => {
+        if (active) {
+          setBanner(error.message)
+          setSuccessBanner(null)
+        }
+      })
+    return () => {
+      active = false
+    }
+  }, [id, canSeeHolds])
+
+  // The venue picker is needed only to place a hold, so it loads when the form opens.
+  const openHold = async () => {
+    setSubmitting(true)
+    try {
+      const venues = await listVenues()
+      setHoldVenues(venues.filter((venue) => venue.is_active))
+      setBanner(null)
+      setSuccessBanner(null)
+      setOpenAction('hold')
+    } catch (error) {
+      setBanner(error.message)
+      setSuccessBanner(null)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  // A refusal keeps the form open with its entries (ui-guidelines.md §7).
+  const handlePlaceHold = async (values) => {
+    setSubmitting(true)
+    try {
+      const hold = await placeHold(id, values)
+      // The form is offered only once the holds are listed, so prev is a list.
+      setHolds((prev) => [...prev, hold])
+      setOpenAction(null)
+      setBanner(null)
+      setSuccessBanner('Hold placed')
+    } catch (error) {
+      setBanner(error.message)
+      setSuccessBanner(null)
+      setSubmitting(false)
+      return
+    }
+    // AC8: the first hold may have moved an Approved event to Planning.
+    try {
+      setRow(await getRequest(id))
+    } catch (error) {
+      setBanner(error.message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleReleaseHold = async (holdId) => {
+    setSubmitting(true)
+    try {
+      const released = await releaseHold(id, holdId)
+      setHolds((prev) => prev.map((hold) => (hold.id === released.id ? released : hold)))
+      setBanner(null)
+      setSuccessBanner('Hold released')
+    } catch (error) {
+      setBanner(error.message)
+      setSuccessBanner(null)
+      // The refusal may mean it was already released (another tab): show the holds as they now stand.
+      try {
+        setHolds(await listHolds(id))
+      } catch (reloadError) {
+        setBanner(reloadError.message)
+      }
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   const canRaiseBooking =
     Boolean(can?.('bookings.edit')) &&
     [STATUS.REQUEST.APPROVED, STATUS.REQUEST.PLANNING].includes(row?.status)
@@ -690,6 +792,22 @@ const openDecision = (action) => {
             </div>
           )}
         </div>
+      )}
+
+      {/* SCRUM-84: the event's venue holds, placed and released by its assigned coordinator. */}
+      {!loading && canSeeHolds && holds && (
+        <VenueHoldsSection
+          holds={holds}
+          canPlace={canPlaceHold}
+          canRelease={isAssignedCoordinator}
+          formOpen={openAction === 'hold'}
+          venues={holdVenues}
+          submitting={submitting}
+          onOpen={openHold}
+          onCancel={() => setOpenAction(null)}
+          onPlace={handlePlaceHold}
+          onRelease={handleReleaseHold}
+        />
       )}
 
       {/* SCRUM-89: review an event in Safety Check, and decide it. */}
