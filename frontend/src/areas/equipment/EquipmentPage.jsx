@@ -1,6 +1,8 @@
 import { Fragment, useEffect, useState } from 'react'
 import { useAuth } from '../../app/auth'
 import { listEquipment, updateTotalUnits } from './api'
+import Banner from '../../app/Banner'
+import { useReveal } from '../../app/reveal'
 
 // SCRUM-49: the equipment inventory — every recognised type and its total
 // units (ui-guidelines.md §7, "Equipment inventory"). Only an account with
@@ -26,6 +28,9 @@ export default function EquipmentPage() {
   const [stale, setStale] = useState(false)
 
   const canEdit = can('equipment.edit')
+  // The Change total form opens as the row below its button, brought into
+  // view with its field focused (ui-guidelines.md §13).
+  const editRef = useReveal(canEdit && editingId)
 
   useEffect(() => {
     // StrictMode may start a second load after cleaning up the first effect.
@@ -117,16 +122,15 @@ export default function EquipmentPage() {
         </h1>
       </div>
 
-      {banner && (
-        <p role="alert" className="banner-error" data-testid="equipment-banner">
-          {banner}
-        </p>
-      )}
-      {!banner && success && (
-        <p role="status" className="banner-success" data-testid="equipment-banner">
-          {success}
-        </p>
-      )}
+      <Banner
+        page="equipment"
+        error={banner}
+        success={success}
+        onDismiss={() => {
+          setBanner(null)
+          setSuccess(null)
+        }}
+      />
 
       {loading ? null : stale ? (
         <div className="card space-y-4">
@@ -185,7 +189,7 @@ export default function EquipmentPage() {
                     {canEdit && editingId === row.id && (
                       <tr>
                         <td colSpan={3}>
-                          <form onSubmit={handleSave} noValidate className="space-y-4">
+                          <form ref={editRef} onSubmit={handleSave} noValidate className="space-y-4">
                             <label htmlFor="equipment-edit-units" className="label">
                               Total units *
                             </label>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { formatDate, formatDateTimePeriod, statusBadgeClass, STATUS } from '../../app/format'
 import { getVenue, listVenueBlocks, listVenueBookings, listVenueHolds } from './api'
+import Banner from '../../app/Banner'
 
 // Bookings a Requested or an Approved booking never shows (SCRUM-39 AC5): a
 // Rejected or Withdrawn request no longer holds or threatens to hold the venue.
@@ -169,11 +170,7 @@ export default function VenueAvailabilityPage() {
         </div>
       </div>
 
-      {banner && (
-        <p role="alert" className="banner-error" data-testid="venue-availability-banner">
-          {banner}
-        </p>
-      )}
+      <Banner page="venue-availability" error={banner} onDismiss={() => setBanner(null)} />
 
       {venue && (
         <>

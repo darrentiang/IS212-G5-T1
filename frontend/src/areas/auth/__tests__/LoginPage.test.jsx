@@ -73,6 +73,21 @@ describe('LoginPage', () => {
     expect(screen.getByTestId('address')).toHaveTextContent('/login')
   })
 
+  // @story: chore-ui-feedback
+  // @ac: banner-dismiss
+  it('clears the banner from its dismiss control', async () => {
+    renderLoginPage()
+    api.login.mockRejectedValue(new ApiError(401, 'Invalid username or password'))
+    await userEvent.type(screen.getByTestId('login-username-input'), 'org1')
+    await userEvent.type(screen.getByTestId('login-password-input'), 'wrong')
+    await userEvent.click(screen.getByTestId('login-submit-button'))
+    await screen.findByTestId('login-banner')
+
+    await userEvent.click(screen.getByTestId('login-banner-dismiss'))
+
+    expect(screen.queryByTestId('login-banner')).not.toBeInTheDocument()
+  })
+
   // @story: setup
   // @ac: ui-shell
   it('lands on / when the API accepts the credentials', async () => {

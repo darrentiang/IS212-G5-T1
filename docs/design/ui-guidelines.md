@@ -37,6 +37,8 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | 1.28 | 14-10-2026 | §7 the Decide form's Changes needed in checkboxes and Request changes button; the Changes requested card for an Event Coordinator; a decision's Areas line | SCRUM-90 lets the Safety Officer send an event back with the areas to change, and the coordinator reads them on the event |
 | 1.29 | 14-10-2026 | §7 the request page's Send for safety check button and Sent for safety check line, and how a refusal lists what is outstanding | SCRUM-53 lets the assigned Event Coordinator send a Planning event for safety check |
 | 1.30 | 15-10-2026 | §7 the request page's Venue holds section, its Place hold form and Release button, with their test ids and banners; the booking-new page's hold warning line (`booking-new-warning-hold-<id>`); the venue-availability page's Held entries (kind `hold`); a refused approval also names a Held hold; §12 Held and Released badge colours | SCRUM-84 lets the assigned Event Coordinator hold a venue for an event until an expiry, and shows the hold wherever the venue's availability is judged |
+| 1.31 | 15-10-2026 | §4 the page banner sticks below the header wherever the page is scrolled, is announced (`aria-live`) and has a dismiss control (`<page>-banner-dismiss`); every page renders it with the shared `app/Banner.jsx`; §10 the dismiss id | The Product Owner's review: a message raised by an action low on the page was out of sight at the top of the content, so the action seemed to do nothing |
+| 1.32 | 15-10-2026 | §13 Feedback at the point of action: the principle and its patterns (an inline form beside its trigger, brought into view with its first field focused; a confirmation the same way with Cancel focused; refreshed results brought into view; a refused required-field check focusing the first field it names); §7 the request page's Approve and Reject in the card's action row, and the Edit draft, Delete draft and decide forms directly below the card; §11 check 6 | The Product Owner's review: pressing Approve opened its form further down the page, so nothing seemed to change where the user clicked; the audit found the same gap on every inline form and long form |
 
 ## 1. Pages
 
@@ -95,13 +97,15 @@ While the page is waiting for the API it renders the title row and nothing below
 
 ## 4. Banners
 
-- One banner at a time, at the top of the page content.
-- Error: `role="alert"`. Success: `role="status"`. The text states what happened ("Request submitted", or the API's refusal message word for word). The page never replaces a refusal with its own wording.
+- One banner at a time, at the top of the page content (§3). It **stays in view**: once the page scrolls past its place it sticks just below the header, so a message raised by an action anywhere on the page is seen without scrolling back up. While it sticks it covers the top of the content under it; the user dismisses it to see what is beneath.
+- Error: `role="alert"` with `aria-live="assertive"`. Success: `role="status"` with `aria-live="polite"`. Screen readers announce both. The text states what happened ("Request submitted", or the API's refusal message word for word). The page never replaces a refusal with its own wording.
+- A dismiss control (×, labelled "Dismiss message") at its right clears it at once. The control sits beside the message, not inside it, so the banner's test id still reads the message alone, word for word.
+- Every page renders its banner with the shared `Banner` component (`app/Banner.jsx`, `frontend.md` §1), passing its error and its success; an error wins when both are set.
 - A refusal (the API says no) always shows in the banner, even when the page hid the control that led to it.
-- A banner stays until the user's next action or navigation. No auto-dismiss, so tests never race a timer.
+- A banner stays until the user's next action, navigation or dismissal. No auto-dismiss, so tests never race a timer.
 - After an action that moves the user to another page (e.g. submitting a new request opens its detail page), the success banner shows on the page they land on.
 - A session that has ended sends the user to `/login`.
-- Test id: `<page>-banner`. Tests tell success from error by `role`.
+- Test ids: `<page>-banner` (the message), `<page>-banner-dismiss` (the dismiss control). Tests tell success from error by `role`.
 
 ## 5. Forms
 
@@ -144,7 +148,7 @@ While the page is waiting for the API it renders the title row and nothing below
 - Status as text; a flag as its own text beside it.
 - Actions (approve, reject, …) are buttons per §5, in one row under the fields, shown only when the account's features allow them.
 - **Assigned coordinator (SCRUM-43).** Approving a request makes the system assign one Event Coordinator and moves it to Planning, so the request page shows an Assigned coordinator (their username) and an Assigned on date, below the decision, to everyone who can open the request. The page offers no way to decline or change the assignment; reassignment is SCRUM-44.
-- **An action that needs a reason or a confirmation opens an inline form** below the action row, on the same page: its fields per §5, a Confirm button (labelled with the action, e.g. Reject) and a Cancel button that closes it. No modal, no overlay, no browser `confirm()`. Only one inline form is open at a time; opening another closes the first. Its test ids use the action as `<field>`: `request-detail-reject-reason-input`, `request-detail-reject-confirm-button`, `request-detail-reject-cancel-button`.
+- **An action that needs a reason or a confirmation opens an inline form** directly below the action row, on the same page, brought into view with focus in it (§13): its fields per §5, a Confirm button (labelled with the action, e.g. Reject) and a Cancel button that closes it. No modal, no overlay, no browser `confirm()`. Only one inline form is open at a time; opening another closes the first. Its test ids use the action as `<field>`: `request-detail-reject-reason-input`, `request-detail-reject-confirm-button`, `request-detail-reject-cancel-button`.
 - **Revise and resubmit (SCRUM-72).** On a Rejected request the Event Organiser who created it sees the request's fields in a form already open below the details (the decision and its reason stay above it), prefilled and laid out as the Draft edit form is, with one primary Resubmit button and no Cancel. The same required-field check as submitting runs first: a message under each empty required field, nothing sent. Test ids use `resubmit` as the action: `request-detail-resubmit-<field>-input`, `request-detail-resubmit-<field>-error`, a choice's checkbox `request-detail-resubmit-<list>-<option>-input` as in §5, and `request-detail-resubmit-button`. Once the request is Submitted the form is gone. Anyone else sees the details only.
 
 | Element | `data-testid` | Example |
@@ -154,6 +158,8 @@ While the page is waiting for the API it renders the title row and nothing below
 | Flag | `<page>-<flag>-flag` | `request-detail-clarification-flag` |
 | Assigned coordinator (SCRUM-43; shown once assigned) | `<page>-assigned-coordinator` | `request-detail-assigned-coordinator` |
 | Assignment date (SCRUM-43; shown with the coordinator, `03 Oct 2026`) | `<page>-assigned-at` | `request-detail-assigned-at` |
+
+**Where the request page's forms open (§13).** Approve and Reject (SCRUM-29) sit in the request card's action row, under the fields, like the Draft's Delete, Edit and Submit. The forms those rows open (Edit draft, the Delete draft confirmation, and the Approve or Reject reason form) open directly below the card, above Venue holds and the safety sections, so they appear next to the button that opened them.
 
 **Safety check (SCRUM-89).** An Event Coordinator or Safety Officer opening an event that has had a safety decision sees a Safety decisions section below the details: each decision as `<Decision> by <username> on <moment>`, its reason when it has one, and each note as `<Area>: <text>`, oldest first. A Safety Officer opening an event in Safety Check also sees a Safety check card: the date and time it was sent, its Approved venue bookings (venue and location, period, maximum capacity, supported layouts, facilities, accessibility features, each `None` when empty), and its Approved equipment requirements (`None.` until equipment is recorded). Below it is one Decide form, always open, with one optional note per area (Attendance, Capacity and layout, Emergency access, Accessibility, Equipment placement, Crowd movement, Venue restrictions), a Reason field, and Reject and Approve buttons. Reject with a blank reason shows `Reason is required.` and sends nothing. A decision returns the user to the Requests page with a banner `<event name>: approved, now Confirmed` or `<event name>: rejected, back in Planning`; a refused decision shows the reason in the page's banner and stays. An account without `safety.decide` sees no form.
 
@@ -451,7 +457,7 @@ The nav's unread count (§2, `layout-nav-notifications-count`) comes from `GET /
 
 ## 10. Test ids, summary
 
-- Every input, button, link that acts, banner, title, back link, row, status, flag and empty message has a `data-testid`.
+- Every input, button, link that acts, banner, banner dismiss control, title, back link, row, status, flag and empty message has a `data-testid`. The banner's ids are `<page>-banner` and `<page>-banner-dismiss` (§4).
 - Format `<page>-<element>`, kebab-case, `<page>` from §1 (`layout` for the layout).
 - Tests find elements by test id only; text is asserted, never used to find an element.
 - Renaming a test id changes every test that uses it: update those tests in the same pull request.
@@ -463,6 +469,7 @@ The nav's unread count (§2, `layout-nav-notifications-count`) comes from `GET /
 3. Controls the account cannot use are hidden, and the page still shows a refusal if the API says no.
 4. Status and flag text come from `STATUS`; dates and times from `app/format.js`; colour never stands alone.
 5. The page follows the §3 order; no modal, overlay or browser dialog anywhere.
+6. Every action's response is visible without scrolling (§13).
 
 ## 12. Look
 
@@ -485,3 +492,19 @@ How pages look (tokens, type, spacing and the shared classes) is in `visual-styl
 | Released | Neutral |
 
 A status not in this table is neutral until a story adds its row here. Requested and Withdrawn are a venue booking request's own statuses (state-model.md); its Approved and Rejected reuse the colours already above. Held and Released are a venue hold's (SCRUM-84): Held is Warning so that a hold reads apart from an Approved booking (Success) and a Pending one (Info) on the availability page.
+
+## 13. Feedback at the point of action
+
+**Every action gets a visible response where the user is looking.** When a control opens a form, asks for confirmation, or changes what the page shows, that response appears next to the control or is brought into view, and keyboard focus moves to it (the first field of a form, or the confirmation). A user never has to scroll or search to learn what their click did. Messages follow §4.
+
+A page picks one of these patterns for each control. They are built with `useReveal` and `useRevealError` from `app/reveal.js` (`frontend.md` §7), which scroll only as far as needed and stop clear of the sticky header.
+
+| Pattern | Use it for | What happens |
+|---|---|---|
+| **A. Inline form** | An action that needs fields (Edit, Update venue, Block venue, Place hold, Change total, a reason) | The form opens directly below its trigger, in its place, or as the row below a per-row trigger (§7). It is brought into view and its first field is focused. Switching to another form or row brings that one into view too. |
+| **A′. Inline confirmation** | An action that only needs a yes or no (Delete draft) | Opens as pattern A, with the Cancel button focused, so a stray Enter does not confirm. Still no modal or browser dialog (§7, §11). |
+| **B. Refreshed results** | An action that replaces a list below it (Apply on venue search) | The new results are brought into view; focus stays on the control, so the user can change the filter and apply again. The page's first load scrolls nothing. |
+| **C. Refused required fields** | A form's own required-field check (§5) | The first field with a message is brought into view and focused, on every refused submit. A refusal from the API goes to the banner (§4), which is always in view. |
+| **D. Act at once** | An action with no form (Submit, Send for safety check, Remove, Withdraw, Release, Mark as read) | The change shows where the action was (the row, its badge or the status), and the banner (§4) says what happened. Nothing moves. |
+
+A control that leaves the page (a link, or an action that navigates) needs none of these: the next page opens at its top, with its banner (§4).

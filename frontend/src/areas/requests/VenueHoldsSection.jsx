@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useReveal } from '../../app/reveal'
 import { STATUS, formatDateTime, formatDateTimePeriod, formatPeriod, statusBadgeClass } from '../../app/format'
 
 // SCRUM-84: the request page's Venue holds section, and the Place hold form
@@ -38,6 +39,8 @@ export default function VenueHoldsSection({
 }) {
   const [values, setValues] = useState(EMPTY)
   const [errors, setErrors] = useState({})
+  // The Place hold form opens in the button's place with its Venue focused (ui-guidelines.md §13).
+  const formRef = useReveal(canPlace && formOpen)
 
   const setValue = (name, value) => setValues((prev) => ({ ...prev, [name]: value }))
 
@@ -91,7 +94,7 @@ export default function VenueHoldsSection({
       </div>
 
       {canPlace && formOpen && (
-        <form onSubmit={handleSubmit} noValidate className="card form-card space-y-4" data-testid="request-detail-hold-form">
+        <form ref={formRef} onSubmit={handleSubmit} noValidate className="card form-card space-y-4" data-testid="request-detail-hold-form">
           <h3 className="section-title">Place hold</h3>
           <div className="grid gap-4 md:grid-cols-3">
             {field('venue_id', 'Venue', (id) => (

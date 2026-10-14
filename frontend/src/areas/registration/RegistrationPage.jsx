@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { statusBadgeClass } from '../../app/format'
 import { listOpenEvents } from './api'
+import Banner from '../../app/Banner'
 
 // SCRUM-27: confirmed events with registration only; never internal notes.
 export default function RegistrationPage() {
@@ -24,11 +25,7 @@ export default function RegistrationPage() {
         </h1>
       </div>
 
-      {banner && (
-        <p role="alert" className="banner-error" data-testid="registration-banner">
-          {banner}
-        </p>
-      )}
+      <Banner page="registration" error={banner} onDismiss={() => setBanner(null)} />
 
       {loading ? null : rows.length === 0 ? (
         <div className="card">

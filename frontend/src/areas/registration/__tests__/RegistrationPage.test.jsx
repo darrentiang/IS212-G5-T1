@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import * as api from '../api'
 import RegistrationPage from '../RegistrationPage'
@@ -46,6 +47,24 @@ describe('RegistrationPage', () => {
     await waitFor(() => {
       expect(screen.getByTestId('registration-banner')).toHaveTextContent(/permission/i)
     })
+  })
+
+  // @story: chore-ui-feedback
+  // @ac: banner-dismiss
+  it('clears the banner from its dismiss control', async () => {
+    api.listOpenEvents.mockRejectedValue(
+      Object.assign(new Error('You do not have permission to perform this action.'), { status: 403 }),
+    )
+    render(
+      <MemoryRouter>
+        <RegistrationPage />
+      </MemoryRouter>,
+    )
+    await screen.findByTestId('registration-banner')
+
+    await userEvent.click(screen.getByTestId('registration-banner-dismiss'))
+
+    expect(screen.queryByTestId('registration-banner')).not.toBeInTheDocument()
   })
 
   // @story: SCRUM-27

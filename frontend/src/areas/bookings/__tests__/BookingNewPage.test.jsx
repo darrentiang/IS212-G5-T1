@@ -82,6 +82,24 @@ describe('BookingNewPage', () => {
     })
   })
 
+  // @story: chore-ui-feedback
+  // @ac: banner-dismiss
+  it('clears the banner from its dismiss control', async () => {
+    api.listVenues.mockRejectedValue(Object.assign(new Error('Something went wrong'), { status: 500 }))
+    render(
+      <MemoryRouter initialEntries={['/requests/5/bookings/new']}>
+        <Routes>
+          <Route path="/requests/:requestId/bookings/new" element={<BookingNewPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    await screen.findByTestId('booking-new-banner')
+
+    await userEvent.click(screen.getByTestId('booking-new-banner-dismiss'))
+
+    expect(screen.queryByTestId('booking-new-banner')).not.toBeInTheDocument()
+  })
+
   // @story: SCRUM-36
   // @ac: 1
   it('offers one option per active venue, excluding a retired one', async () => {

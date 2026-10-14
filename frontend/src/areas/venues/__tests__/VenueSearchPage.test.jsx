@@ -139,6 +139,20 @@ describe('VenueSearchPage', () => {
     expect(screen.queryByTestId('venue-search-event-name')).not.toBeInTheDocument()
   })
 
+  // @story: chore-ui-feedback
+  // @ac: banner-dismiss
+  it('clears the banner from its dismiss control', async () => {
+    api.searchVenues.mockRejectedValue(
+      refusal('Venue search is available only for an Approved or Planning event.'),
+    )
+    renderPage()
+    await screen.findByTestId('venue-search-banner')
+
+    await userEvent.click(screen.getByTestId('venue-search-banner-dismiss'))
+
+    expect(screen.queryByTestId('venue-search-banner')).not.toBeInTheDocument()
+  })
+
   // @story: SCRUM-33
   // @ac: 6
   it('applies the typed location only when Apply is pressed', async () => {
@@ -552,5 +566,25 @@ describe('VenueSearchPage', () => {
       )
       expect(screen.getByTestId('venue-search-row-1')).toBeInTheDocument()
     })
+  })
+})
+
+describe('VenueSearchPage feedback at the point of action', () => {
+  // @story: chore-ui-feedback
+  // @ac: point-of-action
+  it('brings the results an Apply returns into view, keeping focus on Apply, but not the first search', async () => {
+    Element.prototype.scrollIntoView.mockClear()
+    api.searchVenues.mockResolvedValueOnce(found([SEMINAR_ROOM_1, AUDITORIUM]))
+    renderPage()
+    await screen.findByTestId('venue-search-row-1')
+    expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled()
+
+    api.searchVenues.mockResolvedValueOnce(found([AUDITORIUM]))
+    await applyLocation('Block C Level 1')
+
+    await waitFor(() => expect(screen.queryByTestId('venue-search-row-1')).not.toBeInTheDocument())
+    expect(Element.prototype.scrollIntoView).toHaveBeenCalledTimes(1)
+    expect(Element.prototype.scrollIntoView.mock.contexts[0]).toContainElement(screen.getByTestId('venue-search-row-2'))
+    expect(screen.getByTestId('venue-search-apply-button')).toHaveFocus()
   })
 })
