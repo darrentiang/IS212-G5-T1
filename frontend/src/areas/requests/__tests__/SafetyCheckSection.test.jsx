@@ -161,6 +161,7 @@ describe('earlier decisions', () => {
           decision: 'Rejected',
           reason: 'Exits not marked',
           notes: { emergency_access: 'Stage blocks the east exit' },
+          areas: [],
           decided_at: '2026-10-05T10:00:00',
           decided_by: 'safety1',
         },
@@ -188,6 +189,7 @@ describe('earlier decisions', () => {
           decision: 'Rejected',
           reason: 'Exits not marked',
           notes: {},
+          areas: [],
           decided_at: '2026-10-05T10:00:00',
           decided_by: 'safety1',
         },
@@ -338,5 +340,166 @@ describe('an account that cannot decide', () => {
     ]) {
       expect(screen.queryByTestId(id)).not.toBeInTheDocument()
     }
+  })
+})
+
+// SCRUM-90 AC1, AC2: the Safety Officer sends the event back with the areas to change.
+describe('requesting changes', () => {
+  it('needs a reason and at least one area before anything is sent', async () => {
+    signInWith(SAFETY_OFFICER)
+    api.getRequest.mockResolvedValue(EVENT)
+    renderDetail()
+    const user = userEvent.setup()
+
+    await user.click(await screen.findByTestId('request-detail-safety-request-changes-button'))
+    expect(screen.getByTestId('request-detail-safety-reason-error')).toHaveTextContent('Reason is required.')
+    expect(screen.getByTestId('request-detail-safety-area-error')).toHaveTextContent('Choose at least one area.')
+
+    await user.type(screen.getByTestId('request-detail-safety-reason-input'), 'Stage blocks the exit')
+    await user.click(screen.getByTestId('request-detail-safety-request-changes-button'))
+    expect(screen.queryByTestId('request-detail-safety-reason-error')).not.toBeInTheDocument()
+    expect(screen.getByTestId('request-detail-safety-area-error')).toBeInTheDocument()
+    expect(api.requestSafetyChanges).not.toHaveBeenCalled()
+  })
+
+  it('sends the reason, the areas ticked and the notes, then returns to the list', async () => {
+    signInWith(SAFETY_OFFICER)
+    api.getRequest.mockResolvedValue(EVENT)
+    api.requestSafetyChanges.mockResolvedValue({ ...EVENT, status: STATUS.REQUEST.PLANNING })
+    renderDetail()
+    const user = userEvent.setup()
+
+    await user.click(await screen.findByTestId('request-detail-safety-area-technical-arrangements'))
+    await user.click(screen.getByTestId('request-detail-safety-area-venue-arrangements'))
+    await user.type(screen.getByTestId('request-detail-safety-reason-input'), 'Stage blocks the exit')
+    await user.type(screen.getByTestId('request-detail-safety-note-emergency-access'), 'Move the stage back')
+    await user.click(screen.getByTestId('request-detail-safety-request-changes-button'))
+
+    await waitFor(() => expect(screen.getByTestId('list-stub')).toBeInTheDocument())
+    expect(api.requestSafetyChanges).toHaveBeenCalledWith(
+      '7',
+      'Stage blocks the exit',
+      ['venue_arrangements', 'technical_arrangements'],
+      { emergency_access: 'Move the stage back' },
+    )
+    expect(screen.getByTestId('list-stub')).toHaveTextContent('Harbour Gala: changes requested, back in Planning')
+  })
+
+  it('lets a ticked area be unticked again', async () => {
+    signInWith(SAFETY_OFFICER)
+    api.getRequest.mockResolvedValue(EVENT)
+    api.requestSafetyChanges.mockResolvedValue({ ...EVENT, status: STATUS.REQUEST.PLANNING })
+    renderDetail()
+    const user = userEvent.setup()
+
+    await user.click(await screen.findByTestId('request-detail-safety-area-venue-arrangements'))
+    await user.click(screen.getByTestId('request-detail-safety-area-technical-arrangements'))
+    await user.click(screen.getByTestId('request-detail-safety-area-venue-arrangements'))
+    await user.type(screen.getByTestId('request-detail-safety-reason-input'), 'Needs work')
+    await user.click(screen.getByTestId('request-detail-safety-request-changes-button'))
+
+    await waitFor(() =>
+      expect(api.requestSafetyChanges).toHaveBeenCalledWith('7', 'Needs work', ['technical_arrangements'], {}),
+    )
+  })
+
+  it('shows a refused request in the banner and stays on the event', async () => {
+    signInWith(SAFETY_OFFICER)
+    api.getRequest.mockResolvedValue(EVENT)
+    api.requestSafetyChanges.mockRejectedValue(
+      new Error('No event in Safety Check was found with that number.'),
+    )
+    renderDetail()
+    const user = userEvent.setup()
+
+    await user.click(await screen.findByTestId('request-detail-safety-area-venue-arrangements'))
+    await user.type(screen.getByTestId('request-detail-safety-reason-input'), 'Needs work')
+    await user.click(screen.getByTestId('request-detail-safety-request-changes-button'))
+
+    expect(await screen.findByTestId('request-detail-banner')).toHaveTextContent('No event in Safety Check')
+    expect(screen.queryByTestId('list-stub')).not.toBeInTheDocument()
+  })
+
+  it('offers an Event Coordinator no way to request changes', async () => {
+    signInWith(['requests.view', 'requests.decide', 'notifications.view'], 'coord1')
+    api.getRequest.mockResolvedValue(EVENT)
+    renderDetail()
+
+    await screen.findByTestId('request-detail-safety-check')
+    expect(screen.queryByTestId('request-detail-safety-request-changes-button')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('request-detail-safety-area-venue-arrangements')).not.toBeInTheDocument()
+  })
+})
+
+// SCRUM-90 AC5, AC7: what the coordinator sees, and what stays in the history.
+describe('requested changes', () => {
+  const PLANNING = {
+    ...EVENT,
+    status: STATUS.REQUEST.PLANNING,
+    safety_check: undefined,
+    requested_changes: {
+      id: 9,
+      decision: 'Changes requested',
+      reason: 'Stalls block the fire lane',
+      notes: { crowd_movement: 'One way only' },
+      areas: ['venue_arrangements', 'technical_arrangements'],
+      decided_at: '2026-10-12T10:00:00',
+      decided_by: 'safety1',
+    },
+  }
+
+  it('shows the Event Coordinator the reason, areas and notes while the event is in Planning', async () => {
+    signInWith(['requests.view', 'requests.decide', 'notifications.view'], 'coord1')
+    api.getRequest.mockResolvedValue(PLANNING)
+    renderDetail()
+
+    expect(await screen.findByTestId('request-detail-requested-changes')).toBeInTheDocument()
+    expect(screen.getByTestId('request-detail-requested-changes-areas')).toHaveTextContent(
+      'Venue arrangements, Technical arrangements',
+    )
+    expect(screen.getByTestId('request-detail-requested-changes-reason')).toHaveTextContent(
+      'Stalls block the fire lane',
+    )
+    expect(screen.getByTestId('request-detail-requested-changes-note-crowd-movement')).toHaveTextContent(
+      'One way only',
+    )
+    expect(screen.getByTestId('request-detail-requested-changes-by')).toHaveTextContent(
+      'safety1, 12 Oct 2026, 10:00',
+    )
+  })
+
+  it('shows nothing when no changes are outstanding', async () => {
+    signInWith(['requests.view', 'requests.decide', 'notifications.view'], 'coord1')
+    api.getRequest.mockResolvedValue({ ...PLANNING, requested_changes: null })
+    renderDetail()
+
+    await screen.findByTestId('request-detail-fields')
+    expect(screen.queryByTestId('request-detail-requested-changes')).not.toBeInTheDocument()
+  })
+
+  it('lists a request for changes among the earlier decisions with its areas', async () => {
+    signInWith(SAFETY_OFFICER)
+    api.getRequest.mockResolvedValue({
+      ...EVENT,
+      safety_decisions: [
+        {
+          id: 4,
+          decision: 'Changes requested',
+          reason: 'Sound desk has no power feed',
+          notes: {},
+          areas: ['technical_arrangements'],
+          decided_at: '2026-10-07T10:00:00',
+          decided_by: 'safety1',
+        },
+      ],
+    })
+    renderDetail()
+
+    expect(await screen.findByTestId('request-detail-safety-decision-4-decision')).toHaveTextContent(
+      'Changes requested',
+    )
+    expect(screen.getByTestId('request-detail-safety-decision-4-areas')).toHaveTextContent(
+      'Areas: Technical arrangements',
+    )
   })
 })

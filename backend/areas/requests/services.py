@@ -46,6 +46,15 @@ SAFETY_NOTE_AREAS = (
     "venue_restrictions",
 )
 
+# The areas a request for changes names (SCRUM-90 AC1), in the fixed order they
+# are kept and shown in.
+CHANGE_AREAS = ("venue_arrangements", "technical_arrangements")
+CHANGE_AREA_LABELS = {
+    "venue_arrangements": "venue arrangements",
+    "technical_arrangements": "technical arrangements",
+}
+CHANGES_REQUESTED = "Changes requested"
+
 # One sentence for an event that does not exist and for one that is not in
 # Safety Check, so a decision never confirms an event the Safety Officer may
 # not see (permissions.md: a write answers 404 when the record is not theirs).
@@ -114,6 +123,8 @@ def request_detail_dict(event_request, account):
         payload["safety_decisions"] = [
             _safety_decision_to_dict(row) for row in event_request.safety_decisions
         ]
+    if can(account, INTERNAL_NOTES_VIEW):
+        payload["requested_changes"] = _requested_changes(event_request)
     if reviewing:
         payload["safety_check"] = _safety_check_to_dict(event_request)
     return payload
@@ -125,9 +136,30 @@ def _safety_decision_to_dict(decision):
         "decision": decision.decision,
         "reason": decision.reason,
         "notes": decision.notes or {},
+        "areas": decision.areas or [],
         "decided_at": decision.decided_at.isoformat(),
         "decided_by": decision.decided_by.username,
     }
+
+
+def _requested_changes(event_request):
+    """The changes the Safety Officer asked for that are still outstanding, else None.
+
+    SCRUM-90 AC5: shown while the event is in Planning, until it is sent for
+    safety check again. Nothing is stored for that: the latest decision is a
+    request for changes and the event has not been sent since it (SCRUM-53
+    records a later safety_check_at when it sends the event), so sending it
+    again clears the changes without SCRUM-53 having to know about them.
+    """
+    if event_request.status != "Planning" or not event_request.safety_decisions:
+        return None
+    latest = event_request.safety_decisions[-1]
+    if latest.decision != CHANGES_REQUESTED:
+        return None
+    sent = event_request.safety_check_at
+    if sent is not None and sent >= latest.decided_at:
+        return None
+    return _safety_decision_to_dict(latest)
 
 
 def _approved_equipment_requirements(event_request):
@@ -629,7 +661,18 @@ def _safety_notes(data):
     return {area: cleaned[area] for area in SAFETY_NOTE_AREAS if area in cleaned}
 
 
-def _record_safety_decision(event_request, account, decision, reason, notes):
+def _change_areas(data):
+    """The areas a request for changes names, once each in the fixed order (AC1, AC2)."""
+    raw = (data or {}).get("areas")
+    if not isinstance(raw, list) or not raw:
+        raise ApiRefusal(400, "At least one area is required: venue arrangements or technical arrangements.")
+    for area in raw:
+        if area not in CHANGE_AREAS:
+            raise ApiRefusal(400, f"'{area}' is not an area changes can be requested for.")
+    return [area for area in CHANGE_AREAS if area in raw]
+
+
+def _record_safety_decision(event_request, account, decision, reason, notes, areas=()):
     """Keep the decision, move the event on and tell its coordinator (AC5-AC8)."""
     db.session.add(
         SafetyDecision(
@@ -637,6 +680,7 @@ def _record_safety_decision(event_request, account, decision, reason, notes):
             decision=decision,
             reason=reason,
             notes=notes,
+            areas=list(areas),
             decided_at=datetime.now(timezone.utc),
             decided_by_id=account.id,
         )
@@ -645,6 +689,13 @@ def _record_safety_decision(event_request, account, decision, reason, notes):
     if decision == "Approved":
         event_request.status = "Confirmed"
         message = f'Your event "{name}" passed its safety check and is now Confirmed.'
+    elif decision == CHANGES_REQUESTED:
+        event_request.status = "Planning"
+        wanted = " and ".join(CHANGE_AREA_LABELS[area] for area in areas)
+        message = (
+            f'Your event "{name}" needs changes before its safety check: {wanted}. '
+            f"Reason: {reason}"
+        )
     else:
         event_request.status = "Planning"
         message = (
@@ -674,3 +725,20 @@ def reject_safety_check(account, request_id, data):
         raise ApiRefusal(400, "A reason is required to reject.")
     notes = _safety_notes(data)
     return _record_safety_decision(event_request, account, "Rejected", reason, notes)
+
+
+def request_safety_changes(account, request_id, data):
+    """Safety Check -> Planning with the areas to change (state-model.md, SCRUM-90).
+
+    A reason and at least one area are required; notes are optional.
+    """
+    event_request = _get_event_in_safety_check(request_id)
+    reason = (data or {}).get("reason")
+    reason = reason.strip() if isinstance(reason, str) else ""
+    if not reason:
+        raise ApiRefusal(400, "A reason is required to request changes.")
+    areas = _change_areas(data)
+    notes = _safety_notes(data)
+    return _record_safety_decision(
+        event_request, account, CHANGES_REQUESTED, reason, notes, areas
+    )

@@ -14,6 +14,7 @@ Every acceptance criterion that changes a status uses a value from these tables.
 | 1.7 | 11-10-2026 | New: Notification, with read as a flag, not a status | SCRUM-58: a notification is created once and never changes status; whether it has been read is a flag on the row, the same pattern as "clarification requested" on an event request |
 | 1.8 | 12-10-2026 | Equipment reservation: no status change; recorded that a reservation always belongs to an event and its period is a snapshot of that event's period, complete and valid; defined the committed-peak rule (Reserved only, half-open periods, one window-parameterized calculation shared by SCRUM-49/50/51) | SCRUM-49 AC4 needs an agreed definition of "maximum simultaneously committed units" so the stock guard, the availability check and the reserve check can never become three competing formulas (was 1.7 on the branch; renumbered after SCRUM-58's 1.7 merged first) |
 | 1.9 | 13-10-2026 | Event request: new status Safety Check, between Planning and Confirmed; Safety Check → Confirmed (approve) and Safety Check → Planning (reject, reason required) by the Safety Officer. Planning → Safety Check is SCRUM-53's; until it is merged, events enter Safety Check only through the seed data. SCRUM-53 also removes Planning → Confirmed | Week 7 customer change 6; SCRUM-89 (copied from `target/state-model.md` v1.3, this story's slice) |
+| 1.10 | 14-10-2026 | Event request: Safety Check → Planning also by Request changes (reason and at least one area required); the Safety changes requested flag on Planning, cleared when the event is sent again | Week 7 customer change 6; SCRUM-90 (copied from `target/state-model.md` v1.3, this story's slice) |
 
 The front end holds these words in `frontend/src/app/format.js` (`STATUS`); a change here changes that file in the same pull request.
 
@@ -32,6 +33,7 @@ The front end holds these words in `frontend/src/app/format.js` (`STATUS`); a ch
 | Planning | Safety Check | Send for safety check (every recorded arrangement approved), built by SCRUM-53 | Event Coordinator |
 | Safety Check | Confirmed | Approve the safety check | Safety Officer |
 | Safety Check | Planning | Reject the safety check (reason required) | Safety Officer |
+| Safety Check | Planning | Request changes (reason and at least one area required) | Safety Officer |
 | Confirmed | Planning | Significant change accepted via change request | Event Coordinator |
 | Confirmed | Completed | Mark completed after the event | Event Coordinator |
 | Planning / Confirmed | Cancelled | Cancel | Authorised user (SCRUM-65 defines who) |
@@ -51,13 +53,16 @@ stateDiagram-v2
     Planning --> SafetyCheck: Send for safety check
     SafetyCheck --> Confirmed: Safety check approved
     SafetyCheck --> Planning: Safety check rejected (reason required)
+    SafetyCheck --> Planning: Changes requested (reason and area required)
     Confirmed --> Planning: Significant change accepted
     Confirmed --> Completed: Mark completed
     Planning --> Cancelled: Cancel
     Confirmed --> Cancelled: Cancel
 ```
 
-Each decision the Safety Officer makes is kept with the event: the decision, its reason where one is required, an optional note per area, the date and the Safety Officer. An event that returns to Safety Check keeps every earlier decision (SCRUM-89).
+Flags, not statuses (continued): **safety changes requested**, on Planning: set by the Safety Officer's request for changes with its reason and areas (venue arrangements, technical arrangements, or both), and cleared when the event is sent for safety check again (SCRUM-90). It is not stored: it is the latest decision, while that decision is a request for changes and the event has not been sent since it.
+
+Each decision the Safety Officer makes is kept with the event: the decision, its reason where one is required, the areas where changes were requested, an optional note per area, the date and the Safety Officer. An event that returns to Safety Check keeps every earlier decision (SCRUM-89).
 
 ## Venue booking request
 

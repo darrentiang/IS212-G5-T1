@@ -33,6 +33,12 @@ SEEDED_IN_SAFETY_CHECK = {
     "Garden Concert",
     "Robotics Expo",
     "Film Night",
+    "Chess Open",
+    "Spring Recital",
+    "Dance Night",
+    "Maker Faire",
+    "Jazz Brunch",
+    "Quiz Night",
 }
 
 
@@ -151,6 +157,12 @@ def test_list_shows_events_in_safety_check_longest_first(client, app):
         "Garden Concert",
         "Robotics Expo",
         "Film Night",
+        "Chess Open",
+        "Spring Recital",
+        "Dance Night",
+        "Maker Faire",
+        "Jazz Brunch",
+        "Quiz Night",
     ]
 
 

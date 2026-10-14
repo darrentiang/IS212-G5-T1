@@ -37,8 +37,9 @@ from db import db
 # Notification table, so 14. SCRUM-49 added seeded equipment types with
 # their total stock and event-linked equipment reservations (Reserved/
 # Released storage only), so 15. SCRUM-89 added an event request's
-# safety_check_at and the SafetyDecision table, so 16.
-SCHEMA_VERSION = 16
+# safety_check_at and the SafetyDecision table, so 16. SCRUM-90 added a
+# safety decision's areas, so 17.
+SCHEMA_VERSION = 17
 
 
 account_roles = db.Table(
@@ -495,9 +496,11 @@ class SafetyDecision(db.Model):
 
     A row is added for every decision and never changed, so an event that goes
     through Safety Check more than once keeps every earlier decision and its
-    reason (AC5). ``decision`` is Approved or Rejected; requesting changes is
-    SCRUM-90 and adds its own value. ``notes`` holds the optional note per
-    area as ``{area: text}``; only areas with a note are present.
+    reason (AC5). ``decision`` is Approved, Rejected or Changes requested
+    (SCRUM-90). ``notes`` holds the optional note per area as
+    ``{area: text}``; only areas with a note are present. ``areas`` is the
+    list a request for changes names (venue_arrangements,
+    technical_arrangements); it is empty for the other decisions.
     ``decided_at`` is UTC, like the other decision timestamps.
     """
 
@@ -508,6 +511,7 @@ class SafetyDecision(db.Model):
     decision = db.Column(db.String(32), nullable=False)
     reason = db.Column(db.Text, nullable=True)
     notes = db.Column(db.JSON, nullable=False, default=dict)
+    areas = db.Column(db.JSON, nullable=False, default=list)
     decided_at = db.Column(db.DateTime, nullable=False)
     decided_by_id = db.Column(db.Integer, db.ForeignKey("accounts.id"), nullable=False)
 

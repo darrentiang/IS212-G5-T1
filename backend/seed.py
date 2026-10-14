@@ -234,6 +234,7 @@ def seed_database(db, data_path=DEFAULT_DATA_PATH, standing_bookings=True):
                     decision=entry["decision"],
                     reason=entry.get("reason"),
                     notes=entry.get("notes", {}),
+                    areas=entry.get("areas", []),
                     decided_at=parse_datetime(entry["decided_at"]),
                     decided_by=accounts[entry["decided_by"]],
                 )

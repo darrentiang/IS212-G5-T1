@@ -17,6 +17,12 @@ const AREA_LABELS = {
   venue_restrictions: 'Venue restrictions',
 }
 
+// The two areas a request for changes names (SCRUM-90), as the API sends them.
+const CHANGE_AREAS = {
+  venue_arrangements: 'Venue arrangements',
+  technical_arrangements: 'Technical arrangements',
+}
+
 const list = (values) => (values.length > 0 ? values.join(', ') : 'None')
 const kebab = (value) => value.replaceAll('_', '-')
 
@@ -38,6 +44,11 @@ function Decisions({ decisions }) {
                 Reason: {decision.reason}
               </p>
             )}
+            {decision.areas.length > 0 && (
+              <p data-testid={`request-detail-safety-decision-${decision.id}-areas`}>
+                Areas: {list(decision.areas.map((area) => CHANGE_AREAS[area] ?? area))}
+              </p>
+            )}
             {Object.entries(decision.notes).map(([area, note]) => (
               <p
                 key={area}
@@ -54,10 +65,57 @@ function Decisions({ decisions }) {
   )
 }
 
-export default function SafetyCheckSection({ decisions, safetyCheck, canDecide, submitting, onApprove, onReject }) {
+function RequestedChanges({ changes }) {
+  return (
+    <section className="card space-y-3" data-testid="request-detail-requested-changes">
+      <h2 className="section-title">Changes requested</h2>
+      <dl className="detail-list">
+        <div>
+          <dt>Areas</dt>
+          <dd data-testid="request-detail-requested-changes-areas">
+            {list(changes.areas.map((area) => CHANGE_AREAS[area] ?? area))}
+          </dd>
+        </div>
+        <div>
+          <dt>Reason</dt>
+          <dd className="whitespace-pre-wrap" data-testid="request-detail-requested-changes-reason">
+            {changes.reason}
+          </dd>
+        </div>
+        {Object.entries(changes.notes).map(([area, note]) => (
+          <div key={area}>
+            <dt>{AREA_LABELS[area] ?? area}</dt>
+            <dd className="whitespace-pre-wrap" data-testid={`request-detail-requested-changes-note-${kebab(area)}`}>
+              {note}
+            </dd>
+          </div>
+        ))}
+        <div>
+          <dt>Requested by</dt>
+          <dd data-testid="request-detail-requested-changes-by">
+            {changes.decided_by}, {formatDateTime(changes.decided_at)}
+          </dd>
+        </div>
+      </dl>
+    </section>
+  )
+}
+
+export default function SafetyCheckSection({
+  decisions,
+  safetyCheck,
+  requestedChanges,
+  canDecide,
+  submitting,
+  onApprove,
+  onReject,
+  onRequestChanges,
+}) {
   const [notes, setNotes] = useState({})
   const [reason, setReason] = useState('')
   const [reasonError, setReasonError] = useState(null)
+  const [areas, setAreas] = useState([])
+  const [areaError, setAreaError] = useState(null)
 
   const setNote = (area, value) => setNotes((prev) => ({ ...prev, [area]: value }))
 
@@ -70,8 +128,22 @@ export default function SafetyCheckSection({ decisions, safetyCheck, canDecide, 
     onReject(reason, notes)
   }
 
+  const toggleArea = (area) =>
+    setAreas((prev) => (prev.includes(area) ? prev.filter((item) => item !== area) : [...prev, area]))
+
+  const handleRequestChanges = () => {
+    const missingReason = reason.trim() === ''
+    const missingArea = areas.length === 0
+    setReasonError(missingReason ? 'Reason is required.' : null)
+    setAreaError(missingArea ? 'Choose at least one area.' : null)
+    if (missingReason || missingArea) return
+    onRequestChanges(reason, Object.keys(CHANGE_AREAS).filter((area) => areas.includes(area)), notes)
+  }
+
   return (
     <>
+      {requestedChanges && <RequestedChanges changes={requestedChanges} />}
+
       {safetyCheck && (
         <section className="space-y-6" data-testid="request-detail-safety-check">
           <div className="card space-y-6">
@@ -186,9 +258,30 @@ export default function SafetyCheckSection({ decisions, safetyCheck, canDecide, 
               </div>
             ))}
           </div>
+          <fieldset>
+            <legend className="label">Changes needed in</legend>
+            <div className="flex flex-wrap gap-4">
+              {Object.entries(CHANGE_AREAS).map(([area, label]) => (
+                <label key={area} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={areas.includes(area)}
+                    onChange={() => toggleArea(area)}
+                    data-testid={`request-detail-safety-area-${kebab(area)}`}
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+            {areaError && (
+              <p className="field-error" data-testid="request-detail-safety-area-error">
+                {areaError}
+              </p>
+            )}
+          </fieldset>
           <div>
             <label htmlFor="request-detail-safety-reason" className="label">
-              Reason (required to reject)
+              Reason (required to reject or request changes)
             </label>
             <textarea
               id="request-detail-safety-reason"
@@ -204,6 +297,15 @@ export default function SafetyCheckSection({ decisions, safetyCheck, canDecide, 
             )}
           </div>
           <div className="flex flex-wrap justify-end gap-2">
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={handleRequestChanges}
+              className="btn btn-secondary"
+              data-testid="request-detail-safety-request-changes-button"
+            >
+              Request changes
+            </button>
             <button
               type="button"
               disabled={submitting}
