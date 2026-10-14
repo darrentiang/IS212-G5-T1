@@ -16,3 +16,17 @@ export const listEquipment = () => request('GET', '/api/equipment')
 // 400/401/403/404: { message }   400 identifies the problem; editing is
 //          equipment.edit (Technical Support Staff only)
 export const updateTotalUnits = (id, data) => request('PATCH', `/api/equipment/${id}`, data)
+
+// GET /api/equipment/:id/availability   (SCRUM-50)
+// query:   start, end   'YYYY-MM-DDTHH:MM'; both required, the start before the end
+//          or event_request_id and quantity, as opened from a recorded requirement:
+//          then the event's own period is used and its own reservations are left out
+// 200:     { equipment_type: { id, name }, start, end, total_units, reserved_units,
+//            out_of_service_units, available_units }
+//          reserved_units is the most units held at the same time by Reserved
+//          reservations overlapping the period (state-model.md); out_of_service_units
+//          is 0 until SCRUM-52. With a quantity, also
+//          { requested_units, covered, short_by }
+// 400/401/403/404: { message }   equipment.check — Technical Support Staff only
+export const checkAvailability = (id, params) =>
+  request('GET', `/api/equipment/${id}/availability?${new URLSearchParams(params).toString()}`)

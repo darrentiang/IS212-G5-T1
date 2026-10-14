@@ -31,11 +31,15 @@ def _period(reservation):
     return start, end
 
 
-def peak_units(equipment_type_id, window_start, window_end=None):
+def peak_units(equipment_type_id, window_start, window_end=None, exclude_event_id=None):
     """Maximum units of this type simultaneously Reserved inside the window.
 
     The window is half-open [window_start, window_end); window_end None means
     unbounded into the future. Returns 0 when nothing commits inside it.
+
+    ``exclude_event_id`` leaves that one event's reservations out, so a check made
+    for an event's own requirement does not count what the event already holds
+    (SCRUM-50 AC6).
 
     Raises ValueError if a stored period is inverted or malformed: every
     creation path validates the period (seed.py's fixture import now, SCRUM-51's
@@ -50,6 +54,12 @@ def peak_units(equipment_type_id, window_start, window_end=None):
         .filter_by(equipment_type_id=equipment.id, status="Reserved")
         .all()
     )
+    if exclude_event_id is not None:
+        reservations = [
+            reservation
+            for reservation in reservations
+            if reservation.event_request_id != exclude_event_id
+        ]
 
     # Commitments overlapping the window, with a start/end event inside it.
     active = 0
