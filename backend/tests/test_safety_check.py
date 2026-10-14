@@ -607,3 +607,10 @@ def test_safety_officer_cannot_edit_the_event_or_its_arrangements(client, app):
     assert row.status == "Safety Check"
     booking = db.session.get(VenueBookingRequest, booking_id)
     assert booking.status == "Approved"
+
+
+# @story: SCRUM-89
+# @ac: 5
+def test_a_decision_names_its_event_and_outcome(app):
+    decision = decisions("Lantern Fair")[0]
+    assert repr(decision) == f"<SafetyDecision {decision.id} event {event('Lantern Fair').id} Rejected>"
