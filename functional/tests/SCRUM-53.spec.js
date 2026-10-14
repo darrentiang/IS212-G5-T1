@@ -10,9 +10,8 @@ import { test, expect, request as playwrightRequest } from '@playwright/test'
 // assigned coordinator" is whoever the approval assigned, read from the event.
 //
 // Rows 05, 06 and 07 wait for SCRUM-82 (the Venue unavailable marker) and
-// SCRUM-48/81 (equipment requirements); row 09's request-for-changes step
-// waits for SCRUM-90 to be merged. They are test.fixme: reported as skipped,
-// never as passed.
+// SCRUM-48/81 (equipment requirements). They are test.fixme: reported as
+// skipped, never as passed. Row 09 uses SCRUM-90's Request changes control.
 
 const BASE_URL = 'http://localhost:5173'
 
@@ -255,10 +254,6 @@ test('an event already in Safety Check cannot be sent again', async ({ browser }
 test('an event returned by the Safety Officer can be sent again, and the requested changes are then gone', async ({
   page,
 }) => {
-  // PENDING SCRUM-90 merge: step 2 uses its Request changes control. Remove
-  // this line once this branch has SCRUM-90.
-  test.fixme(true, 'PENDING SCRUM-90 merge')
-
   const venue = await ownVenue('TC53 Room 09')
   const event = await planningEvent('SCRUM-53 TC-09 Loop Gala', 9, { venues: [venue] })
 
