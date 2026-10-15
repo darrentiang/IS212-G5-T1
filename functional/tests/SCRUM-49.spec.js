@@ -91,13 +91,15 @@ test.beforeEach(() => clearClock())
 test.afterEach(() => clearClock())
 
 // @tc: TC-SCRUM-49-01
-// @test: Technical Support Staff view inventory and change an equipment type's total units
+// @test: Technical Support Staff view inventory and change an equipment type's total units.
 // @story: SCRUM-49
 // @ac: 1, 2, 3, 6
-test("Technical Support Staff view inventory and change an equipment type's total units", async ({ page }) => {
+test("Technical Support Staff view inventory and change an equipment type's total units.", async ({ page }) => {
   const api = await apiAs('tech1')
   const type = await findType(api, 'SCRUM-49 TC01 Projector')
   expect(type.total_units).toBe(5)
+  expect(type.description).toBe('Portable projector')
+  expect(type.location).toBe('Equipment Store A')
   await api.dispose()
 
   await login(page, 'tech1')
@@ -106,6 +108,8 @@ test("Technical Support Staff view inventory and change an equipment type's tota
     'SCRUM-49 TC01 Projector',
   )
   await expect(page.getByTestId(`equipment-units-${type.id}`)).toHaveText('5 units')
+  await expect(page.getByTestId(`equipment-description-${type.id}`)).toHaveText('Portable projector')
+  await expect(page.getByTestId(`equipment-location-${type.id}`)).toHaveText('Equipment Store A')
 
   await openEdit(page, type.id)
   await saveTotal(page, 8)
@@ -116,6 +120,8 @@ test("Technical Support Staff view inventory and change an equipment type's tota
   await expect(page.getByTestId(`equipment-units-${type.id}`)).toHaveText('8 units')
   await page.goto('/equipment') // reopen the inventory
   await expect(page.getByTestId(`equipment-units-${type.id}`)).toHaveText('8 units')
+  await expect(page.getByTestId(`equipment-description-${type.id}`)).toHaveText('Portable projector')
+  await expect(page.getByTestId(`equipment-location-${type.id}`)).toHaveText('Equipment Store A')
 })
 
 // @tc: TC-SCRUM-49-02
@@ -123,6 +129,9 @@ test("Technical Support Staff view inventory and change an equipment type's tota
 // @story: SCRUM-49
 // @ac: 1, 7
 test('An Event Coordinator can view inventory but is not offered an action to change stock.', async ({ page }) => {
+  const api = await apiAs('coord1')
+  const type = await findType(api, 'SCRUM-49 TC02 Projector')
+  await api.dispose()
   await login(page, 'coord1')
   await page.goto('/equipment')
 
@@ -131,6 +140,8 @@ test('An Event Coordinator can view inventory but is not offered an action to ch
     .filter({ hasText: 'SCRUM-49 TC02 Projector' })
   await expect(row).toHaveCount(1)
   await expect(row).toContainText('5 units')
+  await expect(page.getByTestId(`equipment-description-${type.id}`)).toHaveText('Ceiling-mounted projector')
+  await expect(page.getByTestId(`equipment-location-${type.id}`)).toHaveText('Equipment Store B')
   await expect(
     page.locator('[data-testid^="equipment-edit-button-"]'),
   ).toHaveCount(0)
