@@ -1,4 +1,4 @@
-"""Role → feature matrix — SCRUM-27, SCRUM-31, SCRUM-29, SCRUM-36, SCRUM-33, SCRUM-37, SCRUM-49, SCRUM-89, SCRUM-53 (ADR-002).
+"""Role → feature matrix — SCRUM-27, SCRUM-31, SCRUM-29, SCRUM-36, SCRUM-33, SCRUM-37, SCRUM-49, SCRUM-89, SCRUM-53, SCRUM-50 (ADR-002).
 
 Direct transcription of docs/design/permissions.md. An account may hold
 several roles (Q-06, D-09); it may do anything any of its roles allows.
@@ -23,6 +23,7 @@ BOOKINGS_DECIDE = "bookings.decide"  # SCRUM-37: approve or reject one (Venue St
 SAFETY_SEND = "safety.send"  # SCRUM-53: send a Planning event for safety check (Event Coordinator)
 SAFETY_DECIDE = "safety.decide"  # SCRUM-89: approve or reject an event in Safety Check (Safety Officer)
 EQUIPMENT_VIEW = "equipment.view"
+EQUIPMENT_CHECK = "equipment.check"  # SCRUM-50: check availability for a period (Technical Support Staff)
 EQUIPMENT_EDIT = "equipment.edit"  # SCRUM-49: change an equipment type's total units
 REGISTRATION_VIEW = "registration.view"
 INTERNAL_NOTES_VIEW = "internal_notes.view"
@@ -41,6 +42,7 @@ ALL_FEATURES = frozenset(
         SAFETY_SEND,
         SAFETY_DECIDE,
         EQUIPMENT_VIEW,
+        EQUIPMENT_CHECK,
         EQUIPMENT_EDIT,
         REGISTRATION_VIEW,
         INTERNAL_NOTES_VIEW,
@@ -77,6 +79,7 @@ ROLE_FEATURES = {
     },
     "Technical Support Staff": {
         EQUIPMENT_VIEW,
+        EQUIPMENT_CHECK,  # SCRUM-50 AC9: check availability for a period
         EQUIPMENT_EDIT,  # SCRUM-49 AC2/AC7: change a type's total units
         NOTIFICATIONS_VIEW,
     },

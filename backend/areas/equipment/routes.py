@@ -8,12 +8,16 @@ writing is equipment.edit (Technical Support Staff only) — enforced here by
 the route decorators, independent of any hidden control in the UI
 (docs/design/permissions.md v1.14). Rules are in services.py; the contract
 is frontend/src/areas/equipment/api.js.
+
+SCRUM-50: check how many units of a type are free for a period. A read, so
+GET, and equipment.check (Technical Support Staff only; an Event Coordinator
+holds equipment.view and still may not run it).
 """
 
 from flask import Blueprint, jsonify, request
 
 from areas.equipment import services
-from permissions import EQUIPMENT_EDIT, EQUIPMENT_VIEW, require
+from permissions import EQUIPMENT_CHECK, EQUIPMENT_EDIT, EQUIPMENT_VIEW, require
 
 bp = Blueprint("equipment", __name__, url_prefix="/api")
 
@@ -32,3 +36,11 @@ def update_total(equipment_id):
     body = request.get_json(silent=True)
     equipment = services.update_total_units(equipment_id, body)
     return jsonify(equipment.to_dict()), 200
+
+
+@bp.get("/equipment/<int:equipment_id>/availability")
+@require(EQUIPMENT_CHECK)
+def check_availability(equipment_id):
+    """SCRUM-50: start and end, or event_request_id and quantity (a requirement)."""
+    result = services.check_availability(equipment_id, request.args)
+    return jsonify(result), 200

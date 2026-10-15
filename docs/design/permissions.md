@@ -23,6 +23,7 @@ Kept current by every story that adds an action: the row is added or changed in 
 | Approve or reject a venue booking | No | No | Yes | No | No | No |
 | Approve, reject or request changes on a safety check | No | No | No | No | Yes | No |
 | View equipment inventory | No | Yes | No | Yes | No | No |
+| Check equipment availability for a period (SCRUM-50) | No | No | No | Yes | No | No |
 | Record equipment requirements | No | Assigned coordinator | No | View | View, events in Safety Check | No |
 | Maintain equipment inventory; reserve or release; withdraw from service | No | No | No | Yes | No | No |
 | View confirmed events open for registration | No | Yes | No | No | No | Yes |
@@ -51,6 +52,7 @@ Keys used in `backend/permissions.py` and on API routes / `features` from `/api/
 | venues.edit | No | No | Yes | No | No | No |
 | venues.search | No | Yes | No | No | No | No |
 | equipment.view | No | Yes | No | Yes | No | No |
+| equipment.check | No | No | No | Yes | No | No |
 | equipment.edit | No | No | No | Yes | No | No |
 | registration.view | No | Yes | No | No | No | Yes |
 | internal_notes.view | No | Yes | No | No | No | No |
@@ -82,3 +84,4 @@ Keys used in `backend/permissions.py` and on API routes / `features` from `/api/
 | 1.17 | 14-10-2026 | "Approve or reject a safety check" becomes "Approve, reject or request changes on a safety check"; no new feature key (`safety.decide` covers it) | SCRUM-90: requesting changes is another decision the Safety Officer makes under the same key |
 | 1.18 | 14-10-2026 | "Confirm" replaced by "Send for safety check" in the Assigned coordinator row; new key `safety.send` for Event Coordinator (the assigned-only rule stays in the service) | Week 7 customer change 6; SCRUM-53: sending needs a key of its own, `requests.decide` being the Submitted request decision |
 | 1.19 | 15-10-2026 | "Place or release a venue hold" row, assigned coordinator only, on `bookings.edit` (no new feature key; the assigned-only rule is enforced in the service and answers 404 to anyone else, the write rule); "View venues and venue booking requests" adds venue holds, on `venues.view` | Week 7 customer change 4; SCRUM-84 (this story's slice of `target/permissions.md`, which puts holds in the same row as raising a booking request) |
+| 1.20 | 14-10-2026 | "Check equipment availability for a period" row and new key `equipment.check`, Technical Support Staff only | SCRUM-50: Event Coordinators hold `equipment.view` since SCRUM-49 and may see the inventory, but running the check (AC9) is Technical Support Staff's, so `equipment.view` cannot carry it |

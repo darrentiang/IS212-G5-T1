@@ -34,7 +34,7 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: `${clearStaleClock} python ../backend/seed.py --reset && python ../backend/seed.py --extra fixtures/scrum49.json && python ../backend/app.py`,
+      command: `${clearStaleClock} python ../backend/seed.py --reset && python ../backend/seed.py --extra fixtures/scrum49.json && python ../backend/seed.py --extra fixtures/scrum50.json && python ../backend/app.py`,
       port: 5000,
       // Cross-platform way to hand the backend the override path; the file
       // itself is only ever written by SCRUM-49.spec.js (and cleared in

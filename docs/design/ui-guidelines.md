@@ -39,6 +39,7 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | 1.30 | 15-10-2026 | §7 the request page's Venue holds section, its Place hold form and Release button, with their test ids and banners; the booking-new page's hold warning line (`booking-new-warning-hold-<id>`); the venue-availability page's Held entries (kind `hold`); a refused approval also names a Held hold; §12 Held and Released badge colours | SCRUM-84 lets the assigned Event Coordinator hold a venue for an event until an expiry, and shows the hold wherever the venue's availability is judged |
 | 1.31 | 15-10-2026 | §4 the page banner sticks below the header wherever the page is scrolled, is announced (`aria-live`) and has a dismiss control (`<page>-banner-dismiss`); every page renders it with the shared `app/Banner.jsx`; §10 the dismiss id | The Product Owner's review: a message raised by an action low on the page was out of sight at the top of the content, so the action seemed to do nothing |
 | 1.32 | 15-10-2026 | §13 Feedback at the point of action: the principle and its patterns (an inline form beside its trigger, brought into view with its first field focused; a confirmation the same way with Cancel focused; refreshed results brought into view; a refused required-field check focusing the first field it names); §7 the request page's Approve and Reject in the card's action row, and the Edit draft, Delete draft and decide forms directly below the card; §11 check 6 | The Product Owner's review: pressing Approve opened its form further down the page, so nothing seemed to change where the user clicked; the audit found the same gap on every inline form and long form |
+| 1.33 | 14-10-2026 | §7 the Equipment page's Check availability form and result card, with their test ids | SCRUM-50 lets Technical Support Staff check a type for a period |
 
 ## 1. Pages
 
@@ -189,6 +190,13 @@ While the page is waiting for the API it renders the title row and nothing below
 |---|---|
 | Send for safety check button (assigned coordinator, Planning only) | `request-detail-send-safety-button` |
 | Sent for safety check date and time (Safety Check or Confirmed) | `request-detail-safety-check-at` |
+
+**Check availability (SCRUM-50).** Below the banner, above the inventory, an account with `equipment.check` (Technical Support Staff) sees a Check availability form: an Equipment type select (every type in the list), a Start and an End (date and time, both required), and a Check availability button. It sends nothing to change: a refusal shows its reason in the page's banner (`The start must be before the end.`, `A start and an end are required.`) and no result. A result card, brought into view when it appears (§13), shows the type and the period, then Total units, Reserved for the period (the most units held at the same time, state-model.md), Out of service and Available. An account without `equipment.check`, such as an Event Coordinator, sees the inventory and no form.
+
+| Element | `data-testid` |
+|---|---|
+| Check availability form, its type select, start, end and button | `equipment-check-form`, `equipment-check-type-input`, `equipment-check-start-input`, `equipment-check-end-input`, `equipment-check-button` |
+| Result card and its four values | `equipment-check-result`, `equipment-check-total`, `equipment-check-reserved`, `equipment-check-out-of-service`, `equipment-check-available` |
 
 **A list of related records on a detail page** (a venue's blocks) is a section under the fields with an `h2` and a table per §6. Its ids carry the record's name in place of the page's own list ids, so they cannot clash with the page's fields: `<page>-<record>-row-<id>`, one cell `<page>-<record>-<field>-<id>`, and `<page>-<records>-empty` when there are none. A per-row action's confirm/reason form opens as its own row directly below the one it acts on (a `<td colspan>` spanning the table), never below the whole table: in a long list, a form that opens far from its row is a form the user cannot find.
 

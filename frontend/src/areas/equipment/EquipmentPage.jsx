@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useState } from 'react'
 import { useAuth } from '../../app/auth'
-import { listEquipment, updateTotalUnits } from './api'
+import { checkAvailability, listEquipment, updateTotalUnits } from './api'
 import Banner from '../../app/Banner'
 import { useReveal } from '../../app/reveal'
 
@@ -9,6 +9,8 @@ import { useReveal } from '../../app/reveal'
 // equipment.edit (Technical Support Staff) is offered Change total on a row;
 // the control is hidden for everyone else, and the API refuses regardless
 // (ADR-002). The type's name is plain text: there is no detail page.
+// SCRUM-50: an account with equipment.check (Technical Support Staff) also
+// has a Check availability form: a type, a start and an end, and a result card.
 // The save's acknowledgment never depends on the list refresh that follows
 // it: a refused refresh replaces the table with an unavailable notice rather
 // than leaving previous rows looking current.
@@ -31,6 +33,32 @@ export default function EquipmentPage() {
   // The Change total form opens as the row below its button, brought into
   // view with its field focused (ui-guidelines.md §13).
   const editRef = useReveal(canEdit && editingId)
+
+  const canCheck = can('equipment.check')
+
+  // SCRUM-50: the availability check. A refusal goes to the page banner.
+  const [checkType, setCheckType] = useState('')
+  const [checkStart, setCheckStart] = useState('')
+  const [checkEnd, setCheckEnd] = useState('')
+  const [checking, setChecking] = useState(false)
+  const [checkResult, setCheckResult] = useState(null)
+  // The result card is brought into view, as every fresh result is (ui-guidelines.md §13).
+  const resultRef = useReveal(checkResult, null)
+
+  const handleCheck = async (event) => {
+    event.preventDefault()
+    setBanner(null)
+    setSuccess(null)
+    setCheckResult(null)
+    setChecking(true)
+    try {
+      setCheckResult(await checkAvailability(checkType || String(rows[0].id), { start: checkStart, end: checkEnd }))
+    } catch (error) {
+      setBanner(error.message)
+    } finally {
+      setChecking(false)
+    }
+  }
 
   useEffect(() => {
     // StrictMode may start a second load after cleaning up the first effect.
@@ -131,6 +159,101 @@ export default function EquipmentPage() {
           setSuccess(null)
         }}
       />
+
+      {!loading && !stale && canCheck && rows.length > 0 && (
+        <form
+          onSubmit={handleCheck}
+          noValidate
+          className="card form-card space-y-4"
+          data-testid="equipment-check-form"
+        >
+          <h2 className="section-title">Check availability</h2>
+          <div className="grid gap-4 md:grid-cols-3">
+            <div>
+              <label htmlFor="equipment-check-type" className="label">
+                Equipment type
+              </label>
+              <select
+                id="equipment-check-type"
+                className="input"
+                value={checkType}
+                onChange={(event) => setCheckType(event.target.value)}
+                data-testid="equipment-check-type-input"
+              >
+                {rows.map((row) => (
+                  <option key={row.id} value={row.id}>
+                    {row.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="equipment-check-start" className="label">
+                Start *
+              </label>
+              <input
+                id="equipment-check-start"
+                type="datetime-local"
+                className="input"
+                value={checkStart}
+                onChange={(event) => setCheckStart(event.target.value)}
+                aria-required="true"
+                data-testid="equipment-check-start-input"
+              />
+            </div>
+            <div>
+              <label htmlFor="equipment-check-end" className="label">
+                End *
+              </label>
+              <input
+                id="equipment-check-end"
+                type="datetime-local"
+                className="input"
+                value={checkEnd}
+                onChange={(event) => setCheckEnd(event.target.value)}
+                aria-required="true"
+                data-testid="equipment-check-end-input"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end">
+            <button
+              type="submit"
+              disabled={checking}
+              className="btn btn-primary"
+              data-testid="equipment-check-button"
+            >
+              Check availability
+            </button>
+          </div>
+        </form>
+      )}
+
+      {checkResult && (
+        <div ref={resultRef} className="card space-y-3" data-testid="equipment-check-result">
+          <h2 className="section-title">
+            {checkResult.equipment_type.name}, {checkResult.start} to {checkResult.end}
+          </h2>
+          <dl className="detail-list">
+            <div>
+              <dt>Total units</dt>
+              <dd data-testid="equipment-check-total">{checkResult.total_units}</dd>
+            </div>
+            <div>
+              <dt>Reserved for the period</dt>
+              <dd data-testid="equipment-check-reserved">{checkResult.reserved_units}</dd>
+            </div>
+            <div>
+              <dt>Out of service</dt>
+              <dd data-testid="equipment-check-out-of-service">{checkResult.out_of_service_units}</dd>
+            </div>
+            <div>
+              <dt>Available</dt>
+              <dd data-testid="equipment-check-available">{checkResult.available_units}</dd>
+            </div>
+          </dl>
+        </div>
+      )}
 
       {loading ? null : stale ? (
         <div className="card space-y-4">
