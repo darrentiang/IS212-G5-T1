@@ -25,6 +25,11 @@ so its own search still lists the venue, its own booking page warns of nothing,
 and approving its own request is not refused (AC6). Only holds are exempted;
 the event's own Approved bookings still hold the venue. Whether a hold is still
 holding is decided in is_holding alone, so SCRUM-85's expiry is one change.
+
+SCRUM-82: an Approved booking is Venue unavailable while a block of its venue
+overlaps its occupied period (blocks_over). The marker is derived at every
+read and never stored, so removing or ending the block, cancelling the
+booking, or changing the venue's setup or turnaround time moves it at once.
 """
 
 from datetime import datetime, timedelta
@@ -155,3 +160,21 @@ def venue_holders(venue, starts_at, ends_at, asking_event=None):
     blocks.sort(key=lambda block: (block.starts_at, block.id))
     holds.sort(key=lambda hold: (hold_period(hold)[0], hold.id))
     return Holders(bookings=bookings, blocks=blocks, holds=holds)
+
+
+def blocks_over(booking):
+    """The venue's blocks that make a booking Venue unavailable (SCRUM-82 AC1, AC5).
+
+    Only an Approved booking can be marked: for any other status this is
+    empty. A block is compared by its own recorded period against the
+    booking's occupied period, so a block that only touches it does not
+    count. Earliest start first. Empty means the booking is not marked.
+    """
+    if booking.status != HOLDING_BOOKING_STATUS:
+        return []
+    starts_at, ends_at = occupied_period(booking)
+    blocks = [
+        block for block in booking.venue.blocks if overlaps(block.starts_at, block.ends_at, starts_at, ends_at)
+    ]
+    blocks.sort(key=lambda block: (block.starts_at, block.id))
+    return blocks

@@ -250,12 +250,13 @@
   .table tbody tr:hover {
     background-color: rgba(0, 0, 0, 0.02);
   }
-  .table td a {
+  /* A plain link in a cell; a button-styled link keeps its button's colours (SCRUM-82). */
+  .table td a:not(.btn) {
     font-weight: 500;
     color: var(--color-text);
     transition: color 150ms;
   }
-  .table td a:hover {
+  .table td a:not(.btn):hover {
     color: var(--color-accent);
   }
 

@@ -42,6 +42,7 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | 1.33 | 14-10-2026 | §7 the Equipment page's Check availability form and result card, with their test ids | SCRUM-50 lets Technical Support Staff check a type for a period |
 | 1.34 | 15-10-2026 | §7 equipment inventory displays seeded descriptions and storage locations; stock remains the only editable field | SCRUM-49 AC1 refinement closes the equipment-catalogue information gap in the Week 1 customer brief |
 | 1.35 | 15-10-2026 | §7 the request page's Venues section: Search venues, Place hold and Request venue booking grouped at its top (moved there, same rules), the event's Venue bookings list with Cancel booking and its inline form, Withdraw, the Cancelled row's reason, and the Venue holds list inside it, with their test ids, messages and banners; §12 a Cancelled booking reuses the Cancelled colour | SCRUM-83 lets the assigned Event Coordinator see and manage each venue booked for an event separately, and cancel one Approved booking without touching the others |
+| 1.36 | 16-10-2026 | §7 the request page's Venue bookings row carries a Venue unavailable marker (`request-detail-booking-unavailable-<id>`); the venue-search page's Action column with Request booking and Place hold on each result (`venue-search-request-booking-button-<id>`, `venue-search-place-hold-button-<id>`); `?venue=<id>` on the booking-new page and `?hold=<id>` on the request page choose a venue; §6 a button-styled link in a cell keeps the button's colours; §12 the Venue unavailable flag's Danger badge | SCRUM-82 tells the assigned Event Coordinator a booked venue became unavailable and lets them request a replacement or place a hold from the search results |
 
 ## 1. Pages
 
@@ -133,6 +134,7 @@ While the page is waiting for the API it renders the title row and nothing below
 
 - A plain table with a header row, one row per record.
 - The first cell links to the record's detail page.
+- A link styled as a button in a cell (an action such as Request booking) keeps the button's colours, not the cell link's.
 - Status shown as the exact status text from `state-model.md` (e.g. Submitted, Planning). Colour may accompany the text, never replace it.
 - A flag is not a status: "Clarification requested" shows as its own text beside the status, never appended to it.
 - No records → one sentence saying so instead of the table.
@@ -330,9 +332,12 @@ SCRUM-77 adds Withdraw to a Requested row's action cell, for the Coordinator who
 | Cancel reason (Cancelled row) | `request-detail-booking-cancel-reason-<id>` |
 | Cancel booking button (Approved row, assigned coordinator, event Approved or Planning) | `request-detail-booking-cancel-button-<id>` |
 | Withdraw button (Requested row, the Coordinator who raised it) | `request-detail-booking-withdraw-button-<id>` |
+| Venue unavailable marker (Approved row a block overlaps, SCRUM-82) | `request-detail-booking-unavailable-<id>` |
 | Cancel booking form | `request-detail-booking-cancel-form` |
 | Reason, and the message under it | `request-detail-booking-cancel-reason-input`, `request-detail-booking-cancel-reason-error` |
 | Confirm cancel and Cancel buttons | `request-detail-booking-cancel-confirm-button`, `request-detail-booking-cancel-cancel-button` |
+
+**Venue unavailable** (SCRUM-82). An Approved row whose booking a block of its venue overlaps (the booking's `venue_unavailable`, derived by the API at every read and never stored) shows a **Venue unavailable** badge beside its Approved badge, in the Danger colour so that it reads apart from the other Approved rows (§12); the status stays Approved. The marker goes when the booking is cancelled, or when the block is removed or ended early so that it no longer overlaps; no other row shows it. When the block is created the event's assigned Event Coordinator is told on the Notifications page with the API's message, `Seminar Room 1, booked for Swap Gala, is unavailable 05 Dec 2026, 11:00 to 05 Dec 2026, 15:00 (Pipe burst).` (the block's period as a block's, §9), naming the event. The venue page does not show which bookings a block marked.
 
 On the venue page, a Cancelled booking stays in Booking requests with its Cancelled badge and its decision cell, and offers no action; it leaves Occupied periods and Current clashes, and the venue-availability page does not show it, since it no longer holds the venue.
 
@@ -354,6 +359,8 @@ On the request page (`request-detail`), SCRUM-36: an Event Coordinator sees a Re
 | Expiry date, expiry time | `request-detail-hold-expiry-date-input`, `request-detail-hold-expiry-time-input` |
 | Message under an empty field | `request-detail-hold-venue-error`, `request-detail-hold-expiry-date-error`, `request-detail-hold-expiry-time-error` |
 | Place hold (confirm) and Cancel buttons | `request-detail-hold-confirm-button`, `request-detail-hold-cancel-button` |
+
+SCRUM-82: opened as `/requests/:id?hold=<id>` (venue search's Place hold), the request page opens the Place hold form once, as soon as it would offer Place hold, with that venue already chosen, brought into view with the Venue select focused (§13 pattern A). An unknown or retired venue id, or an account the form is not offered to, is ignored: the page opens normally.
 | Hold row | `request-detail-hold-row-<id>` |
 | Venue, occupied period, expiry, status | `request-detail-hold-venue-<id>`, `request-detail-hold-period-<id>`, `request-detail-hold-expiry-<id>`, `request-detail-hold-status-<id>` |
 | Release button (Held row, assigned coordinator) | `request-detail-hold-release-button-<id>` |
@@ -368,6 +375,8 @@ The booking-new page (`booking-new`): a venue picker (`select`, the active venue
 | Venue select | `booking-new-venue-input` |
 | Message under an empty field | `booking-new-venue-error` |
 | Raise (confirm) button | `booking-new-raise-button` |
+
+SCRUM-82: opened as `/requests/:id/bookings/new?venue=<id>` (venue search's Request booking), the venue select starts with that venue chosen and its warnings are checked as if the coordinator had chosen it; they may still choose another. An unknown or retired venue id is ignored and nothing is chosen. Raising is unchanged: it lands on the venue's page with `Venue booking requested`.
 
 **Requirements an event chose** (SCRUM-42). They replace the brief's free-text venue requirements and accessibility needs, so the event request has no field of either name; the brief's wording stays visible as two group headings, in the brief's order: after Expected attendance, before Equipment requirements. On the new-request page and in the Draft edit form on the request page, each group is a `fieldset` whose `legend` is its heading. "Venue requirements" holds a "Room layout" select (None, then the layouts) and a "Facilities" checkbox group per §5; "Accessibility needs" holds an "Accessibility features" checkbox group per §5. The lists are the same fixed lists as a venue's. None is required: no `*`, no message under them. The request page shows the same two headings as `h2`s at the same place, each over its label/value pairs ("Room layout", "Facilities"; "Accessibility features"), comma-separated in list order, `None` when empty (as the venue page does). The headings have no test ids.
 
@@ -423,6 +432,13 @@ The venue-search page (`venue-search`) shows the event's own values, an optional
 | Venue location | `venue-search-location-<id>` |
 | Venue maximum capacity | `venue-search-capacity-<id>` |
 | No results | `venue-search-empty` |
+
+**Search-result actions** (SCRUM-82 AC6). Each result row ends with an Action column holding **Request booking** and **Place hold**, links rather than forms, each shown by the same rule as the matching button in the request page's Venues section: Request booking with `bookings.edit` while the event is Approved or Planning, Place hold only to the event's assigned Event Coordinator while it is Approved or Planning (the search reply carries the event's `status` and `assigned_coordinator` for this). Request booking opens `/requests/:id/bookings/new?venue=<id>`; Place hold opens `/requests/:id?hold=<id>`. An account offered neither sees no Action column.
+
+| Element | `data-testid` |
+|---|---|
+| Request booking (link) | `venue-search-request-booking-button-<id>` |
+| Place hold (link) | `venue-search-place-hold-button-<id>` |
 
 **Venue availability** (SCRUM-39). The venue-availability page (`venue-availability`) shows, for a chosen week or a chosen month, every period that currently occupies or might occupy the venue: an Approved booking's occupied period (its published period widened by the venue's setup and turnaround time, the same `occupied_start`/`occupied_end` as Occupied periods above), a Requested booking's own published period, unwidened (AC4 names only an approved booking; a request still awaiting a decision does not yet hold the venue), and a block's own recorded period, never widened (the same rule as everywhere else). SCRUM-84: a Held hold is shown over the period it covers, widened like an Approved booking's, with a Held badge (`statusBadgeClass(STATUS.HOLD.HELD)`), so it reads apart from Approved and Pending; a Released hold holds nothing and is not shown. The page reads the venue's holds once with its bookings and blocks (`listVenueHolds`). Rejected and Withdrawn booking requests are never shown: they no longer hold or threaten to hold the venue (team decision, 09-10-2026).
 
@@ -525,8 +541,9 @@ How pages look (tokens, type, spacing and the shared classes) is in `visual-styl
 | Withdrawn | Neutral |
 | Held | Warning |
 | Released | Neutral |
+| Venue unavailable (a flag on an Approved booking, not a status) | Danger |
 
-A status not in this table is neutral until a story adds its row here. Requested and Withdrawn are a venue booking request's own statuses (state-model.md); its Approved, Rejected and Cancelled (SCRUM-83) reuse the colours already above. Held and Released are a venue hold's (SCRUM-84): Held is Warning so that a hold reads apart from an Approved booking (Success) and a Pending one (Info) on the availability page.
+A status not in this table is neutral until a story adds its row here. Requested and Withdrawn are a venue booking request's own statuses (state-model.md); its Approved, Rejected and Cancelled (SCRUM-83) reuse the colours already above. Held and Released are a venue hold's (SCRUM-84): Held is Warning so that a hold reads apart from an Approved booking (Success) and a Pending one (Info) on the availability page. Venue unavailable (SCRUM-82) is a flag, shown beside the Approved badge with `VENUE_UNAVAILABLE_BADGE` from `app/format.js`; Danger so it reads apart from Approved's Success.
 
 ## 13. Feedback at the point of action
 

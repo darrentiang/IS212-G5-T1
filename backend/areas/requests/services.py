@@ -8,6 +8,7 @@ SCRUM-72: revise and resubmit a Rejected request.
 SCRUM-89: the Safety Officer lists, opens, approves and rejects events in Safety Check.
 SCRUM-53: the assigned Event Coordinator sends a Planning event for safety check.
 SCRUM-84: an Approved event moves to Planning when its first hold is placed.
+SCRUM-82: a booking marked Venue unavailable stops the event being sent.
 
 Object rules from permissions.md / ADR-002 live here next to the query.
 """
@@ -16,6 +17,7 @@ from datetime import date, datetime, timezone
 
 from sqlalchemy import or_
 
+import occupancy
 from db import db
 from errors import ApiRefusal
 from models import (
@@ -758,17 +760,6 @@ def request_safety_changes(account, request_id, data):
     )
 
 
-def _booking_is_marked_venue_unavailable(booking):
-    """Whether an Approved booking carries the Venue unavailable marker (AC2).
-
-    STUB, replaced when SCRUM-82 (Darren) adds the marker: it is set on an
-    Approved booking when a block is created over its occupied period. Until
-    then no booking has one. Prove the replacement with the pending test in
-    tests/test_safety_send.py.
-    """
-    return False
-
-
 def _unapproved_equipment_requirements(event_request):
     """The event's equipment requirements that are not Approved, as short texts (AC2).
 
@@ -799,7 +790,7 @@ def _outstanding_arrangements(event_request):
         if row.status == "Requested":
             outstanding.append(f"The venue booking request for {row.venue.name} is awaiting a decision")
     for row in approved:
-        if _booking_is_marked_venue_unavailable(row):
+        if occupancy.blocks_over(row):
             outstanding.append(f"The booking at {row.venue.name} is marked Venue unavailable")
     outstanding.extend(_unapproved_equipment_requirements(event_request))
     return outstanding

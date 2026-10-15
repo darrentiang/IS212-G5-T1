@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router'
-import { formatPeriod } from '../../app/format'
+import { STATUS, formatPeriod } from '../../app/format'
 import { getVenueOptions, searchVenues } from './api'
 import Banner from '../../app/Banner'
+import { useAuth } from '../../app/auth'
 import { useReveal } from '../../app/reveal'
 
 // The test id of one checkbox is the option's name in kebab-case
@@ -25,8 +26,13 @@ const NO_FILTERS = { location: '', accessibilityFeatures: [], layout: '', facili
 // Nothing is chosen at first, and the event's own requirements are never chosen
 // for the coordinator. One Apply sends every filter together, so clearing one is
 // emptying it and applying again: only that restriction goes.
+// SCRUM-82 AC6: each result offers Request booking, which opens the booking page
+// with that venue chosen, and Place hold, which opens the request page's Place
+// hold form with that venue chosen. Each is shown by the same rule as the
+// matching button in the request page's Venues section; the API still decides.
 export default function VenueSearchPage() {
   const { id } = useParams()
+  const { can, account } = useAuth() ?? {}
   // What is typed or ticked (draft) is not applied until Apply, so editing never searches.
   const [draft, setDraft] = useState(NO_FILTERS)
   const [filters, setFilters] = useState(NO_FILTERS)
@@ -84,6 +90,13 @@ export default function VenueSearchPage() {
     applied.current += 1
     setFilters(draft)
   }
+
+  // SCRUM-82: Request venue booking's rule (bookings.edit, event Approved or
+  // Planning) and Place hold's (also the event's assigned coordinator).
+  const open = [STATUS.REQUEST.APPROVED, STATUS.REQUEST.PLANNING].includes(result?.event.status)
+  const canRequest = Boolean(can?.('bookings.edit')) && open
+  const canHold = canRequest && result.event.assigned_coordinator === account?.username
+  const hasActions = canRequest
 
   return (
     <div className="space-y-8">
@@ -205,6 +218,7 @@ export default function VenueSearchPage() {
                         <th>Name</th>
                         <th>Location</th>
                         <th>Maximum capacity</th>
+                        {hasActions && <th>Action</th>}
                       </tr>
                     </thead>
                     <tbody>
@@ -217,6 +231,30 @@ export default function VenueSearchPage() {
                           </td>
                           <td data-testid={`venue-search-location-${venue.id}`}>{venue.location}</td>
                           <td data-testid={`venue-search-capacity-${venue.id}`}>{venue.max_capacity}</td>
+                          {hasActions && (
+                            <td>
+                              <div className="flex flex-wrap gap-2">
+                                {canRequest && (
+                                  <Link
+                                    to={`/requests/${id}/bookings/new?venue=${venue.id}`}
+                                    className="btn btn-primary"
+                                    data-testid={`venue-search-request-booking-button-${venue.id}`}
+                                  >
+                                    Request booking
+                                  </Link>
+                                )}
+                                {canHold && (
+                                  <Link
+                                    to={`/requests/${id}?hold=${venue.id}`}
+                                    className="btn btn-secondary"
+                                    data-testid={`venue-search-place-hold-button-${venue.id}`}
+                                  >
+                                    Place hold
+                                  </Link>
+                                )}
+                              </div>
+                            </td>
+                          )}
                         </tr>
                       ))}
                     </tbody>

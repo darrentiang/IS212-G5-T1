@@ -3,7 +3,8 @@ SCRUM-40 (Block a Venue), SCRUM-75 (Update a Venue),
 SCRUM-79 (End or Remove a Venue Block), SCRUM-33 (Search Venues by Date and
 Capacity), SCRUM-34 (Filter Venue Results by Accessibility Requirements),
 SCRUM-35 (Filter Venues by Layout and Facilities),
-SCRUM-80 (Record Setup and Turnaround Time).
+SCRUM-80 (Record Setup and Turnaround Time),
+SCRUM-82 (Replace a Venue That Became Unavailable).
 
 Every rule the acceptance criteria state lives here, next to the query, and
 refuses by raising ApiRefusal; the route never decides (ADR-002). Retiring a
@@ -18,6 +19,7 @@ import clock
 import occupancy
 from db import db
 from errors import ApiRefusal
+from notifications import create_notification
 from models import (
     AccessibilityFeature,
     EventRequest,
@@ -39,6 +41,15 @@ SEARCHABLE_STATUSES = ("Approved", "Planning")
 PHASE_UPCOMING = "upcoming"
 PHASE_IN_PROGRESS = "in_progress"
 PHASE_ENDED = "ended"
+
+# SCRUM-82 AC3: a block over an Approved booking affects the event only in one
+# of these statuses; a Completed or Cancelled event is left alone (curation).
+AFFECTED_EVENT_STATUSES = ("Approved", "Planning", "Safety Check", "Confirmed")
+# ...and an event in one of these returns to Planning; Approved and Planning keep theirs.
+RETURNS_TO_PLANNING = ("Safety Check", "Confirmed")
+PLANNING = "Planning"
+# A block's period in a notification, as the pages show it: '05 Dec 2026, 11:00'.
+MOMENT_TEXT_FORMAT = "%d %b %Y, %H:%M"
 
 
 def list_venues():
@@ -294,6 +305,10 @@ def create_block(venue_id, body, account):
     are all required → 400 naming the field; the start must be before the end
     → 400. Every check runs before anything is written, so a refusal records
     nothing.
+
+    SCRUM-82: the bookings the new block marks Venue unavailable are dealt
+    with in the same commit (_tell_bookings_hit), so the block and what it
+    causes are saved together.
     """
     venue = get_venue(venue_id)
     start_date = _required_text(body, "start_date", "Start date")
@@ -317,8 +332,46 @@ def create_block(venue_id, body, account):
         created_at=datetime.now(timezone.utc),
     )
     db.session.add(block)
+    _tell_bookings_hit(block)
     db.session.commit()
     return block
+
+
+def _tell_bookings_hit(block):
+    """What a new block does to the Approved bookings it overlaps (SCRUM-82 AC1-AC3).
+
+    A booking is hit when the block makes it Venue unavailable
+    (occupancy.blocks_over, the one rule), and its event is Approved,
+    Planning, Safety Check or Confirmed. For each one, the event's assigned
+    Event Coordinator gets one notification naming the event, the venue and
+    the block's period and reason (AC2), and an event in Safety Check or
+    Confirmed returns to Planning; nothing else on the event changes (AC3).
+    With no assigned coordinator nobody is told. Once means once per block:
+    a second block sends a second notification, and nothing is sent or moved
+    back when a block is later ended or removed (PO decisions). This runs only
+    when a block is created, so a booking marked because the venue's setup or
+    turnaround time grew is marked and nothing more (curation).
+    """
+    bookings = sorted(block.venue.booking_requests, key=lambda booking: booking.id)
+    for booking in bookings:
+        event = booking.event_request
+        if event.status not in AFFECTED_EVENT_STATUSES or block not in occupancy.blocks_over(booking):
+            continue
+        if event.assigned_coordinator is not None:
+            create_notification(event.assigned_coordinator, _unavailable_message(booking, block), event)
+        if event.status in RETURNS_TO_PLANNING:
+            event.status = PLANNING
+
+
+def _unavailable_message(booking, block):
+    """'Seminar Room 1, booked for Swap Gala, is unavailable 05 Dec 2026, 11:00
+    to 05 Dec 2026, 15:00 (Pipe burst).' (SCRUM-82 AC2, curated text)."""
+    start = block.starts_at.strftime(MOMENT_TEXT_FORMAT)
+    end = block.ends_at.strftime(MOMENT_TEXT_FORMAT)
+    return (
+        f"{booking.venue.name}, booked for {booking.event_request.name}, "
+        f"is unavailable {start} to {end} ({block.reason})."
+    )
 
 
 def _date_time(date_text, time_text, label):
@@ -529,7 +582,12 @@ def _is_free(venue, starts_at, ends_at, asking_event):
 
 
 def search_to_dict(event, venues):
-    """Public JSON for a search: the event values it used, and the venues that fit."""
+    """Public JSON for a search: the event values it used, and the venues that fit.
+
+    SCRUM-82 AC6: the event's status and assigned coordinator come along so
+    the page can offer Request booking and Place hold on each result under
+    the same rule as the event's own Venues section.
+    """
     return {
         "event": {
             "id": event.id,
@@ -538,6 +596,10 @@ def search_to_dict(event, venues):
             "start_time": event.start_time,
             "end_time": event.end_time,
             "attendance": event.attendance,
+            "status": event.status,
+            "assigned_coordinator": (
+                event.assigned_coordinator.username if event.assigned_coordinator else None
+            ),
         },
         "venues": [venue_to_dict(venue) for venue in venues],
     }

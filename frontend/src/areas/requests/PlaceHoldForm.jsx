@@ -5,6 +5,7 @@ import { useReveal } from '../../app/reveal'
 // top of the request page's Venues section (SCRUM-83, ui-guidelines.md §7).
 // It owns its entries and the messages under its fields (§5), and sends
 // nothing while one is empty; the page owns the API call and the banner.
+// SCRUM-82 AC6: venueId, when given, is the venue already chosen.
 
 const EMPTY = { venue_id: '', expiry_date: '', expiry_time: '' }
 
@@ -14,9 +15,9 @@ const REQUIRED = [
   ['expiry_time', 'Expiry time is required.'],
 ]
 
-export default function PlaceHoldForm({ venues, submitting, onCancel, onPlace }) {
-  // Mounted only while open, so every opening starts empty.
-  const [values, setValues] = useState(EMPTY)
+export default function PlaceHoldForm({ venues, venueId = '', submitting, onCancel, onPlace }) {
+  // Mounted only while open, so every opening starts empty but for a chosen venue.
+  const [values, setValues] = useState({ ...EMPTY, venue_id: venueId })
   const [errors, setErrors] = useState({})
   // Opens below the Venues section's buttons with its Venue focused (ui-guidelines.md §13).
   const formRef = useReveal(true)
