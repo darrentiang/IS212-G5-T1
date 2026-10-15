@@ -160,6 +160,19 @@ describe('VenueDetailPage', () => {
     expect(screen.queryByTestId('venue-detail-layouts-button')).not.toBeInTheDocument()
   })
 
+  // @story: chore-ui-feedback
+  // @ac: banner-dismiss
+  it('clears the banner from its dismiss control', async () => {
+    api.getVenue.mockResolvedValue(HALL_A)
+    api.getVenueOptions.mockRejectedValue(new Error('Venue options unavailable.'))
+    renderPage()
+    await screen.findByTestId('venue-detail-banner')
+
+    await userEvent.click(screen.getByTestId('venue-detail-banner-dismiss'))
+
+    expect(screen.queryByTestId('venue-detail-banner')).not.toBeInTheDocument()
+  })
+
   // @story: SCRUM-32
   // @ac: 6
   it('ignores an options refusal after permissions make the page view-only', async () => {
@@ -2932,5 +2945,98 @@ describe('VenueDetailPage suggesting an alternative when rejecting', () => {
       '21 Nov 2026, 10:00–13:00',
     )
     expect(screen.queryByTestId('venue-detail-booking-reject-button-12')).not.toBeInTheDocument()
+  })
+})
+
+// Feedback at the point of action (ui-guidelines.md §13): every inline form is
+// brought into view with its first field focused, and a failed required-field
+// check focuses the field it names.
+describe('VenueDetailPage feedback at the point of action', () => {
+  const lastScrolled = () => Element.prototype.scrollIntoView.mock.contexts.at(-1)
+  // The form that was brought into view holds the focused field.
+  const expectRevealed = (fieldTestId) => {
+    const field = screen.getByTestId(fieldTestId)
+    expect(field).toHaveFocus()
+    expect(lastScrolled().tagName).toBe('FORM')
+    expect(lastScrolled()).toContainElement(field)
+  }
+
+  beforeEach(() => {
+    api.getVenue.mockResolvedValue(HALL_A)
+  })
+
+  // @story: chore-ui-feedback
+  // @ac: point-of-action
+  it('opens Select layouts with its first checkbox focused', async () => {
+    renderPage()
+    await userEvent.click(await screen.findByTestId('venue-detail-layouts-button'))
+
+    expect(lastScrolled().tagName).toBe('FORM')
+    expect(document.activeElement).toHaveAttribute('type', 'checkbox')
+    expect(lastScrolled()).toContainElement(document.activeElement)
+  })
+
+  // @story: chore-ui-feedback
+  // @ac: point-of-action
+  it('opens Edit times with the setup time focused', async () => {
+    renderPage()
+    await openTimesForm()
+
+    expectRevealed('venue-detail-times-setup-time-input')
+  })
+
+  // @story: chore-ui-feedback
+  // @ac: point-of-action
+  it('opens Update venue with the name focused, and focuses the first field a refused save names', async () => {
+    renderPage()
+    await userEvent.click(await screen.findByTestId('venue-detail-update-button'))
+    expectRevealed('venue-detail-update-name-input')
+
+    await userEvent.clear(screen.getByTestId('venue-detail-update-location-input'))
+    await userEvent.click(screen.getByTestId('venue-detail-update-save-button'))
+
+    expect(screen.getByTestId('venue-detail-update-location-input')).toHaveFocus()
+    expect(lastScrolled()).toContainElement(screen.getByTestId('venue-detail-update-location-error'))
+  })
+
+  // @story: chore-ui-feedback
+  // @ac: point-of-action
+  it('opens Block venue with the start date focused, and focuses it again when the empty form is refused', async () => {
+    renderPage()
+    await openBlockForm()
+    expectRevealed('venue-detail-block-start-date-input')
+
+    await userEvent.click(screen.getByTestId('venue-detail-block-confirm-button'))
+
+    expect(screen.getByTestId('venue-detail-block-start-date-input')).toHaveFocus()
+    expect(lastScrolled()).toContainElement(screen.getByTestId('venue-detail-block-start-date-error'))
+  })
+
+  // @story: chore-ui-feedback
+  // @ac: point-of-action
+  it('opens the End early row with the new end date focused', async () => {
+    api.listVenueBlocks.mockResolvedValue([ENDED_BLOCK, IN_PROGRESS_BLOCK, UPCOMING_BLOCK])
+    renderPage()
+    await openEndForm()
+
+    expectRevealed('venue-detail-end-block-end-date-input')
+  })
+
+  // @story: chore-ui-feedback
+  // @ac: point-of-action
+  it('opens the decide row with its reason focused, and reveals it again when switching Approve to Reject', async () => {
+    signInWith(['venues.view', 'bookings.decide'])
+    api.listVenueBookings.mockResolvedValue([REQUESTED_BOOKING])
+    api.listVenues.mockResolvedValue([])
+    renderPage()
+
+    await userEvent.click(await screen.findByTestId('venue-detail-booking-approve-button-12'))
+    expectRevealed('venue-detail-decide-reason-input')
+    const opened = Element.prototype.scrollIntoView.mock.calls.length
+
+    await userEvent.click(screen.getByTestId('venue-detail-booking-reject-button-12'))
+    await screen.findByTestId('venue-detail-decide-suggested-venue-input')
+    expect(Element.prototype.scrollIntoView.mock.calls.length).toBeGreaterThan(opened)
+    expectRevealed('venue-detail-decide-reason-input')
   })
 })

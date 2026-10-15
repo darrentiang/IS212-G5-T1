@@ -2,12 +2,14 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { formatDateTimePeriod, formatPeriod, formatTime } from '../../app/format'
 import { checkVenue, listVenues, raiseBooking } from './api'
+import Banner from '../../app/Banner'
 
 // SCRUM-42: one line per mismatch, with the values AC3 names. The test id
 // suffix is the warning's type, plus the missing option for a named one
 // (docs/design/ui-guidelines.md §7). SCRUM-38 AC7: one line per approved
 // booking or block already holding the venue over the event's period, keyed
-// by its id, since a venue may have several.
+// by its id, since a venue may have several. SCRUM-84 AC4: one line per other
+// event's Held hold, after the approved bookings, keyed by the hold's id.
 const kebab = (value) => value.toLowerCase().replaceAll(' ', '-')
 const hours = (warning) => `${formatTime(warning.opening_time)} to ${formatTime(warning.closing_time)}`
 
@@ -40,6 +42,10 @@ const WARNINGS = {
     key: (w) => `approved-booking-${w.id}`,
     text: (w) =>
       `The venue already holds an approved booking for ${w.event_request_name}, ${formatPeriod(w.date, w.start_time, w.end_time)}.`,
+  },
+  hold: {
+    key: (w) => `hold-${w.id}`,
+    text: (w) => `The venue is held for ${w.event_request_name}, ${formatPeriod(w.date, w.start_time, w.end_time)}.`,
   },
   block: {
     key: (w) => `block-${w.id}`,
@@ -126,11 +132,7 @@ export default function BookingNewPage() {
         </div>
       </div>
 
-      {banner && (
-        <p role="alert" className="banner-error" data-testid="booking-new-banner">
-          {banner}
-        </p>
-      )}
+      <Banner page="booking-new" error={banner} onDismiss={() => setBanner(null)} />
 
       {!loading && (
         <form className="card form-card space-y-4" onSubmit={handleSubmit} noValidate>

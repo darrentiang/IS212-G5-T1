@@ -198,6 +198,20 @@ describe('RequestDetailPage', () => {
     expect(screen.queryByTestId('request-detail-name')).not.toBeInTheDocument()
   })
 
+  // @story: chore-ui-feedback
+  // @ac: banner-dismiss
+  it('clears the banner from its dismiss control', async () => {
+    api.getRequest.mockRejectedValue(
+      Object.assign(new Error('You do not have permission to perform this action.'), { status: 403 }),
+    )
+    renderDetail()
+    await screen.findByTestId('request-detail-banner')
+
+    await userEvent.click(screen.getByTestId('request-detail-banner-dismiss'))
+
+    expect(screen.queryByTestId('request-detail-banner')).not.toBeInTheDocument()
+  })
+
   // @story: SCRUM-27
   // @ac: 6
   it('shows coordinator notes when the API includes them', async () => {
@@ -1299,5 +1313,77 @@ describe('RequestDetailPage', () => {
     expect(screen.queryByTestId('request-detail-approve-button')).not.toBeInTheDocument()
     expect(screen.queryByTestId('request-detail-reject-button')).not.toBeInTheDocument()
     expect(screen.queryByTestId('request-detail-decline-button')).not.toBeInTheDocument()
+  })
+})
+
+// Feedback at the point of action (ui-guidelines.md §13): every form an action
+// opens is brought into view with focus in it, and a failed required-field
+// check focuses the field it names.
+describe('RequestDetailPage feedback at the point of action', () => {
+  const lastScrolled = () => Element.prototype.scrollIntoView.mock.contexts.at(-1)
+  const DRAFT = { id: 1, name: 'Design Workshop', status: 'Draft', created_by: 'org1', ...NO_CHOICES, registration_enabled: false }
+
+  // @story: chore-ui-feedback
+  // @ac: point-of-action
+  it('offers Approve and Reject inside the request card, and opens the decision form with its reason focused', async () => {
+    signInWith(['requests.decide'])
+    api.getRequest.mockResolvedValue(SUBMITTED)
+
+    renderDetail()
+    const approve = await screen.findByTestId('request-detail-approve-button')
+    expect(screen.getByTestId('request-detail-fields').parentElement).toContainElement(approve)
+
+    await userEvent.click(approve)
+    const reason = screen.getByTestId('request-detail-approve-reason-input')
+    expect(reason).toHaveFocus()
+    expect(lastScrolled()).toContainElement(reason)
+
+    await userEvent.click(screen.getByTestId('request-detail-reject-button'))
+    expect(screen.getByTestId('request-detail-reject-reason-input')).toHaveFocus()
+  })
+
+  // @story: chore-ui-feedback
+  // @ac: point-of-action
+  it('opens the Draft edit form with the name focused, and focuses it again when a blank name is refused', async () => {
+    api.getRequest.mockResolvedValue(DRAFT)
+
+    renderDetail()
+    await userEvent.click(await screen.findByTestId('request-detail-edit-button'))
+    const name = screen.getByTestId('request-detail-edit-name-input')
+    expect(name).toHaveFocus()
+    expect(lastScrolled()).toBe(screen.getByTestId('request-detail-edit-form'))
+
+    await userEvent.clear(name)
+    await userEvent.click(screen.getByTestId('request-detail-edit-confirm-button'))
+    expect(await screen.findByTestId('request-detail-edit-name-error')).toBeInTheDocument()
+    expect(name).toHaveFocus()
+  })
+
+  // @story: chore-ui-feedback
+  // @ac: point-of-action
+  it('opens the delete confirmation in view with Cancel focused', async () => {
+    api.getRequest.mockResolvedValue(DRAFT)
+
+    renderDetail()
+    await userEvent.click(await screen.findByTestId('request-detail-delete-button'))
+
+    expect(screen.getByTestId('request-detail-delete-cancel-button')).toHaveFocus()
+    expect(lastScrolled()).toBe(screen.getByTestId('request-detail-delete-form'))
+  })
+
+  // @story: chore-ui-feedback
+  // @ac: point-of-action
+  it('focuses the first empty required field when a resubmit is refused by the page', async () => {
+    signInWith(['requests.view', 'requests.edit'], 'org1')
+    api.getRequest.mockResolvedValue(rejected())
+
+    renderDetail()
+    await screen.findByTestId('request-detail-resubmit-button')
+    await userEvent.clear(screen.getByTestId('request-detail-resubmit-purpose-input'))
+    await userEvent.clear(screen.getByTestId('request-detail-resubmit-name-input'))
+    await userEvent.click(screen.getByTestId('request-detail-resubmit-button'))
+
+    expect(screen.getByTestId('request-detail-resubmit-name-input')).toHaveFocus()
+    expect(lastScrolled()).toContainElement(screen.getByTestId('request-detail-resubmit-name-error'))
   })
 })

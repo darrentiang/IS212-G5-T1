@@ -16,9 +16,10 @@ Every acceptance criterion that changes a status uses a value from these tables.
 | 1.9 | 13-10-2026 | Event request: new status Safety Check, between Planning and Confirmed; Safety Check → Confirmed (approve) and Safety Check → Planning (reject, reason required) by the Safety Officer. Planning → Safety Check is SCRUM-53's; until it is merged, events enter Safety Check only through the seed data. SCRUM-53 also removes Planning → Confirmed | Week 7 customer change 6; SCRUM-89 (copied from `target/state-model.md` v1.3, this story's slice) |
 | 1.10 | 14-10-2026 | Event request: Safety Check → Planning also by Request changes (reason and at least one area required); the Safety changes requested flag on Planning, cleared when the event is sent again | Week 7 customer change 6; SCRUM-90 (copied from `target/state-model.md` v1.3, this story's slice) |
 | 1.11 | 14-10-2026 | Event request: Planning → Safety Check is built (sent by the assigned Event Coordinator when every recorded arrangement is approved); Planning → Confirmed (Confirm) is removed, so an event becomes Confirmed only when the Safety Officer approves it | Week 7 customer change 6; SCRUM-53 (copied from `target/state-model.md` v1.3, this story's slice) |
-| 1.12 | 14-10-2026 | Equipment reservation: no status change; the committed peak may leave one event's reservations out; SCRUM-50 reports the peak as the units reserved for the period | SCRUM-50 AC3, AC4 and AC6 |
+| 1.12 | 15-10-2026 | Event request: Approved → Planning when the first hold is placed for the event (the booking-request half is SCRUM-86's). Venue booking request: another event's Held hold is a conflict on Approve. New: Venue hold (Held, Released; Expired is SCRUM-85's) | Week 7 customer change 4; SCRUM-84 (copied from `target/state-model.md` v1.3, this story's slice) |
+| 1.13 | 14-10-2026 | Equipment reservation: no status change; the committed peak may leave one event's reservations out; SCRUM-50 reports the peak as the units reserved for the period | SCRUM-50 AC3, AC4 and AC6 |
 
-The front end holds these words in `frontend/src/app/format.js` (`STATUS`); a change here changes that file in the same pull request.
+The front end holds these words in `frontend/src/app/format.js` (`STATUS`); a change here changes that file in the same pull request. v1.12 adds Held and Released (`STATUS.HOLD`).
 
 ## Event request
 
@@ -31,6 +32,7 @@ The front end holds these words in `frontend/src/app/format.js` (`STATUS`); a ch
 | Submitted | Rejected | Reject (reason required) | Event Coordinator |
 | Rejected | Submitted | Revise and resubmit | Event Organiser |
 | Approved | Planning | Coordinator auto-assigned by the system | System |
+| Approved | Planning | First hold placed for the event | System, on the assigned coordinator's action |
 | Planning | Safety Check | Send for safety check (every recorded arrangement approved) | Assigned Event Coordinator |
 | Safety Check | Confirmed | Approve the safety check | Safety Officer |
 | Safety Check | Planning | Reject the safety check (reason required) | Safety Officer |
@@ -50,6 +52,7 @@ stateDiagram-v2
     Submitted --> Rejected: Reject (reason required)
     Rejected --> Submitted: Revise and resubmit
     Approved --> Planning: Coordinator auto-assigned
+    Approved --> Planning: First hold placed
     Planning --> SafetyCheck: Send for safety check
     SafetyCheck --> Confirmed: Safety check approved
     SafetyCheck --> Planning: Safety check rejected (reason required)
@@ -73,7 +76,7 @@ Each decision the Safety Officer makes is kept with the event: the decision, its
 | Requested | Rejected | Reject (reason required) | Venue Staff |
 | Requested | Withdrawn | Withdraw before a decision | Event Coordinator |
 
-A conflict (SCRUM-38, widened by SCRUM-41) is an Approved booking or a block of the same venue whose occupied period overlaps the booking's occupied period. A booking's occupied period is its own period widened by the venue's setup and turnaround time (SCRUM-41 AC1); a block keeps its own recorded period and is never widened. Requested, Rejected and Withdrawn bookings never conflict, periods that only touch at a boundary do not overlap, and a booking never conflicts with itself. A refused approval leaves the booking Requested. Rejecting is never checked.
+A conflict (SCRUM-38, widened by SCRUM-41) is an Approved booking or a block of the same venue whose occupied period overlaps the booking's occupied period; SCRUM-84 adds another event's Held hold, compared by the period it covers (below). The event's own hold is never a conflict for its own booking. A booking's occupied period is its own period widened by the venue's setup and turnaround time (SCRUM-41 AC1); a block keeps its own recorded period and is never widened. Requested, Rejected and Withdrawn bookings never conflict, periods that only touch at a boundary do not overlap, and a booking never conflicts with itself. A refused approval leaves the booking Requested. Rejecting is never checked.
 
 A recorded duration carries no maximum, so an extreme setup or turnaround time can push an occupied period past the first or last date Python represents. The period then clamps to that edge instead of raising: it stays as wide as the duration asks for, and every read that derives it — the booking list, search, warnings, the clash list and the conflict check — still answers. No maximum duration is invented (occupancy.py, `_shift`).
 
@@ -83,6 +86,22 @@ stateDiagram-v2
     Requested --> Approved: Approve (conflict check passes)
     Requested --> Rejected: Reject (reason required)
     Requested --> Withdrawn: Withdraw before a decision
+```
+
+## Venue hold
+
+| From | To | Action | Who |
+|---|---|---|---|
+| — | Held | Place a hold (expiry required, in the future and before the event's start) | Assigned Event Coordinator |
+| Held | Released | Release before expiry | Assigned Event Coordinator |
+| Held | Released | A booking request for the same venue and event is approved | System |
+
+Only a Held hold makes the venue unavailable. A hold is never a booking and never counts as an approved arrangement (SCRUM-84). The period a hold covers is its event's own period widened by the venue's setup and turnaround time, derived at every read like a booking's occupied period and never stored, so changing either duration moves it. Both expiry limits are strict: the expiry must be after now (`clock.now_local()`) and before the event's published start, not the start of its occupied period. A hold is refused when another event's Approved booking or Held hold, or a block, overlaps that period; periods that only touch do not. An event holds a venue at most once at a time (PO decision at curation). Expired, and what happens when the expiry is reached, is SCRUM-85's.
+
+```mermaid
+stateDiagram-v2
+    [*] --> Held: Place a hold
+    Held --> Released: Release, or booking approved
 ```
 
 ## Equipment reservation

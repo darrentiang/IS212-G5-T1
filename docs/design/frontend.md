@@ -9,6 +9,8 @@ How the React front end is built: folders, routing and the permission guard, the
 | 1.2 | 24-09-2026 | `index.css` holds the tokens and shared classes (§9, §10 check 10); `statusBadgeClass` in `app/format.js`; `app/HomePage.jsx` for an account that may open no page | UI refresh per `visual-style.md`; `ui-guidelines.md` v1.3 |
 | 1.3 | 25-09-2026 | `formatDateTime` in `app/format.js` | `ui-guidelines.md` v1.3 (SCRUM-29) |
 | 1.4 | 06-10-2026 | `formatDateTimePeriod` in `app/format.js` | `ui-guidelines.md` v1.5 (SCRUM-40) |
+| 1.5 | 15-10-2026 | `app/Banner.jsx`, the one shared page banner; Layout measures its header into `--topbar-height` for it | `ui-guidelines.md` v1.31: the banner must stay in view, and thirteen hand-written copies would each need the same sticky, live-region and dismiss behaviour |
+| 1.6 | 15-10-2026 | `app/reveal.js` (`useReveal`, `useRevealError`) and the `scroll-padding-top` that keeps what it reveals clear of the header | `ui-guidelines.md` v1.32 §13 |
 
 ## 1. Folders
 
@@ -28,6 +30,8 @@ frontend/src/
     http.js              the only fetch: request() and ApiError
     home.js              homePathFor(account); imported by App.jsx only
     format.js            formatDate, formatTime, formatPeriod, formatDateTime, formatDateTimePeriod, STATUS, statusBadgeClass; the only shared functions
+    Banner.jsx           the page banner (ui-guidelines.md §4); every page renders its banner with it
+    reveal.js            useReveal, useRevealError: bring what an action opens into view and focus it (ui-guidelines.md §13)
     HomePage.jsx         welcome page for an account that may open no page
     NotPermittedPage.jsx
     __tests__/
@@ -39,7 +43,7 @@ frontend/src/
       __tests__/         Vitest tests for this area
 ```
 
-No `components/` folder. `Layout` is the only shared component and `app/format.js` the only shared functions; each page owns its markup, so a change to one story's page cannot break another story's tests. Markup repeated on two pages is repeated, not extracted.
+No `components/` folder. `Layout` and `Banner` are the only shared components, and `app/format.js` and `app/reveal.js` the only shared functions; each page owns its markup, so a change to one story's page cannot break another story's tests. Markup repeated on two pages is repeated, not extracted. `Banner` is the one exception: the banner's behaviour (sticky below the header, live region, dismiss, error before success) is a rule of every page, not markup of one, so it is written once: `<Banner page="<page>" error={banner} success={success} onDismiss={...} />`, where `onDismiss` clears both.
 
 ## 2. Which area a story belongs to
 
@@ -140,6 +144,10 @@ The story author commits this first and opens a draft pull request, so a Develop
 - Every `catch` puts the error on screen (banner or field). No empty `catch`, no `console.log` as error handling.
 - Success that moves to another page: `navigate(path, { state: { banner: 'Request submitted' } })`; the landing page shows `location.state?.banner` as its success banner.
 - Labels linked to inputs with `htmlFor` / `id`.
+- Feedback at the point of action (`ui-guidelines.md` §13), from `app/reveal.js`:
+  - `const formRef = useReveal(open)` and `ref={formRef}` on the form: each time `open` becomes or changes to a truthy value, the form is scrolled into view only as far as needed and its first input, select or textarea is focused. Key `open` to what is open (`` openForm === 'end' ? `end-${endingId}` : null ``) so moving to another row's form reveals that one too. A second argument picks what to focus (`'button'` for a confirmation's Cancel) or `null` for nothing (refreshed results).
+  - `useRevealError(formRef, fieldErrors)`: after a required-field check, the first field with a `.field-error` under it is brought into view and focused.
+  - In Vitest, `Element.prototype.scrollIntoView` is a `vi.fn()` from `app/__tests__/setup.js`; assert focus with `toHaveFocus()` and the revealed element with `scrollIntoView.mock.contexts`.
 - Dates, times and status words come from `app/format.js`: `formatDate(iso)` → `03 Oct 2026`, `formatTime('14:30')` → `14:30`, `formatPeriod(date, start, end)` → `03 Oct 2026, 14:30–16:00`, `formatDateTime('2026-10-03T14:30:00')` → `03 Oct 2026, 14:30`, `formatDateTimePeriod('2026-10-20T09:00', '2026-10-21T18:00')` → `20 Oct 2026, 09:00 to 21 Oct 2026, 18:00`; `STATUS.SUBMITTED === 'Submitted'` and so on for every status in `state-model.md`, grouped per record (`STATUS.REQUEST`, `STATUS.BOOKING`, `STATUS.RESERVATION`, `STATUS.UNIT`, `STATUS.REGISTRATION`). A page never formats a date or types a status string itself.
 - While loading, a page renders its title row only (`ui-guidelines.md` §3): keep a `loading` state, initially true, cleared in `finally`.
 - An effect with no dependencies (`[]`) fetches once and needs no stale-response guard: there is no second fetch to race, and React ignores a state update on an unmounted component. An effect keyed to a route parameter (`[id]`) does need one (`let active = true`, `if (active)` in each callback, `active = false` in the cleanup), because a reply for the record the user has left can arrive after the current one. The guard is proved by a test that changes the id and resolves the first reply last.

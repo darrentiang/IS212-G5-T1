@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes, RouterProvider, createMemoryRouter } from 'react-router'
 import * as api from '../api'
 import VenueAvailabilityPage from '../VenueAvailabilityPage'
+import { STATUS, statusBadgeClass } from '../../../app/format'
 
 vi.mock('../api')
 
@@ -34,6 +35,7 @@ beforeEach(() => {
   api.getVenue.mockResolvedValue(HALL_A)
   api.listVenueBookings.mockResolvedValue([])
   api.listVenueBlocks.mockResolvedValue([])
+  api.listVenueHolds.mockResolvedValue([])
 })
 
 afterEach(() => {
@@ -337,6 +339,18 @@ describe('VenueAvailabilityPage', () => {
     })
   })
 
+  // @story: chore-ui-feedback
+  // @ac: banner-dismiss
+  it('clears the banner from its dismiss control', async () => {
+    api.getVenue.mockRejectedValue(Object.assign(new Error('Venue not found.'), { status: 404 }))
+    renderPage()
+    await screen.findByTestId('venue-availability-banner')
+
+    await userEvent.click(screen.getByTestId('venue-availability-banner-dismiss'))
+
+    expect(screen.queryByTestId('venue-availability-banner')).not.toBeInTheDocument()
+  })
+
   // @story: SCRUM-39
   it('keeps the venue the user moved to when the earlier reply arrives last', async () => {
     let resolveFirst
@@ -359,5 +373,81 @@ describe('VenueAvailabilityPage', () => {
     await act(async () => resolveFirst(HALL_A))
 
     expect(screen.getByTestId('venue-availability-title')).toHaveTextContent('Hall B')
+  })
+
+  // --- SCRUM-84: venue holds ---
+
+  // @story: SCRUM-84
+  // @ac: 5
+  it('shows a Held hold over its occupied period with a Held badge, distinct from Approved and Pending', async () => {
+    api.listVenueBookings.mockResolvedValue([
+      {
+        id: 1,
+        status: STATUS.BOOKING.APPROVED,
+        event_request_name: 'Morning Talk',
+        date: '2026-10-08',
+        start_time: '08:00',
+        end_time: '09:00',
+        occupied_start: '2026-10-08T07:30',
+        occupied_end: '2026-10-08T09:15',
+      },
+      {
+        id: 2,
+        status: STATUS.BOOKING.REQUESTED,
+        event_request_name: 'Evening Talk',
+        date: '2026-10-08',
+        start_time: '18:00',
+        end_time: '19:00',
+        occupied_start: '2026-10-08T17:30',
+        occupied_end: '2026-10-08T19:15',
+      },
+    ])
+    api.listVenueHolds.mockResolvedValue([
+      {
+        id: 1,
+        status: STATUS.HOLD.HELD,
+        event_request_name: 'Hold Seminar',
+        occupied_start: '2026-10-08T09:30',
+        occupied_end: '2026-10-08T12:30',
+      },
+    ])
+    renderPage()
+
+    const status = await screen.findByTestId('venue-availability-entry-status-hold-1-2026-10-08')
+    expect(status).toHaveTextContent(STATUS.HOLD.HELD)
+    expect(status).toHaveClass(statusBadgeClass(STATUS.HOLD.HELD).split(' ').at(-1))
+    expect(statusBadgeClass(STATUS.HOLD.HELD)).not.toBe(statusBadgeClass(STATUS.BOOKING.APPROVED))
+    expect(statusBadgeClass(STATUS.HOLD.HELD)).not.toBe(statusBadgeClass(STATUS.BOOKING.REQUESTED))
+    expect(screen.getByTestId('venue-availability-entry-period-hold-1-2026-10-08')).toHaveTextContent(
+      '08 Oct 2026, 09:30 to 08 Oct 2026, 12:30',
+    )
+    expect(screen.getByTestId('venue-availability-entry-name-hold-1-2026-10-08')).toHaveTextContent('Hold Seminar')
+    // Booking 1 and hold 1 share an id but not a kind: both rows are there.
+    expect(screen.getByTestId('venue-availability-entry-status-booking-1-2026-10-08')).toHaveTextContent('Approved')
+    expect(screen.getByTestId('venue-availability-entry-status-booking-2-2026-10-08')).toHaveTextContent('Pending')
+    const day = screen.getByTestId('venue-availability-day-2026-10-08')
+    expect(within(day).getAllByRole('listitem').map((item) => item.dataset.testid)).toEqual([
+      'venue-availability-entry-row-booking-1-2026-10-08',
+      'venue-availability-entry-row-hold-1-2026-10-08',
+      'venue-availability-entry-row-booking-2-2026-10-08',
+    ])
+  })
+
+  // @story: SCRUM-84
+  // @ac: 5, 7
+  it('does not show a Released hold', async () => {
+    api.listVenueHolds.mockResolvedValue([
+      {
+        id: 4,
+        status: STATUS.HOLD.RELEASED,
+        event_request_name: 'Hold Seminar',
+        occupied_start: '2026-10-08T09:30',
+        occupied_end: '2026-10-08T12:30',
+      },
+    ])
+    renderPage()
+
+    expect(await screen.findByTestId('venue-availability-day-empty-2026-10-08')).toHaveTextContent('Free')
+    expect(screen.queryByTestId('venue-availability-entry-row-hold-4-2026-10-08')).not.toBeInTheDocument()
   })
 })

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { useAuth } from '../../app/auth'
 import { listVenues } from './api'
+import Banner from '../../app/Banner'
 
 // SCRUM-31: the venue list, and the way in to adding one. Add venue is shown
 // only to an account with venues.edit (docs/design/permissions.md); editing and
@@ -36,11 +37,7 @@ export default function VenuesPage() {
         )}
       </div>
 
-      {banner && (
-        <p role="alert" className="banner-error" data-testid="venues-banner">
-          {banner}
-        </p>
-      )}
+      <Banner page="venues" error={banner} onDismiss={() => setBanner(null)} />
 
       {loading ? null : rows.length === 0 ? (
         <div className="card">

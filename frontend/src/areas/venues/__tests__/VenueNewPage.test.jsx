@@ -137,6 +137,24 @@ describe('VenueNewPage', () => {
     expect(navigate).not.toHaveBeenCalled()
   })
 
+  // @story: chore-ui-feedback
+  // @ac: banner-dismiss
+  it('clears the banner from its dismiss control', async () => {
+    await renderForm()
+    api.createVenue.mockRejectedValue(
+      Object.assign(new Error('Maximum capacity must be a positive whole number.'), { status: 400 }),
+    )
+    await userEvent.type(screen.getByTestId('venue-new-name-input'), 'Room C')
+    await userEvent.type(screen.getByTestId('venue-new-location-input'), 'Block D Level 2')
+    await userEvent.type(screen.getByTestId('venue-new-max-capacity-input'), '0')
+    await userEvent.click(screen.getByTestId('venue-new-save-button'))
+    await screen.findByTestId('venue-new-banner')
+
+    await userEvent.click(screen.getByTestId('venue-new-banner-dismiss'))
+
+    expect(screen.queryByTestId('venue-new-banner')).not.toBeInTheDocument()
+  })
+
   // @story: SCRUM-31
   // @ac: 1
   it('shows a refusal of the fixed lists in the banner and no form', async () => {
@@ -154,5 +172,21 @@ describe('VenueNewPage', () => {
       expect(screen.getByTestId('venue-new-banner')).toHaveTextContent(/permission/i)
     })
     expect(screen.queryByTestId('venue-new-name-input')).not.toBeInTheDocument()
+  })
+})
+
+describe('VenueNewPage feedback at the point of action', () => {
+  // @story: chore-ui-feedback
+  // @ac: point-of-action
+  it('focuses the first field named by a refused save', async () => {
+    await renderForm()
+    await userEvent.type(screen.getByTestId('venue-new-name-input'), 'Room C')
+
+    await userEvent.click(screen.getByTestId('venue-new-save-button'))
+
+    expect(screen.getByTestId('venue-new-location-input')).toHaveFocus()
+    expect(Element.prototype.scrollIntoView.mock.contexts.at(-1)).toContainElement(
+      screen.getByTestId('venue-new-location-error'),
+    )
   })
 })

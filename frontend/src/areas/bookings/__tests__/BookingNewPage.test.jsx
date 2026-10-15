@@ -82,6 +82,24 @@ describe('BookingNewPage', () => {
     })
   })
 
+  // @story: chore-ui-feedback
+  // @ac: banner-dismiss
+  it('clears the banner from its dismiss control', async () => {
+    api.listVenues.mockRejectedValue(Object.assign(new Error('Something went wrong'), { status: 500 }))
+    render(
+      <MemoryRouter initialEntries={['/requests/5/bookings/new']}>
+        <Routes>
+          <Route path="/requests/:requestId/bookings/new" element={<BookingNewPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    await screen.findByTestId('booking-new-banner')
+
+    await userEvent.click(screen.getByTestId('booking-new-banner-dismiss'))
+
+    expect(screen.queryByTestId('booking-new-banner')).not.toBeInTheDocument()
+  })
+
   // @story: SCRUM-36
   // @ac: 1
   it('offers one option per active venue, excluding a retired one', async () => {
@@ -337,7 +355,37 @@ describe('BookingNewPage', () => {
       expect(navigate).toHaveBeenCalledWith('/venues/1', { state: { banner: 'Venue booking requested' } }),
     )
   })
+
+  // --- SCRUM-84: another event's Held hold ---
+
+  // @story: SCRUM-84
+  // @ac: 4
+  it('names another event\'s Held hold after the approved bookings and before the blocks', async () => {
+    api.checkVenue.mockResolvedValue([HELD_BY_BOOKING, HELD_BY_HOLD, HELD_BY_BLOCK])
+    await renderPage()
+
+    await userEvent.selectOptions(screen.getByTestId('booking-new-venue-input'), '1')
+
+    expect(await screen.findByTestId('booking-new-warning-hold-12')).toHaveTextContent(
+      'The venue is held for Hold Seminar, 05 Dec 2026, 10:00–12:00.',
+    )
+    const lines = screen.getAllByRole('listitem').map((item) => item.dataset.testid)
+    expect(lines).toEqual([
+      'booking-new-warning-approved-booking-31',
+      'booking-new-warning-hold-12',
+      'booking-new-warning-block-7',
+    ])
+  })
 })
+
+const HELD_BY_HOLD = {
+  type: 'hold',
+  id: 12,
+  event_request_name: 'Hold Seminar',
+  date: '2026-12-05',
+  start_time: '10:00',
+  end_time: '12:00',
+}
 
 const HELD_BY_BOOKING = {
   type: 'approved_booking',

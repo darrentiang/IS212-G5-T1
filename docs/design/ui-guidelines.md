@@ -36,7 +36,10 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | 1.27 | 13-10-2026 | §7 the request page's Safety check section (a Safety Officer's review of an event in Safety Check, with its note-per-area form and Approve and Reject buttons) and Safety decisions section, and their test ids; §12 Safety Check badge colour | SCRUM-89 lets the Safety Officer review, note and decide an event in Safety Check from the request page; the decision returns them to Requests |
 | 1.28 | 14-10-2026 | §7 the Decide form's Changes needed in checkboxes and Request changes button; the Changes requested card for an Event Coordinator; a decision's Areas line | SCRUM-90 lets the Safety Officer send an event back with the areas to change, and the coordinator reads them on the event |
 | 1.29 | 14-10-2026 | §7 the request page's Send for safety check button and Sent for safety check line, and how a refusal lists what is outstanding | SCRUM-53 lets the assigned Event Coordinator send a Planning event for safety check |
-| 1.30 | 14-10-2026 | §7 the Equipment page's Check availability form and result card, with their test ids | SCRUM-50 lets Technical Support Staff check a type for a period |
+| 1.30 | 15-10-2026 | §7 the request page's Venue holds section, its Place hold form and Release button, with their test ids and banners; the booking-new page's hold warning line (`booking-new-warning-hold-<id>`); the venue-availability page's Held entries (kind `hold`); a refused approval also names a Held hold; §12 Held and Released badge colours | SCRUM-84 lets the assigned Event Coordinator hold a venue for an event until an expiry, and shows the hold wherever the venue's availability is judged |
+| 1.31 | 15-10-2026 | §4 the page banner sticks below the header wherever the page is scrolled, is announced (`aria-live`) and has a dismiss control (`<page>-banner-dismiss`); every page renders it with the shared `app/Banner.jsx`; §10 the dismiss id | The Product Owner's review: a message raised by an action low on the page was out of sight at the top of the content, so the action seemed to do nothing |
+| 1.32 | 15-10-2026 | §13 Feedback at the point of action: the principle and its patterns (an inline form beside its trigger, brought into view with its first field focused; a confirmation the same way with Cancel focused; refreshed results brought into view; a refused required-field check focusing the first field it names); §7 the request page's Approve and Reject in the card's action row, and the Edit draft, Delete draft and decide forms directly below the card; §11 check 6 | The Product Owner's review: pressing Approve opened its form further down the page, so nothing seemed to change where the user clicked; the audit found the same gap on every inline form and long form |
+| 1.33 | 14-10-2026 | §7 the Equipment page's Check availability form and result card, with their test ids | SCRUM-50 lets Technical Support Staff check a type for a period |
 
 ## 1. Pages
 
@@ -95,13 +98,15 @@ While the page is waiting for the API it renders the title row and nothing below
 
 ## 4. Banners
 
-- One banner at a time, at the top of the page content.
-- Error: `role="alert"`. Success: `role="status"`. The text states what happened ("Request submitted", or the API's refusal message word for word). The page never replaces a refusal with its own wording.
+- One banner at a time, at the top of the page content (§3). It **stays in view**: once the page scrolls past its place it sticks just below the header, so a message raised by an action anywhere on the page is seen without scrolling back up. While it sticks it covers the top of the content under it; the user dismisses it to see what is beneath.
+- Error: `role="alert"` with `aria-live="assertive"`. Success: `role="status"` with `aria-live="polite"`. Screen readers announce both. The text states what happened ("Request submitted", or the API's refusal message word for word). The page never replaces a refusal with its own wording.
+- A dismiss control (×, labelled "Dismiss message") at its right clears it at once. The control sits beside the message, not inside it, so the banner's test id still reads the message alone, word for word.
+- Every page renders its banner with the shared `Banner` component (`app/Banner.jsx`, `frontend.md` §1), passing its error and its success; an error wins when both are set.
 - A refusal (the API says no) always shows in the banner, even when the page hid the control that led to it.
-- A banner stays until the user's next action or navigation. No auto-dismiss, so tests never race a timer.
+- A banner stays until the user's next action, navigation or dismissal. No auto-dismiss, so tests never race a timer.
 - After an action that moves the user to another page (e.g. submitting a new request opens its detail page), the success banner shows on the page they land on.
 - A session that has ended sends the user to `/login`.
-- Test id: `<page>-banner`. Tests tell success from error by `role`.
+- Test ids: `<page>-banner` (the message), `<page>-banner-dismiss` (the dismiss control). Tests tell success from error by `role`.
 
 ## 5. Forms
 
@@ -144,7 +149,7 @@ While the page is waiting for the API it renders the title row and nothing below
 - Status as text; a flag as its own text beside it.
 - Actions (approve, reject, …) are buttons per §5, in one row under the fields, shown only when the account's features allow them.
 - **Assigned coordinator (SCRUM-43).** Approving a request makes the system assign one Event Coordinator and moves it to Planning, so the request page shows an Assigned coordinator (their username) and an Assigned on date, below the decision, to everyone who can open the request. The page offers no way to decline or change the assignment; reassignment is SCRUM-44.
-- **An action that needs a reason or a confirmation opens an inline form** below the action row, on the same page: its fields per §5, a Confirm button (labelled with the action, e.g. Reject) and a Cancel button that closes it. No modal, no overlay, no browser `confirm()`. Only one inline form is open at a time; opening another closes the first. Its test ids use the action as `<field>`: `request-detail-reject-reason-input`, `request-detail-reject-confirm-button`, `request-detail-reject-cancel-button`.
+- **An action that needs a reason or a confirmation opens an inline form** directly below the action row, on the same page, brought into view with focus in it (§13): its fields per §5, a Confirm button (labelled with the action, e.g. Reject) and a Cancel button that closes it. No modal, no overlay, no browser `confirm()`. Only one inline form is open at a time; opening another closes the first. Its test ids use the action as `<field>`: `request-detail-reject-reason-input`, `request-detail-reject-confirm-button`, `request-detail-reject-cancel-button`.
 - **Revise and resubmit (SCRUM-72).** On a Rejected request the Event Organiser who created it sees the request's fields in a form already open below the details (the decision and its reason stay above it), prefilled and laid out as the Draft edit form is, with one primary Resubmit button and no Cancel. The same required-field check as submitting runs first: a message under each empty required field, nothing sent. Test ids use `resubmit` as the action: `request-detail-resubmit-<field>-input`, `request-detail-resubmit-<field>-error`, a choice's checkbox `request-detail-resubmit-<list>-<option>-input` as in §5, and `request-detail-resubmit-button`. Once the request is Submitted the form is gone. Anyone else sees the details only.
 
 | Element | `data-testid` | Example |
@@ -154,6 +159,8 @@ While the page is waiting for the API it renders the title row and nothing below
 | Flag | `<page>-<flag>-flag` | `request-detail-clarification-flag` |
 | Assigned coordinator (SCRUM-43; shown once assigned) | `<page>-assigned-coordinator` | `request-detail-assigned-coordinator` |
 | Assignment date (SCRUM-43; shown with the coordinator, `03 Oct 2026`) | `<page>-assigned-at` | `request-detail-assigned-at` |
+
+**Where the request page's forms open (§13).** Approve and Reject (SCRUM-29) sit in the request card's action row, under the fields, like the Draft's Delete, Edit and Submit. The forms those rows open (Edit draft, the Delete draft confirmation, and the Approve or Reject reason form) open directly below the card, above Venue holds and the safety sections, so they appear next to the button that opened them.
 
 **Safety check (SCRUM-89).** An Event Coordinator or Safety Officer opening an event that has had a safety decision sees a Safety decisions section below the details: each decision as `<Decision> by <username> on <moment>`, its reason when it has one, and each note as `<Area>: <text>`, oldest first. A Safety Officer opening an event in Safety Check also sees a Safety check card: the date and time it was sent, its Approved venue bookings (venue and location, period, maximum capacity, supported layouts, facilities, accessibility features, each `None` when empty), and its Approved equipment requirements (`None.` until equipment is recorded). Below it is one Decide form, always open, with one optional note per area (Attendance, Capacity and layout, Emergency access, Accessibility, Equipment placement, Crowd movement, Venue restrictions), a Reason field, and Reject and Approve buttons. Reject with a blank reason shows `Reason is required.` and sends nothing. A decision returns the user to the Requests page with a banner `<event name>: approved, now Confirmed` or `<event name>: rejected, back in Planning`; a refused decision shows the reason in the page's banner and stays. An account without `safety.decide` sees no form.
 
@@ -184,7 +191,7 @@ While the page is waiting for the API it renders the title row and nothing below
 | Send for safety check button (assigned coordinator, Planning only) | `request-detail-send-safety-button` |
 | Sent for safety check date and time (Safety Check or Confirmed) | `request-detail-safety-check-at` |
 
-**Check availability (SCRUM-50).** Below the banner, above the inventory, an account with `equipment.check` (Technical Support Staff) sees a Check availability form: an Equipment type select (every type in the list), a Start and an End (date and time, both required), and a Check availability button. It sends nothing to change: a refusal shows its reason in the page's banner (`The start must be before the end.`, `A start and an end are required.`) and no result. A result card shows the type and the period, then Total units, Reserved for the period (the most units held at the same time, state-model.md), Out of service and Available. An account without `equipment.check`, such as an Event Coordinator, sees the inventory and no form.
+**Check availability (SCRUM-50).** Below the banner, above the inventory, an account with `equipment.check` (Technical Support Staff) sees a Check availability form: an Equipment type select (every type in the list), a Start and an End (date and time, both required), and a Check availability button. It sends nothing to change: a refusal shows its reason in the page's banner (`The start must be before the end.`, `A start and an end are required.`) and no result. A result card, brought into view when it appears (§13), shows the type and the period, then Total units, Reserved for the period (the most units held at the same time, state-model.md), Out of service and Available. An account without `equipment.check`, such as an Event Coordinator, sees the inventory and no form.
 
 | Element | `data-testid` |
 |---|---|
@@ -290,7 +297,7 @@ A duration save and the refresh it triggers are two separate outcomes. **Save** 
 
 SCRUM-77 adds Withdraw to a Requested row's action cell, for the Coordinator who raised that specific booking only (not every Coordinator, even though `bookings.edit` is a role-level key) — the same own-record pattern as a Draft's Edit/Delete. It acts at once, no inline form: the criteria ask for no confirmation, the same as a block's Remove.
 
-**Deciding a booking request** opens its inline form as its own row directly below the booking's, inside the table, the same per-row pattern as End block early above (not below the whole Booking requests table): only one of Update venue, Edit times, Block venue, End early and this is open at a time. Reason is required to reject, optional to approve (the same rule as deciding an event request, `ui-guidelines.md` existing request-detail reject/approve pattern). Its test ids use the action as `<field>`, the same convention as request-detail's decide form. An approval refused because an approved booking or a block already holds the venue over an overlapping occupied period (SCRUM-38, widened by SCRUM-41) shows the API's message in `venue-detail-banner`, naming each holder (`This venue is already committed for an overlapping period: TC38 Holder, 10 Dec 2026, 14:00–17:00.`; a block as `blocked 10 Dec 2026, 13:00 to 10 Dec 2026, 15:00 (Projector replacement)`; several joined with `; `); the booking stays Requested and its decision cell stays blank.
+**Deciding a booking request** opens its inline form as its own row directly below the booking's, inside the table, the same per-row pattern as End block early above (not below the whole Booking requests table): only one of Update venue, Edit times, Block venue, End early and this is open at a time. Reason is required to reject, optional to approve (the same rule as deciding an event request, `ui-guidelines.md` existing request-detail reject/approve pattern). Its test ids use the action as `<field>`, the same convention as request-detail's decide form. An approval refused because an approved booking or a block already holds the venue over an overlapping occupied period (SCRUM-38, widened by SCRUM-41) shows the API's message in `venue-detail-banner`, naming each holder (`This venue is already committed for an overlapping period: TC38 Holder, 10 Dec 2026, 14:00–17:00.`; a block as `blocked 10 Dec 2026, 13:00 to 10 Dec 2026, 15:00 (Projector replacement)`; several joined with `; `); the booking stays Requested and its decision cell stays blank. SCRUM-84: another event's Held hold refuses it the same way, named like a booking by its event and published period, after the bookings and before the blocks; the event's own hold never refuses its own approval, and approving releases it.
 
 | Element | `data-testid` |
 |---|---|
@@ -309,6 +316,22 @@ On the request page (`request-detail`), SCRUM-36: an Event Coordinator sees a Re
 | Element | `data-testid` |
 |---|---|
 | Request venue booking button (only with `bookings.edit`, status Approved or Planning) | `request-detail-raise-booking-button` |
+
+**Venue holds** (SCRUM-84). On the request page, everyone with `venues.view` sees a Venue holds section after the request's card (an `h2`, then a table per §6, or `This event holds no venue.` when there are none). Each row shows the venue, the occupied period the hold covers (the event's period widened by the venue's setup and turnaround time, as the API derives it; `formatPeriod` when it falls on one day, `05 Dec 2026, 09:30–12:30`, else `formatDateTimePeriod`), the expiry (`formatDateTime`) and the status badge, Held or Released. The first cell is plain text, not a link: the venue page lists no holds. The event's assigned Event Coordinator (with `bookings.edit`) sees a **Place hold** button beside the heading while the event is Approved or Planning, and a **Release** button on each Held row; nobody else sees either, and the API refuses anyone else. Place hold opens an inline form (one inline form at a time, §7) with a Venue select (the active venues, first option `Select a venue`), an Expiry date (`date`) and an Expiry time (`time`), all required, then Cancel and Place hold. An empty field gets its message under it (§5) and nothing is sent. Every other rule is the API's and shows in `request-detail-banner` word for word, with the form left open and its entries kept: the expiry must be in the future and before the event's start, and a conflict names what already holds the venue in the same wording as a refused approval (below). A placed hold closes the form, adds its row and shows `Hold placed`; the request is then read again, since placing the first hold moves an Approved event to Planning. Release shows `Hold released` and the row's badge becomes Released; a refused release shows the API's message and reads the holds again.
+
+| Element | `data-testid` |
+|---|---|
+| Venue holds section | `request-detail-holds` |
+| No holds | `request-detail-holds-empty` |
+| Place hold button (assigned coordinator, status Approved or Planning) | `request-detail-place-hold-button` |
+| Place hold form | `request-detail-hold-form` |
+| Venue select | `request-detail-hold-venue-input` |
+| Expiry date, expiry time | `request-detail-hold-expiry-date-input`, `request-detail-hold-expiry-time-input` |
+| Message under an empty field | `request-detail-hold-venue-error`, `request-detail-hold-expiry-date-error`, `request-detail-hold-expiry-time-error` |
+| Place hold (confirm) and Cancel buttons | `request-detail-hold-confirm-button`, `request-detail-hold-cancel-button` |
+| Hold row | `request-detail-hold-row-<id>` |
+| Venue, occupied period, expiry, status | `request-detail-hold-venue-<id>`, `request-detail-hold-period-<id>`, `request-detail-hold-expiry-<id>`, `request-detail-hold-status-<id>` |
+| Release button (Held row, assigned coordinator) | `request-detail-hold-release-button-<id>` |
 
 The booking-new page (`booking-new`): a venue picker (`select`, the active venues) and the usual form buttons.
 
@@ -344,9 +367,10 @@ The booking-new page (`booking-new`): a venue picker (`select`, the active venue
 | Missing facility | `booking-new-warning-facility-<kebab-option>` | The venue does not record the facility Sound system. |
 | Missing accessibility feature | `booking-new-warning-accessibility-feature-<kebab-option>` | The venue does not record the accessibility feature Hearing loop. |
 | Approved booking holding the venue (SCRUM-38) | `booking-new-warning-approved-booking-<id>` (the booking's id) | The venue already holds an approved booking for TC38 Holder, 10 Dec 2026, 14:00–17:00. |
+| Another event's Held hold on the venue (SCRUM-84) | `booking-new-warning-hold-<id>` (the hold's id) | The venue is held for Hold Seminar, 05 Dec 2026, 10:00–12:00. |
 | Block holding the venue (SCRUM-38) | `booking-new-warning-block-<id>` (the block's id) | The venue is blocked 10 Dec 2026, 13:00 to 10 Dec 2026, 15:00 (Projector replacement). |
 
-SCRUM-38: after the mismatches, one line per approved booking and then per block of the venue that overlaps the event's occupied period, each earliest first; a booking that is not Approved, or a period that only touches the event's occupied period, gives no line. SCRUM-41: the occupied period is the event's own period widened by the venue's setup and turnaround time, and each approved booking is compared by its own occupied period, while a block keeps its own recorded period and is never widened. Each line still shows the holder's own period — `formatPeriod` for a booking and `formatDateTimePeriod` for a block (§9). Like every other line, it does not stop Raise.
+SCRUM-38: after the mismatches, one line per approved booking and then per block of the venue that overlaps the event's occupied period, each earliest first; a booking that is not Approved, or a period that only touches the event's occupied period, gives no line. SCRUM-41: the occupied period is the event's own period widened by the venue's setup and turnaround time, and each approved booking is compared by its own occupied period, while a block keeps its own recorded period and is never widened. Each line still shows the holder's own period — `formatPeriod` for a booking and `formatDateTimePeriod` for a block (§9). Like every other line, it does not stop Raise. SCRUM-84: between the approved bookings and the blocks, one line per other event's Held hold whose period overlaps the event's occupied period, showing the holding event's published period with `formatPeriod`; the event's own hold gives no line.
 
 **Venue search** (SCRUM-33). On the request page, an Event Coordinator sees a Search venues button when the event's status is Approved or Planning, next to Request venue booking; it links to `/requests/:id/venues/search`. For any other status the button is not shown.
 
@@ -375,7 +399,7 @@ The venue-search page (`venue-search`) shows the event's own values, an optional
 | Venue maximum capacity | `venue-search-capacity-<id>` |
 | No results | `venue-search-empty` |
 
-**Venue availability** (SCRUM-39). The venue-availability page (`venue-availability`) shows, for a chosen week or a chosen month, every period that currently occupies or might occupy the venue: an Approved booking's occupied period (its published period widened by the venue's setup and turnaround time, the same `occupied_start`/`occupied_end` as Occupied periods above), a Requested booking's own published period, unwidened (AC4 names only an approved booking; a request still awaiting a decision does not yet hold the venue), and a block's own recorded period, never widened (the same rule as everywhere else). Rejected and Withdrawn booking requests are never shown: they no longer hold or threaten to hold the venue (team decision, 09-10-2026).
+**Venue availability** (SCRUM-39). The venue-availability page (`venue-availability`) shows, for a chosen week or a chosen month, every period that currently occupies or might occupy the venue: an Approved booking's occupied period (its published period widened by the venue's setup and turnaround time, the same `occupied_start`/`occupied_end` as Occupied periods above), a Requested booking's own published period, unwidened (AC4 names only an approved booking; a request still awaiting a decision does not yet hold the venue), and a block's own recorded period, never widened (the same rule as everywhere else). SCRUM-84: a Held hold is shown over the period it covers, widened like an Approved booking's, with a Held badge (`statusBadgeClass(STATUS.HOLD.HELD)`), so it reads apart from Approved and Pending; a Released hold holds nothing and is not shown. The page reads the venue's holds once with its bookings and blocks (`listVenueHolds`). Rejected and Withdrawn booking requests are never shown: they no longer hold or threaten to hold the venue (team decision, 09-10-2026).
 
 It is shown one day at a time (§7's label/value list, reused: the date as `dt`, that day's own entries as `dd`), not one flat table, so a free day reads as "Free" rather than simply being absent — judging dates means seeing the open ones as clearly as the booked ones (AC1). An entry that spans midnight is listed under every day it overlaps, in full, with both its own dates (the same `formatDateTimePeriod` text each time): a calendar is exactly the place a booking crossing into the next day is expected to appear on both. Within a day, entries are earliest start first; every entry carries a status badge — Approved (`statusBadgeClass(STATUS.BOOKING.APPROVED)`) or Pending (`statusBadgeClass(STATUS.BOOKING.REQUESTED)`) for a booking, Block (its own neutral badge, not a state-model.md status) for a block — so a Requested booking reads as pending at a glance beside an Approved one (AC5).
 
@@ -391,10 +415,10 @@ The page opens to the current week (Monday to Sunday), "current" read from the b
 | Day group (one per displayed day, `<date>` its ISO date) | `venue-availability-day-<date>` |
 | Day heading, `formatDate` | `venue-availability-day-heading-<date>` |
 | Free day (no entry overlaps it) | `venue-availability-day-empty-<date>` |
-| Entry row (booking or block; `<kind>` is `booking` or `block`, `<id>` that record's own id, `<date>` the day group it is shown under; an entry spanning more than one displayed day repeats, once per day, each with its own id this way — Month can show two of its days at once, so the id must still be unique on the page) | `venue-availability-entry-row-<kind>-<id>-<date>` |
+| Entry row (booking, hold or block; `<kind>` is `booking`, `hold` or `block`, `<id>` that record's own id, `<date>` the day group it is shown under; an entry spanning more than one displayed day repeats, once per day, each with its own id this way — Month can show two of its days at once, so the id must still be unique on the page) | `venue-availability-entry-row-<kind>-<id>-<date>` |
 | Entry period, `formatDateTimePeriod` | `venue-availability-entry-period-<kind>-<id>-<date>` |
-| Entry name (event name for a booking, reason for a block) | `venue-availability-entry-name-<kind>-<id>-<date>` |
-| Entry status (`Approved`, `Pending` or `Block`) | `venue-availability-entry-status-<kind>-<id>-<date>` |
+| Entry name (event name for a booking or a hold, reason for a block) | `venue-availability-entry-name-<kind>-<id>-<date>` |
+| Entry status (`Approved`, `Pending`, `Held` or `Block`) | `venue-availability-entry-status-<kind>-<id>-<date>` |
 
 **Equipment inventory** (SCRUM-49). The equipment page (`equipment`) lists every recognised equipment type and its total units, a plain table per §6, reachable with `equipment.view` — Technical Support Staff and Event Coordinator. The first cell is the type's name as **plain text, not a link**: there is no per-type detail page, so §6's linking rule has nothing to point at (recorded here as the deliberate deviation). The total reads `<n> units` (`5 units`, `0 units`, `1 unit`); a zero total keeps the type listed (AC4 note). Only an account with `equipment.edit` (Technical Support Staff) is offered **Change total** on a row; it opens an inline form as its own row directly below that row (the §7.13 per-row rule): a `number` input with **no native `required` or `min`**, the form `noValidate` like every other form (so a typed fraction reaches the server and the API's refusal is what shows), a blank caught by the page's own required check with a message under the field and nothing sent, then Save and Cancel. It is the page's only inline form, so one-form-at-a-time holds trivially. A refusal appears in `equipment-banner` word-for-word with the form left open and its entry kept, and nothing stored changes — a reduction below the reservation minimum shows the API message naming the required total. A successful save closes the form, shows `Total units updated` as the success banner and reads the list again: **that acknowledgment never depends on the refresh**, and a refused refresh replaces the table with an unavailable notice and a Reload control instead of leaving previous rows looking current (the SCRUM-41 rule, ids below). While a save and its follow-up refresh are pending, the stock input, Save, Cancel and every row's Change total button are disabled, so a pending save cannot close a newly opened editor. An initial inventory read failure also shows the error banner and the unavailable notice with Reload; it is not shown as an empty inventory. A late reply from a discarded initial load cannot replace the current inventory or show an obsolete error. If the current account loses `equipment.edit`, an already-open editor is hidden along with the change controls; the API remains the authority. Coordinator viewing needs no narrower rule than the page itself.
 
@@ -441,7 +465,7 @@ The nav's unread count (§2, `layout-nav-notifications-count`) comes from `GET /
 
 ## 10. Test ids, summary
 
-- Every input, button, link that acts, banner, title, back link, row, status, flag and empty message has a `data-testid`.
+- Every input, button, link that acts, banner, banner dismiss control, title, back link, row, status, flag and empty message has a `data-testid`. The banner's ids are `<page>-banner` and `<page>-banner-dismiss` (§4).
 - Format `<page>-<element>`, kebab-case, `<page>` from §1 (`layout` for the layout).
 - Tests find elements by test id only; text is asserted, never used to find an element.
 - Renaming a test id changes every test that uses it: update those tests in the same pull request.
@@ -453,6 +477,7 @@ The nav's unread count (§2, `layout-nav-notifications-count`) comes from `GET /
 3. Controls the account cannot use are hidden, and the page still shows a refusal if the API says no.
 4. Status and flag text come from `STATUS`; dates and times from `app/format.js`; colour never stands alone.
 5. The page follows the §3 order; no modal, overlay or browser dialog anywhere.
+6. Every action's response is visible without scrolling (§13).
 
 ## 12. Look
 
@@ -471,5 +496,23 @@ How pages look (tokens, type, spacing and the shared classes) is in `visual-styl
 | Completed | Neutral |
 | Requested | Info |
 | Withdrawn | Neutral |
+| Held | Warning |
+| Released | Neutral |
 
-A status not in this table is neutral until a story adds its row here. Requested and Withdrawn are a venue booking request's own statuses (state-model.md); its Approved and Rejected reuse the colours already above.
+A status not in this table is neutral until a story adds its row here. Requested and Withdrawn are a venue booking request's own statuses (state-model.md); its Approved and Rejected reuse the colours already above. Held and Released are a venue hold's (SCRUM-84): Held is Warning so that a hold reads apart from an Approved booking (Success) and a Pending one (Info) on the availability page.
+
+## 13. Feedback at the point of action
+
+**Every action gets a visible response where the user is looking.** When a control opens a form, asks for confirmation, or changes what the page shows, that response appears next to the control or is brought into view, and keyboard focus moves to it (the first field of a form, or the confirmation). A user never has to scroll or search to learn what their click did. Messages follow §4.
+
+A page picks one of these patterns for each control. They are built with `useReveal` and `useRevealError` from `app/reveal.js` (`frontend.md` §7), which scroll only as far as needed and stop clear of the sticky header.
+
+| Pattern | Use it for | What happens |
+|---|---|---|
+| **A. Inline form** | An action that needs fields (Edit, Update venue, Block venue, Place hold, Change total, a reason) | The form opens directly below its trigger, in its place, or as the row below a per-row trigger (§7). It is brought into view and its first field is focused. Switching to another form or row brings that one into view too. |
+| **A′. Inline confirmation** | An action that only needs a yes or no (Delete draft) | Opens as pattern A, with the Cancel button focused, so a stray Enter does not confirm. Still no modal or browser dialog (§7, §11). |
+| **B. Refreshed results** | An action that replaces a list below it (Apply on venue search) | The new results are brought into view; focus stays on the control, so the user can change the filter and apply again. The page's first load scrolls nothing. |
+| **C. Refused required fields** | A form's own required-field check (§5) | The first field with a message is brought into view and focused, on every refused submit. A refusal from the API goes to the banner (§4), which is always in view. |
+| **D. Act at once** | An action with no form (Submit, Send for safety check, Remove, Withdraw, Release, Mark as read) | The change shows where the action was (the row, its badge or the status), and the banner (§4) says what happened. Nothing moves. |
+
+A control that leaves the page (a link, or an action that navigates) needs none of these: the next page opens at its top, with its banner (§4).

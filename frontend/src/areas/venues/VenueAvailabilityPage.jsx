@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { formatDate, formatDateTimePeriod, statusBadgeClass, STATUS } from '../../app/format'
-import { getVenue, listVenueBlocks, listVenueBookings } from './api'
+import { getVenue, listVenueBlocks, listVenueBookings, listVenueHolds } from './api'
+import Banner from '../../app/Banner'
 
 // Bookings a Requested or an Approved booking never shows (SCRUM-39 AC5): a
 // Rejected or Withdrawn request no longer holds or threatens to hold the venue.
@@ -77,6 +78,7 @@ function bookingPeriod(booking) {
 const STATUS_LABEL = {
   [STATUS.BOOKING.APPROVED]: 'Approved',
   [STATUS.BOOKING.REQUESTED]: 'Pending',
+  [STATUS.HOLD.HELD]: 'Held',
 }
 
 export default function VenueAvailabilityPage() {
@@ -84,6 +86,7 @@ export default function VenueAvailabilityPage() {
   const [venue, setVenue] = useState(null)
   const [bookings, setBookings] = useState([])
   const [blocks, setBlocks] = useState([])
+  const [holds, setHolds] = useState([])
   const [banner, setBanner] = useState(null)
   const [mode, setMode] = useState('week')
   // Today, read once from the browser's own clock: a cosmetic starting point
@@ -95,12 +98,13 @@ export default function VenueAvailabilityPage() {
   // arrive after the current one (docs/design/frontend.md §7).
   useEffect(() => {
     let active = true
-    Promise.all([getVenue(id), listVenueBookings(id), listVenueBlocks(id)])
-      .then(([venueRow, bookingRows, blockRows]) => {
+    Promise.all([getVenue(id), listVenueBookings(id), listVenueBlocks(id), listVenueHolds(id)])
+      .then(([venueRow, bookingRows, blockRows, holdRows]) => {
         if (active) {
           setVenue(venueRow)
           setBookings(bookingRows)
           setBlocks(blockRows)
+          setHolds(holdRows)
         }
       })
       .catch((error) => {
@@ -128,7 +132,20 @@ export default function VenueAvailabilityPage() {
     status: null,
   }))
 
-  const allEntries = [...bookingEntries, ...blockEntries]
+  // SCRUM-84 AC5: a Held hold over the period it takes the venue for, the same
+  // widened period as an Approved booking; a Released hold holds nothing.
+  const holdEntries = holds
+    .filter((hold) => hold.status === STATUS.HOLD.HELD)
+    .map((hold) => ({
+      kind: 'hold',
+      id: hold.id,
+      periodStart: toDate(hold.occupied_start),
+      periodEnd: toDate(hold.occupied_end),
+      name: hold.event_request_name,
+      status: hold.status,
+    }))
+
+  const allEntries = [...bookingEntries, ...holdEntries, ...blockEntries]
   // One group per displayed day; an entry appears in every day it overlaps,
   // in full, the same way a multi-day event appears on every day of a real
   // calendar (ui-guidelines.md §7).
@@ -153,11 +170,7 @@ export default function VenueAvailabilityPage() {
         </div>
       </div>
 
-      {banner && (
-        <p role="alert" className="banner-error" data-testid="venue-availability-banner">
-          {banner}
-        </p>
-      )}
+      <Banner page="venue-availability" error={banner} onDismiss={() => setBanner(null)} />
 
       {venue && (
         <>

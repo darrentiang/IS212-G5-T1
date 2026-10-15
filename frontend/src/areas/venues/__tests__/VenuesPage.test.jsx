@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import * as api from '../api'
 import VenuesPage from '../VenuesPage'
@@ -103,5 +104,19 @@ describe('VenuesPage', () => {
       expect(screen.getByTestId('venues-banner')).toHaveTextContent(/permission/i)
     })
     expect(screen.getByTestId('venues-banner')).toHaveAttribute('role', 'alert')
+  })
+
+  // @story: chore-ui-feedback
+  // @ac: banner-dismiss
+  it('clears the banner from its dismiss control', async () => {
+    api.listVenues.mockRejectedValue(
+      Object.assign(new Error('You do not have permission to perform this action.'), { status: 403 }),
+    )
+    renderPage()
+    await screen.findByTestId('venues-banner')
+
+    await userEvent.click(screen.getByTestId('venues-banner-dismiss'))
+
+    expect(screen.queryByTestId('venues-banner')).not.toBeInTheDocument()
   })
 })

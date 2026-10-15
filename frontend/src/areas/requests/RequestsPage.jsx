@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router'
 import { useAuth } from '../../app/auth'
 import { statusBadgeClass } from '../../app/format'
 import { listRequests } from './api'
+import Banner from '../../app/Banner'
 
 // SCRUM-27: list only what the API returns for this account.
 // SCRUM-28: the New request button for an account that may submit one.
@@ -42,16 +43,15 @@ export default function RequestsPage() {
         )}
       </div>
 
-      {banner && (
-        <p role="alert" className="banner-error" data-testid="requests-banner">
-          {banner}
-        </p>
-      )}
-      {!banner && successBanner && (
-        <p role="status" className="banner-success" data-testid="requests-banner">
-          {successBanner}
-        </p>
-      )}
+      <Banner
+        page="requests"
+        error={banner}
+        success={successBanner}
+        onDismiss={() => {
+          setBanner(null)
+          setSuccessBanner(null)
+        }}
+      />
 
       {loading ? null : rows.length === 0 ? (
         <div className="card">

@@ -68,6 +68,20 @@ describe('RequestNewPage', () => {
     expect(screen.getByTestId('request-new-registration-needs-input')).toHaveAttribute('aria-required', 'true')
   })
 
+  // @story: chore-ui-feedback
+  // @ac: banner-dismiss
+  it('clears the banner from its dismiss control', async () => {
+    api.submitRequest.mockRejectedValue(Object.assign(new Error('Date cannot be earlier than today.'), { status: 400 }))
+    await renderNewPage()
+    await fillValidForm()
+    await userEvent.click(screen.getByTestId('request-new-submit-button'))
+    await screen.findByTestId('request-new-banner')
+
+    await userEvent.click(screen.getByTestId('request-new-banner-dismiss'))
+
+    expect(screen.queryByTestId('request-new-banner')).not.toBeInTheDocument()
+  })
+
   // @story: SCRUM-28
   // @ac: 3
   it('refuses to submit and names every missing field, sending nothing', async () => {
@@ -312,5 +326,21 @@ describe('RequestNewPage', () => {
     expect([...screen.getByTestId('request-new-layout-input').options].map((option) => option.text)).toEqual([
       'None',
     ])
+  })
+})
+
+describe('RequestNewPage feedback at the point of action', () => {
+  // @story: chore-ui-feedback
+  // @ac: point-of-action
+  it('focuses the first field named by a refused submit, at the top of the long form', async () => {
+    await renderNewPage()
+
+    await userEvent.click(screen.getByTestId('request-new-submit-button'))
+
+    expect(await screen.findByTestId('request-new-name-error')).toBeInTheDocument()
+    expect(screen.getByTestId('request-new-name-input')).toHaveFocus()
+    expect(Element.prototype.scrollIntoView.mock.contexts.at(-1)).toContainElement(
+      screen.getByTestId('request-new-name-error'),
+    )
   })
 })

@@ -130,3 +130,29 @@ export const requestSafetyChanges = (id, reason, areas, notes) =>
 // 400/403/404: { message }   400 when the reason is blank
 export const rejectSafetyCheck = (id, reason, notes) =>
   request('POST', `/api/requests/${id}/safety/reject`, { reason, notes })
+
+// GET /api/venues   (SCRUM-84: the venue picker of the Place hold form)
+// 200:     [ { id, name, location, max_capacity, ..., is_active } ]
+// 403:     { message }
+// A thin wrapper of the same venues.view call the venues area makes, each area
+// owning its own (frontend.md §1).
+export const listVenues = () => request('GET', '/api/venues')
+
+// GET /api/requests/:id/holds   (SCRUM-84)
+// 200:     [ { id, venue_id, venue_name, event_request_id, event_request_name,
+//              status, date, start_time, end_time, occupied_start, occupied_end,
+//              expires_at, placed_by, placed_at, released_at } ]
+//          status: 'Held' | 'Released'; oldest first
+// 403/404: { message }
+export const listHolds = (id) => request('GET', `/api/requests/${id}/holds`)
+
+// POST /api/requests/:id/holds   (SCRUM-84)
+// body:    { venue_id, expiry_date, expiry_time }   expiry naive local, YYYY-MM-DD and HH:MM
+// 201:     the hold, Held (an Approved event is now Planning)
+// 400/403/404/409: { message }   409 names what already holds the venue
+export const placeHold = (id, data) => request('POST', `/api/requests/${id}/holds`, data)
+
+// POST /api/requests/:id/holds/:holdId/release   (SCRUM-84)
+// 200:     the hold, Released
+// 403/404/409: { message }
+export const releaseHold = (id, holdId) => request('POST', `/api/requests/${id}/holds/${holdId}/release`)

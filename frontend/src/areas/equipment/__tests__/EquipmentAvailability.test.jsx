@@ -58,6 +58,24 @@ describe('Check availability', () => {
   })
 
   // @story: SCRUM-50
+  // @ac: 3
+  it('brings the result card into view', async () => {
+    api.listEquipment.mockResolvedValue(TYPES)
+    api.checkAvailability.mockResolvedValue(RESULT)
+    Element.prototype.scrollIntoView.mockClear()
+    render(<EquipmentPage />)
+    const user = userEvent.setup()
+
+    await user.type(await screen.findByTestId('equipment-check-start-input'), '2027-02-15T10:00')
+    await user.type(screen.getByTestId('equipment-check-end-input'), '2027-02-15T13:00')
+    await user.click(screen.getByTestId('equipment-check-button'))
+
+    const card = await screen.findByTestId('equipment-check-result')
+    expect(Element.prototype.scrollIntoView).toHaveBeenCalled()
+    expect(Element.prototype.scrollIntoView.mock.contexts).toContain(card)
+  })
+
+  // @story: SCRUM-50
   // @ac: 1
   it('checks the first type when none was picked', async () => {
     api.listEquipment.mockResolvedValue(TYPES)

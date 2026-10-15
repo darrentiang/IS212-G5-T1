@@ -149,3 +149,13 @@ export const rejectBooking = (id, bookingId, reason, suggestion = {}) =>
 // 403/404/409: { message }   404 for anyone but the raising Coordinator; 409 once already decided
 export const withdrawBooking = (id, bookingId) =>
   request('POST', `/api/venues/${id}/bookings/${bookingId}/withdraw`)
+
+// GET /api/venues/:id/holds   (SCRUM-84)
+// 200:     [ { id, venue_id, venue_name, event_request_id, event_request_name,
+//              status, date, start_time, end_time, occupied_start, occupied_end,
+//              expires_at, placed_by, placed_at, released_at } ]
+//          status: 'Held' | 'Released'; occupied_start/occupied_end the event's
+//          period widened by the venue's setup and turnaround time, as sent for
+//          an Approved booking; oldest first
+// 403/404: { message }
+export const listVenueHolds = (id) => request('GET', `/api/venues/${id}/holds`)

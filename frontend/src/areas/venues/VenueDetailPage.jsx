@@ -19,6 +19,8 @@ import {
   updateVenueTimes,
   withdrawBooking,
 } from './api'
+import Banner from '../../app/Banner'
+import { useReveal, useRevealError } from '../../app/reveal'
 
 // Operating hours are two values, each through formatTime: format.js has no
 // function for a time range without a date (docs/design/ui-guidelines.md §9).
@@ -210,6 +212,19 @@ export default function VenueDetailPage() {
   // SCRUM-41: an event's name links to its request only when the account may
   // open requests; anyone else sees the name as plain text.
   const canViewRequests = can('requests.view')
+
+  // Every inline form opens beside or below its trigger, is brought into view
+  // with its first field focused, and a failed required-field check focuses
+  // the field it names (ui-guidelines.md §13). A per-row form is keyed to its
+  // row, so moving to another row's form reveals that one too.
+  const layoutsRef = useReveal(openForm === 'layouts' ? 'layouts' : null)
+  const timesRef = useReveal(openForm === 'times' ? 'times' : null)
+  const updateRef = useReveal(openForm === 'update' ? 'update' : null)
+  useRevealError(updateRef, updateErrors)
+  const blockRef = useReveal(openForm === 'block' ? 'block' : null)
+  useRevealError(blockRef, blockErrors)
+  const endRef = useReveal(openForm === 'end' ? `end-${endingId}` : null)
+  const decideRef = useReveal(openForm === 'decide' ? `${decidingAction}-${decidingBookingId}` : null)
 
   // Keyed to id: a reply for the venue the user has left can
   // arrive after the current one, so a stale reply is ignored
@@ -653,17 +668,15 @@ export default function VenueDetailPage() {
         </div>
       </div>
 
-      {banner ? (
-        <p role="alert" className="banner-error" data-testid="venue-detail-banner">
-          {banner}
-        </p>
-      ) : (
-        success && (
-          <p role="status" className="banner-success" data-testid="venue-detail-banner">
-            {success}
-          </p>
-        )
-      )}
+      <Banner
+        page="venue-detail"
+        error={banner}
+        success={success}
+        onDismiss={() => {
+          setBanner(null)
+          setSuccess(null)
+        }}
+      />
 
       {loading || !row ? null : (
         <>
@@ -729,7 +742,7 @@ export default function VenueDetailPage() {
               )}
             </div>
             {openForm === 'layouts' && (
-              <form onSubmit={handleLayouts} noValidate className="space-y-4">
+              <form ref={layoutsRef} onSubmit={handleLayouts} noValidate className="space-y-4">
                 <fieldset>
                   <legend className="label">Supported layouts</legend>
                   {options.layouts.map((option) => (
@@ -806,7 +819,7 @@ export default function VenueDetailPage() {
           )}
 
           {openForm === 'times' && (
-            <form onSubmit={handleTimes} noValidate className="card form-card space-y-4">
+            <form ref={timesRef} onSubmit={handleTimes} noValidate className="card form-card space-y-4">
               <h2 className="section-title">Edit times</h2>
               <p className="subtitle">Setup time and turnaround time are durations in whole minutes.</p>
               <div className="grid gap-4 md:grid-cols-2">
@@ -871,7 +884,7 @@ export default function VenueDetailPage() {
           )}
 
           {openForm === 'update' && (
-            <form onSubmit={handleUpdate} noValidate className="card form-card space-y-4">
+            <form ref={updateRef} onSubmit={handleUpdate} noValidate className="card form-card space-y-4">
               <h2 className="section-title">Update venue</h2>
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="md:col-span-2">
@@ -1040,7 +1053,7 @@ export default function VenueDetailPage() {
           )}
 
           {openForm === 'block' && (
-            <form onSubmit={handleBlock} noValidate className="card form-card space-y-4">
+            <form ref={blockRef} onSubmit={handleBlock} noValidate className="card form-card space-y-4">
               <h2 className="section-title">Block venue</h2>
               <div className="grid gap-4 md:grid-cols-2">
                 {BLOCK_FIELDS.map((field) => {
@@ -1269,6 +1282,7 @@ export default function VenueDetailPage() {
                                   buttons this form answers to are gated by it. */}
                               <td colSpan={3} className="p-0">
                                 <form
+                                  ref={endRef}
                                   onSubmit={handleEnd}
                                   noValidate
                                   className="form-card space-y-4 m-4"
@@ -1477,6 +1491,7 @@ export default function VenueDetailPage() {
                                   buttons this form answers to are gated by it. */}
                               <td colSpan={9} className="p-0">
                                 <form
+                                  ref={decideRef}
                                   onSubmit={handleDecide}
                                   noValidate
                                   className="form-card space-y-4 m-4"
