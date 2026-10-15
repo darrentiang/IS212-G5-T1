@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import { useAuth } from '../../app/auth'
 import { STATUS, formatDate, formatDateTime, formatTime, statusBadgeClass } from '../../app/format'
@@ -22,6 +22,8 @@ import {
   submitDraft,
   updateDraft,
 } from './api'
+import Banner from '../../app/Banner'
+import { useReveal, useRevealError } from '../../app/reveal'
 
 // SCRUM-27: show one request or the API refusal (banner), never invent data.
 // SCRUM-28: show the success banner carried from RequestNewPage's navigate(),
@@ -236,6 +238,16 @@ const openDecision = (action) => {
   }
 
   const canDecide = Boolean(can?.('requests.decide')) && row?.status === STATUS.REQUEST.SUBMITTED
+
+  // Every form an action opens is brought into view with its first field
+  // focused, and a failed required-field check focuses the field it names
+  // (ui-guidelines.md §13).
+  const editRef = useReveal(openAction === 'edit' ? 'edit' : null)
+  useRevealError(editRef, editError)
+  const deleteRef = useReveal(openAction === 'delete' ? 'delete' : null, 'button')
+  const decisionRef = useReveal(canDecide && ['approve', 'reject'].includes(openAction) ? openAction : null)
+  const resubmitRef = useRef(null)
+  useRevealError(resubmitRef, resubmitErrors)
 
   // SCRUM-53: offered to the assigned coordinator only; the API refuses anyone else.
   const canSend =
@@ -601,16 +613,15 @@ const openDecision = (action) => {
         </div>
       </div>
 
-      {banner && (
-        <p role="alert" className="banner-error" data-testid="request-detail-banner">
-          {banner}
-        </p>
-      )}
-      {!banner && successBanner && (
-        <p role="status" className="banner-success" data-testid="request-detail-banner">
-          {successBanner}
-        </p>
-      )}
+      <Banner
+        page="request-detail"
+        error={banner}
+        success={successBanner}
+        onDismiss={() => {
+          setBanner(null)
+          setSuccessBanner(null)
+        }}
+      />
 
       {loading || !row ? null : (
         <div className="card space-y-6">
@@ -791,44 +802,37 @@ const openDecision = (action) => {
               )}
             </div>
           )}
+
+          {/* SCRUM-29: approve or reject a Submitted request, in the card's action row (§7). */}
+          {canDecide && (
+            <div className="flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={() => openDecision('reject')}
+                className="btn btn-secondary"
+                data-testid="request-detail-reject-button"
+              >
+                Reject
+              </button>
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={() => openDecision('approve')}
+                className="btn btn-primary"
+                data-testid="request-detail-approve-button"
+              >
+                Approve
+              </button>
+            </div>
+          )}
         </div>
       )}
 
-      {/* SCRUM-84: the event's venue holds, placed and released by its assigned coordinator. */}
-      {!loading && canSeeHolds && holds && (
-        <VenueHoldsSection
-          holds={holds}
-          canPlace={canPlaceHold}
-          canRelease={isAssignedCoordinator}
-          formOpen={openAction === 'hold'}
-          venues={holdVenues}
-          submitting={submitting}
-          onOpen={openHold}
-          onCancel={() => setOpenAction(null)}
-          onPlace={handlePlaceHold}
-          onRelease={handleReleaseHold}
-        />
-      )}
-
-      {/* SCRUM-89: review an event in Safety Check, and decide it. */}
-      {!loading &&
-        row &&
-        (row.safety_check || row.requested_changes || row.safety_decisions?.length > 0) && (
-        <SafetyCheckSection
-          decisions={row.safety_decisions}
-          safetyCheck={row.safety_check}
-          requestedChanges={row.requested_changes}
-          canDecide={Boolean(can?.('safety.decide')) && row.status === STATUS.REQUEST.SAFETY_CHECK}
-          submitting={submitting}
-          onApprove={handleSafetyApprove}
-          onReject={handleSafetyReject}
-          onRequestChanges={handleSafetyRequestChanges}
-        />
-      )}
-
+      {/* The forms the card's action rows open sit directly below the card (ui-guidelines.md §13). */}
       {/* SCRUM-30: edit any field of an own Draft, including the name. */}
       {openAction === 'edit' && editValues && (
-        <div className="card form-card space-y-4" data-testid="request-detail-edit-form">
+        <div ref={editRef} className="card form-card space-y-4" data-testid="request-detail-edit-form">
           <h2 className="section-title">Edit draft</h2>
           <div className="grid gap-4 md:grid-cols-3">{EDIT_FIELDS_BEFORE_CHOICES.map(renderEditField)}</div>
           {renderChoices('edit', editValues, setEditValue)}
@@ -856,42 +860,9 @@ const openDecision = (action) => {
         </div>
       )}
 
-      {/* SCRUM-72: a Rejected request's creator revises it and resubmits. */}
-      {!loading && canResubmit && resubmitValues && options && (
-        <form
-          onSubmit={handleResubmit}
-          noValidate
-          className="card form-card space-y-4"
-          data-testid="request-detail-resubmit-form"
-        >
-          <h2 className="section-title">Revise and resubmit</h2>
-          <div className="grid gap-4 md:grid-cols-3">
-            {EDIT_FIELDS_BEFORE_CHOICES.map(
-              renderFormField('resubmit', resubmitValues, setResubmitValue, resubmitErrors, true),
-            )}
-          </div>
-          {renderChoices('resubmit', resubmitValues, setResubmitValue)}
-          <div className="grid gap-4 md:grid-cols-3">
-            {EDIT_FIELDS_AFTER_CHOICES.map(
-              renderFormField('resubmit', resubmitValues, setResubmitValue, resubmitErrors, true),
-            )}
-          </div>
-          <div className="flex flex-wrap justify-end gap-2">
-            <button
-              type="submit"
-              disabled={submitting}
-              className="btn btn-primary"
-              data-testid="request-detail-resubmit-button"
-            >
-              Resubmit
-            </button>
-          </div>
-        </form>
-      )}
-
       {/* SCRUM-30: permanently delete an own Draft. */}
       {openAction === 'delete' && (
-        <div className="card space-y-4" data-testid="request-detail-delete-form">
+        <div ref={deleteRef} className="card space-y-4" data-testid="request-detail-delete-form">
           <h2 className="section-title">Delete draft</h2>
           <p>Delete this draft permanently? This cannot be undone.</p>
           <div className="flex flex-wrap justify-end gap-2">
@@ -917,32 +888,8 @@ const openDecision = (action) => {
         </div>
       )}
 
-      {/* SCRUM-29: approve or reject a Submitted request. */}
-      {!loading && canDecide && (
-        <div className="flex justify-end gap-2">
-          <button
-            type="button"
-            disabled={submitting}
-            onClick={() => openDecision('reject')}
-            className="btn btn-secondary"
-            data-testid="request-detail-reject-button"
-          >
-            Reject
-          </button>
-          <button
-            type="button"
-            disabled={submitting}
-            onClick={() => openDecision('approve')}
-            className="btn btn-primary"
-            data-testid="request-detail-approve-button"
-          >
-            Approve
-          </button>
-        </div>
-      )}
-
       {canDecide && ['approve', 'reject'].includes(openAction) && (
-        <form onSubmit={handleConfirmDecision} noValidate className="card form-card space-y-4">
+        <form ref={decisionRef} onSubmit={handleConfirmDecision} noValidate className="card form-card space-y-4">
           <h2 className="section-title">{DECISIONS[openAction].label} Request</h2>
           <div>
             <label htmlFor={`${openAction}-reason`} className="label">
@@ -983,6 +930,74 @@ const openDecision = (action) => {
           </div>
         </form>
       )}
+
+
+      {/* SCRUM-84: the event's venue holds, placed and released by its assigned coordinator. */}
+      {!loading && canSeeHolds && holds && (
+        <VenueHoldsSection
+          holds={holds}
+          canPlace={canPlaceHold}
+          canRelease={isAssignedCoordinator}
+          formOpen={openAction === 'hold'}
+          venues={holdVenues}
+          submitting={submitting}
+          onOpen={openHold}
+          onCancel={() => setOpenAction(null)}
+          onPlace={handlePlaceHold}
+          onRelease={handleReleaseHold}
+        />
+      )}
+
+      {/* SCRUM-89: review an event in Safety Check, and decide it. */}
+      {!loading &&
+        row &&
+        (row.safety_check || row.requested_changes || row.safety_decisions?.length > 0) && (
+        <SafetyCheckSection
+          decisions={row.safety_decisions}
+          safetyCheck={row.safety_check}
+          requestedChanges={row.requested_changes}
+          canDecide={Boolean(can?.('safety.decide')) && row.status === STATUS.REQUEST.SAFETY_CHECK}
+          submitting={submitting}
+          onApprove={handleSafetyApprove}
+          onReject={handleSafetyReject}
+          onRequestChanges={handleSafetyRequestChanges}
+        />
+      )}
+
+      {/* SCRUM-72: a Rejected request's creator revises it and resubmits. */}
+      {!loading && canResubmit && resubmitValues && options && (
+        <form
+          ref={resubmitRef}
+          onSubmit={handleResubmit}
+          noValidate
+          className="card form-card space-y-4"
+          data-testid="request-detail-resubmit-form"
+        >
+          <h2 className="section-title">Revise and resubmit</h2>
+          <div className="grid gap-4 md:grid-cols-3">
+            {EDIT_FIELDS_BEFORE_CHOICES.map(
+              renderFormField('resubmit', resubmitValues, setResubmitValue, resubmitErrors, true),
+            )}
+          </div>
+          {renderChoices('resubmit', resubmitValues, setResubmitValue)}
+          <div className="grid gap-4 md:grid-cols-3">
+            {EDIT_FIELDS_AFTER_CHOICES.map(
+              renderFormField('resubmit', resubmitValues, setResubmitValue, resubmitErrors, true),
+            )}
+          </div>
+          <div className="flex flex-wrap justify-end gap-2">
+            <button
+              type="submit"
+              disabled={submitting}
+              className="btn btn-primary"
+              data-testid="request-detail-resubmit-button"
+            >
+              Resubmit
+            </button>
+          </div>
+        </form>
+      )}
+
     </div>
   )
 }

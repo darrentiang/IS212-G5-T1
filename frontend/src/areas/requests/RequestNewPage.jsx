@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { getRequestOptions, saveDraft, submitRequest } from './api'
+import Banner from '../../app/Banner'
+import { useRevealError } from '../../app/reveal'
 
 // SCRUM-28: an Event Organiser submits a request directly (docs/design/state-model.md, '— -> Submitted').
 // SCRUM-30: or saves it as a Draft (docs/design/state-model.md, '— -> Draft'); only the name is required to save.
@@ -42,6 +44,9 @@ export default function RequestNewPage() {
   const navigate = useNavigate()
   const [values, setValues] = useState(EMPTY)
   const [fieldErrors, setFieldErrors] = useState({})
+  // A failed required-field check focuses the first field it names (ui-guidelines.md §13).
+  const formRef = useRef(null)
+  useRevealError(formRef, fieldErrors)
   const [banner, setBanner] = useState(null)
   const [submitting, setSubmitting] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -159,18 +164,10 @@ export default function RequestNewPage() {
         </div>
       </div>
 
-      {banner && (
-        <p
-          role="alert"
-          className="banner-error"
-          data-testid="request-new-banner"
-        >
-          {banner}
-        </p>
-      )}
+      <Banner page="request-new" error={banner} onDismiss={() => setBanner(null)} />
 
       {!loading && (
-        <form className="card form-card space-y-4" onSubmit={handleSubmit} noValidate>
+        <form ref={formRef} className="card form-card space-y-4" onSubmit={handleSubmit} noValidate>
           <div className="grid gap-4 md:grid-cols-3">{FIELDS_BEFORE_CHOICES.map(renderField)}</div>
 
           <fieldset className="space-y-4">

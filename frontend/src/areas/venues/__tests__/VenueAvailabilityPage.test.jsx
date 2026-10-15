@@ -339,6 +339,18 @@ describe('VenueAvailabilityPage', () => {
     })
   })
 
+  // @story: chore-ui-feedback
+  // @ac: banner-dismiss
+  it('clears the banner from its dismiss control', async () => {
+    api.getVenue.mockRejectedValue(Object.assign(new Error('Venue not found.'), { status: 404 }))
+    renderPage()
+    await screen.findByTestId('venue-availability-banner')
+
+    await userEvent.click(screen.getByTestId('venue-availability-banner-dismiss'))
+
+    expect(screen.queryByTestId('venue-availability-banner')).not.toBeInTheDocument()
+  })
+
   // @story: SCRUM-39
   it('keeps the venue the user moved to when the earlier reply arrives last', async () => {
     let resolveFirst

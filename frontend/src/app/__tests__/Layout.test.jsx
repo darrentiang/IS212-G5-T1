@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
 import * as authApi from '../../areas/auth/api'
@@ -123,5 +123,18 @@ describe('Layout', () => {
       expect(screen.getByTestId('address')).toHaveTextContent('/login')
     })
     expect(authApi.logout).toHaveBeenCalled()
+  })
+
+  // @story: chore-ui-feedback
+  // @ac: banner-visible
+  it('measures the header into --topbar-height for the sticky banner, and clears it on leaving', async () => {
+    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(64)
+    const root = document.documentElement
+
+    await renderLayout({ username: 'coord1', roles: ['Event Coordinator'], features: [] })
+    expect(root.style.getPropertyValue('--topbar-height')).toBe('64px')
+
+    cleanup()
+    expect(root.style.getPropertyValue('--topbar-height')).toBe('')
   })
 })

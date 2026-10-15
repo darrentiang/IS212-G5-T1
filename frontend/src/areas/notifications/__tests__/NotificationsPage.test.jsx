@@ -219,6 +219,19 @@ describe('NotificationsPage', () => {
     expect(await screen.findByTestId('notifications-banner')).toHaveTextContent('Not logged in')
   })
 
+  // @story: chore-ui-feedback
+  // @ac: banner-dismiss
+  it('clears the banner from its dismiss control', async () => {
+    signInWith()
+    api.listNotifications.mockRejectedValue(new Error('Not logged in'))
+    renderPage()
+    await screen.findByTestId('notifications-banner')
+
+    await userEvent.click(screen.getByTestId('notifications-banner-dismiss'))
+
+    expect(screen.queryByTestId('notifications-banner')).not.toBeInTheDocument()
+  })
+
   // @story: SCRUM-58
   it('shows the API refusal in the banner when marking read fails', async () => {
     signInWith()

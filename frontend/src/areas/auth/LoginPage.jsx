@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Navigate, useNavigate } from 'react-router'
 import { useAuth } from '../../app/auth'
+import Banner from '../../app/Banner'
 
 export default function LoginPage() {
   const { account, login } = useAuth()
@@ -53,11 +54,7 @@ export default function LoginPage() {
           <p className="subtitle">Log in to plan and track your events.</p>
         </div>
 
-        {banner && (
-          <p role="alert" className="banner-error" data-testid="login-banner">
-            {banner}
-          </p>
-        )}
+        <Banner page="login" error={banner} onDismiss={() => setBanner(null)} />
 
         <form onSubmit={handleSubmit} noValidate className="space-y-4">
           <div>

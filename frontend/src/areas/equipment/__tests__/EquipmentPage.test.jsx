@@ -82,6 +82,18 @@ describe('EquipmentPage', () => {
     expect(screen.queryByTestId('equipment-empty')).not.toBeInTheDocument()
   })
 
+  // @story: chore-ui-feedback
+  // @ac: banner-dismiss
+  it('clears the banner from its dismiss control', async () => {
+    api.listEquipment.mockRejectedValue(new ApiError(500, 'Something went wrong'))
+    renderPage()
+    await screen.findByTestId('equipment-banner')
+
+    await userEvent.click(screen.getByTestId('equipment-banner-dismiss'))
+
+    expect(screen.queryByTestId('equipment-banner')).not.toBeInTheDocument()
+  })
+
   // @story: SCRUM-49
   // @ac: 2, 7
   it('offers Change total to an account with equipment.edit', async () => {
@@ -519,5 +531,20 @@ describe('EquipmentPage', () => {
     expect(screen.getByTestId('equipment-units-1')).toHaveTextContent('10 units')
     expect(screen.queryByTestId('equipment-banner')).not.toBeInTheDocument()
     expect(screen.queryByTestId('equipment-unavailable')).not.toBeInTheDocument()
+  })
+})
+
+describe('EquipmentPage feedback at the point of action', () => {
+  // @story: chore-ui-feedback
+  // @ac: point-of-action
+  it('opens Change total as the row below in view, with its field focused', async () => {
+    api.listEquipment.mockResolvedValue([TYPE])
+    renderPage()
+
+    await userEvent.click(await screen.findByTestId('equipment-edit-button-1'))
+
+    const input = screen.getByTestId('equipment-edit-units-input')
+    expect(input).toHaveFocus()
+    expect(Element.prototype.scrollIntoView.mock.contexts.at(-1)).toContainElement(input)
   })
 })

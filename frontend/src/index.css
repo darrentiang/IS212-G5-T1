@@ -30,6 +30,11 @@
 }
 
 @layer base {
+  /* What app/reveal.js scrolls into view stops clear of the sticky header. */
+  html {
+    scroll-padding-top: calc(var(--topbar-height, 0px) + 16px);
+  }
+
   body {
     background-color: var(--color-bg);
     color: var(--color-text);
@@ -292,13 +297,43 @@
     font-size: 14px;
     color: var(--color-text);
   }
+  /* Tinted over the surface, not transparent: the page banner overlaps content while it sticks. */
   .banner-error {
     border-left-color: var(--color-danger);
-    background-color: color-mix(in srgb, var(--color-danger) 8%, transparent);
+    background-color: color-mix(in srgb, var(--color-danger) 8%, var(--color-surface));
   }
   .banner-success {
     border-left-color: var(--color-success);
-    background-color: color-mix(in srgb, var(--color-success) 8%, transparent);
+    background-color: color-mix(in srgb, var(--color-success) 8%, var(--color-surface));
+  }
+  /* The page banner (app/Banner.jsx): sticks just below the header, which
+     Layout measures into --topbar-height, so it stays in view as the page scrolls. */
+  .banner {
+    position: sticky;
+    top: calc(var(--topbar-height, 0px) + 8px);
+    z-index: 5;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    box-shadow: var(--shadow-md);
+  }
+  .banner-message {
+    flex: 1;
+    min-width: 0;
+  }
+  .banner-dismiss {
+    flex: none;
+    width: 24px;
+    height: 24px;
+    margin: -2px -4px 0 0;
+    border-radius: var(--radius-control);
+    font-size: 18px;
+    line-height: 1;
+    color: var(--color-text-secondary);
+  }
+  .banner-dismiss:hover {
+    color: var(--color-text);
+    background-color: rgb(0 0 0 / 0.05);
   }
 
   /* Warnings that do not stop an action (SCRUM-42): banner shape, warning colour */

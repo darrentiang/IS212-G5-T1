@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { formatPeriod } from '../../app/format'
 import { getVenueOptions, searchVenues } from './api'
+import Banner from '../../app/Banner'
+import { useReveal } from '../../app/reveal'
 
 // The test id of one checkbox is the option's name in kebab-case
 // (docs/design/ui-guidelines.md §5).
@@ -31,6 +33,13 @@ export default function VenueSearchPage() {
   const [options, setOptions] = useState({ layouts: [], facilities: [], accessibility_features: [] })
   const [result, setResult] = useState(null)
   const [banner, setBanner] = useState(null)
+  // How many times Apply was pressed, and which press the shown results
+  // answer: the results an Apply brings are scrolled into view, focus staying
+  // on Apply; the first search, on opening the page, scrolls nothing
+  // (ui-guidelines.md §13).
+  const applied = useRef(0)
+  const [answered, setAnswered] = useState(0)
+  const resultsRef = useReveal(answered || null, null)
 
   // The recognised options are fetched once; nothing here can race another fetch.
   useEffect(() => {
@@ -49,6 +58,7 @@ export default function VenueSearchPage() {
         if (active) {
           setResult(data)
           setBanner(null)
+          setAnswered(applied.current)
         }
       })
       .catch((error) => {
@@ -71,6 +81,7 @@ export default function VenueSearchPage() {
 
   const handleApply = (event) => {
     event.preventDefault()
+    applied.current += 1
     setFilters(draft)
   }
 
@@ -87,11 +98,7 @@ export default function VenueSearchPage() {
         </div>
       </div>
 
-      {banner && (
-        <p role="alert" className="banner-error" data-testid="venue-search-banner">
-          {banner}
-        </p>
-      )}
+      <Banner page="venue-search" error={banner} onDismiss={() => setBanner(null)} />
 
       {result && (
         <>
@@ -182,40 +189,42 @@ export default function VenueSearchPage() {
             </div>
           </form>
 
-          {result.venues.length === 0 ? (
-            <div className="card">
-              <p className="empty-state" data-testid="venue-search-empty">
-                No venues match this search.
-              </p>
-            </div>
-          ) : (
-            <div className="card p-0 overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th>Name</th>
-                      <th>Location</th>
-                      <th>Maximum capacity</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {result.venues.map((venue) => (
-                      <tr key={venue.id} data-testid={`venue-search-row-${venue.id}`}>
-                        <td>
-                          <Link to={`/venues/${venue.id}`} data-testid={`venue-search-name-${venue.id}`}>
-                            {venue.name}
-                          </Link>
-                        </td>
-                        <td data-testid={`venue-search-location-${venue.id}`}>{venue.location}</td>
-                        <td data-testid={`venue-search-capacity-${venue.id}`}>{venue.max_capacity}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+          <div ref={resultsRef}>
+            {result.venues.length === 0 ? (
+              <div className="card">
+                <p className="empty-state" data-testid="venue-search-empty">
+                  No venues match this search.
+                </p>
               </div>
-            </div>
-          )}
+            ) : (
+              <div className="card p-0 overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Location</th>
+                        <th>Maximum capacity</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {result.venues.map((venue) => (
+                        <tr key={venue.id} data-testid={`venue-search-row-${venue.id}`}>
+                          <td>
+                            <Link to={`/venues/${venue.id}`} data-testid={`venue-search-name-${venue.id}`}>
+                              {venue.name}
+                            </Link>
+                          </td>
+                          <td data-testid={`venue-search-location-${venue.id}`}>{venue.location}</td>
+                          <td data-testid={`venue-search-capacity-${venue.id}`}>{venue.max_capacity}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
         </>
       )}
     </div>

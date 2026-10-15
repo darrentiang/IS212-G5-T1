@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router'
 import { useAuth } from '../../app/auth'
 import { formatDateTime } from '../../app/format'
 import { listNotifications, markAllNotificationsRead, markNotificationRead } from './api'
+import Banner from '../../app/Banner'
 
 // SCRUM-58: an account's own notifications, newest first (AC2, AC9 — several
 // roles' notifications already arrive in one recipient-scoped list, so
@@ -69,11 +70,7 @@ export default function NotificationsPage() {
         )}
       </div>
 
-      {banner && (
-        <p role="alert" className="banner-error" data-testid="notifications-banner">
-          {banner}
-        </p>
-      )}
+      <Banner page="notifications" error={banner} onDismiss={() => setBanner(null)} />
 
       {loading ? null : rows.length === 0 ? (
         <div className="card">

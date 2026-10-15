@@ -7,6 +7,7 @@ How the product looks. One page, portable: every value here is a token in `front
 | 1.0 | 25-09-2026 | Initial style |
 | 1.1 | 24-09-2026 | Form card |
 | 1.2 | 08-10-2026 | Warning list (`.warning-list`) |
+| 1.3 | 15-10-2026 | Page banner (`.banner`): tint over the surface rather than transparent, `--shadow-md`, a dismiss control |
 
 ## Principles
 
@@ -68,7 +69,7 @@ A 4px grid. Card padding 24px; 32px between page sections; 16px between fields; 
 | **Card** | Surface, hairline border, 12px radius, `--shadow-sm`, 24px padding |
 | **Table** | Inside a card, no outer border of its own; header row on `--color-surface-muted` in the small uppercase style; rows 15px with `--color-divider` lines, 12×16 padding; row hover fills `rgba(0,0,0,.02)`; the linking cell in text colour, accent on hover |
 | **Badge** | Pill, 12px/600, the status colour as text on a 10% tint of the same colour, no border |
-| **Banner** | 12px radius, 12×16 padding, 14px text; error: danger tint with a 3px danger left edge; success: success tint with a 3px success left edge |
+| **Banner** | 12px radius, 12×16 padding, 14px text; error: danger tint with a 3px danger left edge; success: success tint with a 3px success left edge. The tint is mixed over `--color-surface`, not transparent, because the page banner (`.banner`) sticks over content below the header with `--shadow-md`; its dismiss control is a 24px secondary-text × at the right |
 | **Warning list** (`.warning-list`) | Banner shape with a warning tint and a 3px warning left edge; a semibold heading line, then a bulleted list. For warnings that do not stop an action (SCRUM-42) |
 | **Empty state** | Centred, 48px vertical padding, secondary 15px text, optional action below |
 | **Focus** | Every interactive element: 2px accent outline, 2px offset, on keyboard focus only (`:focus-visible`) |

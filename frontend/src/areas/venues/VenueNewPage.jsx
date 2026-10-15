@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { createVenue, getVenueOptions } from './api'
+import Banner from '../../app/Banner'
+import { useRevealError } from '../../app/reveal'
 
 // The test id of one checkbox is the option's name in kebab-case
 // (docs/design/ui-guidelines.md §5).
@@ -25,6 +27,9 @@ export default function VenueNewPage() {
   const [facilities, setFacilities] = useState([])
   const [accessibilityFeatures, setAccessibilityFeatures] = useState([])
   const [fieldErrors, setFieldErrors] = useState({})
+  // A failed required-field check focuses the first field it names (ui-guidelines.md §13).
+  const formRef = useRef(null)
+  useRevealError(formRef, fieldErrors)
   const [banner, setBanner] = useState(null)
   const [submitting, setSubmitting] = useState(false)
 
@@ -87,14 +92,10 @@ export default function VenueNewPage() {
         </div>
       </div>
 
-      {banner && (
-        <p role="alert" className="banner-error" data-testid="venue-new-banner">
-          {banner}
-        </p>
-      )}
+      <Banner page="venue-new" error={banner} onDismiss={() => setBanner(null)} />
 
       {ready ? (
-        <form onSubmit={handleSubmit} noValidate className="card form-card space-y-4">
+        <form ref={formRef} onSubmit={handleSubmit} noValidate className="card form-card space-y-4">
           <div>
             <label htmlFor="venue-new-name" className="label">
               Name *

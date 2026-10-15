@@ -455,3 +455,19 @@ describe('moving to another request', () => {
     expect(screen.queryByTestId('request-detail-banner')).not.toBeInTheDocument()
   })
 })
+
+describe('placing a hold, at the point of action', () => {
+  // @story: chore-ui-feedback
+  // @ac: point-of-action
+  it('opens the Place hold form in view with the venue select focused', async () => {
+    signInWith(COORDINATOR)
+    api.getRequest.mockResolvedValue(EVENT)
+    api.listHolds.mockResolvedValue([])
+    renderDetail()
+
+    const form = await openForm(userEvent.setup())
+
+    expect(screen.getByTestId('request-detail-hold-venue-input')).toHaveFocus()
+    expect(Element.prototype.scrollIntoView.mock.contexts.at(-1)).toBe(form)
+  })
+})

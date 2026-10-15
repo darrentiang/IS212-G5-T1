@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { formatDateTimePeriod, formatPeriod, formatTime } from '../../app/format'
 import { checkVenue, listVenues, raiseBooking } from './api'
+import Banner from '../../app/Banner'
 
 // SCRUM-42: one line per mismatch, with the values AC3 names. The test id
 // suffix is the warning's type, plus the missing option for a named one
@@ -131,11 +132,7 @@ export default function BookingNewPage() {
         </div>
       </div>
 
-      {banner && (
-        <p role="alert" className="banner-error" data-testid="booking-new-banner">
-          {banner}
-        </p>
-      )}
+      <Banner page="booking-new" error={banner} onDismiss={() => setBanner(null)} />
 
       {!loading && (
         <form className="card form-card space-y-4" onSubmit={handleSubmit} noValidate>
