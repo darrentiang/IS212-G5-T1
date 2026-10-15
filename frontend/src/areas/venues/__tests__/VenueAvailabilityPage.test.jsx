@@ -181,6 +181,29 @@ describe('VenueAvailabilityPage', () => {
     expect(screen.getByTestId('venue-availability-day-empty-2026-10-08')).toHaveTextContent('Free')
   })
 
+  // @story: SCRUM-83
+  // @ac: 3
+  it('never shows a Cancelled booking, leaving its day Free', async () => {
+    api.listVenueBookings.mockResolvedValue([
+      {
+        id: 17,
+        status: 'Cancelled',
+        date: '2026-10-08',
+        start_time: '10:00',
+        end_time: '11:00',
+        occupied_start: '2026-10-08T09:30',
+        occupied_end: '2026-10-08T11:30',
+        event_request_name: 'Cancelled Event',
+      },
+    ])
+
+    renderPage()
+
+    await waitFor(() => screen.getByTestId('venue-availability-title'))
+    expect(screen.queryByTestId('venue-availability-entry-row-booking-17-2026-10-08')).not.toBeInTheDocument()
+    expect(screen.getByTestId('venue-availability-day-empty-2026-10-08')).toHaveTextContent('Free')
+  })
+
   // @story: SCRUM-39
   // @ac: 1
   it("Next moves the range forward a week and shows that week's own booking only", async () => {

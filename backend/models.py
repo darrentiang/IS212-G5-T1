@@ -41,7 +41,9 @@ from db import db
 # safety_check_at and the SafetyDecision table, so 16. SCRUM-90 added a
 # safety decision's areas, so 17. SCRUM-84 added the VenueHold table, so 18.
 # SCRUM-49 catalogue follow-up added description and location, so 19.
-SCHEMA_VERSION = 19
+# SCRUM-83 added a venue booking request's cancellation (cancel_reason,
+# cancelled_at, cancelled_by), so 20.
+SCHEMA_VERSION = 20
 
 
 account_roles = db.Table(
@@ -388,13 +390,18 @@ class VenueBookingRequest(db.Model):
     event. A future story that lets an event be edited during Planning must
     decide whether a booking request keeps a snapshot of them. raised_at and
     decided_at are UTC, the same convention as an event request's
-    submitted_at/decided_at. Withdrawing is a later story; nothing here
-    supports it yet.
+    submitted_at/decided_at. The raising Coordinator may withdraw a request
+    before it is decided (SCRUM-77).
+
+    SCRUM-83: the event's assigned Event Coordinator may cancel an Approved
+    booking, giving a reason. The cancellation is recorded in its own columns
+    (cancel_reason, cancelled_at in UTC, cancelled_by) so the approval stays
+    on record beside it.
     """
 
     __tablename__ = "venue_booking_requests"
 
-    STATUSES = ("Requested", "Approved", "Rejected", "Withdrawn")
+    STATUSES = ("Requested", "Approved", "Rejected", "Withdrawn", "Cancelled")
 
     id = db.Column(db.Integer, primary_key=True)
     venue_id = db.Column(db.Integer, db.ForeignKey("venues.id"), nullable=False)
@@ -422,11 +429,17 @@ class VenueBookingRequest(db.Model):
     suggested_start_time = db.Column(db.String(5), nullable=True)  # HH:MM
     suggested_end_time = db.Column(db.String(5), nullable=True)  # HH:MM
 
+    # SCRUM-83: why, when and by whom an Approved booking was cancelled.
+    cancel_reason = db.Column(db.Text, nullable=True)
+    cancelled_at = db.Column(db.DateTime, nullable=True)
+    cancelled_by_id = db.Column(db.Integer, db.ForeignKey("accounts.id"), nullable=True)
+
     venue = db.relationship("Venue", foreign_keys=[venue_id], backref="booking_requests")
     suggested_venue = db.relationship("Venue", foreign_keys=[suggested_venue_id])
     event_request = db.relationship("EventRequest", backref="booking_requests")
     raised_by = db.relationship("Account", foreign_keys=[raised_by_id])
     decided_by = db.relationship("Account", foreign_keys=[decided_by_id])
+    cancelled_by = db.relationship("Account", foreign_keys=[cancelled_by_id])
 
     def __repr__(self):
         return f"<VenueBookingRequest {self.id} venue {self.venue_id} event {self.event_request_id} {self.status}>"

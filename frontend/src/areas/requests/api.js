@@ -156,3 +156,32 @@ export const placeHold = (id, data) => request('POST', `/api/requests/${id}/hold
 // 200:     the hold, Released
 // 403/404/409: { message }
 export const releaseHold = (id, holdId) => request('POST', `/api/requests/${id}/holds/${holdId}/release`)
+
+// GET /api/requests/:id/bookings   (SCRUM-83)
+// 200:     [ { id, venue_id, venue_name, event_request_id, event_request_name, status,
+//              date, start_time, end_time, occupied_start, occupied_end, attendance,
+//              layout, facilities, raised_by, raised_at, decision, decision_reason,
+//              decided_at, decided_by, suggested_venue_id, suggested_venue, suggested_date,
+//              suggested_start_time, suggested_end_time,
+//              cancel_reason, cancelled_at, cancelled_by } ]
+//          every booking request raised for the event, oldest first; status is one of
+//          Requested, Approved, Rejected, Withdrawn, Cancelled; the cancel fields are
+//          null until the booking is cancelled
+// 403/404: { message }
+export const listBookings = (id) => request('GET', `/api/requests/${id}/bookings`)
+
+// POST /api/venues/:venueId/bookings/:bookingId/cancel   (SCRUM-83)
+// body:    { reason }   required
+// 200:     the booking, now Cancelled, with cancel_reason, cancelled_at, cancelled_by
+// 400/403/404/409: { message }   400 a blank reason; 404 not the event's assigned
+//          coordinator, or unknown; 409 the booking is not Approved, or the event is not
+//          Approved or Planning
+export const cancelBooking = (venueId, bookingId, reason) =>
+  request('POST', `/api/venues/${venueId}/bookings/${bookingId}/cancel`, { reason })
+
+// POST /api/venues/:venueId/bookings/:bookingId/withdraw   (SCRUM-77, offered here by SCRUM-83)
+// 200:     the booking, now Withdrawn
+// 403/404/409: { message }
+// A thin wrapper of the same call the venues area makes, each area owning its own (frontend.md §1).
+export const withdrawBooking = (venueId, bookingId) =>
+  request('POST', `/api/venues/${venueId}/bookings/${bookingId}/withdraw`)
