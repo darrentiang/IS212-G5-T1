@@ -1,17 +1,17 @@
 {
   "equipment_types": [
-    { "name": "SCRUM-49 TC01 Projector", "total_units": 5 },
-    { "name": "SCRUM-49 TC02 Projector", "total_units": 5 },
-    { "name": "SCRUM-49 TC03 Projector", "total_units": 5 },
-    { "name": "SCRUM-49 TC04 Projector", "total_units": 5 },
-    { "name": "SCRUM-49 TC05 Projector", "total_units": 5 },
-    { "name": "SCRUM-49 TC06 Projector", "total_units": 5 },
-    { "name": "SCRUM-49 TC07 Projector", "total_units": 10 },
-    { "name": "SCRUM-49 TC08 Projector", "total_units": 10 },
-    { "name": "SCRUM-49 TC09 Projector", "total_units": 10 },
-    { "name": "SCRUM-49 TC10 Projector", "total_units": 10 },
-    { "name": "SCRUM-49 TC11 Projector", "total_units": 10 },
-    { "name": "SCRUM-49 TC12 Projector", "total_units": 5 }
+    { "name": "SCRUM-49 TC01 Projector", "description": "Portable projector", "location": "Equipment Store A", "total_units": 5 },
+    { "name": "SCRUM-49 TC02 Projector", "description": "Ceiling-mounted projector", "location": "Equipment Store B", "total_units": 5 },
+    { "name": "SCRUM-49 TC03 Projector", "description": "Portable projector", "location": "Equipment Store A", "total_units": 5 },
+    { "name": "SCRUM-49 TC04 Projector", "description": "Portable projector", "location": "Equipment Store A", "total_units": 5 },
+    { "name": "SCRUM-49 TC05 Projector", "description": "Portable projector", "location": "Equipment Store A", "total_units": 5 },
+    { "name": "SCRUM-49 TC06 Projector", "description": "Portable projector", "location": "Equipment Store A", "total_units": 5 },
+    { "name": "SCRUM-49 TC07 Projector", "description": "Portable projector", "location": "Equipment Store A", "total_units": 10 },
+    { "name": "SCRUM-49 TC08 Projector", "description": "Portable projector", "location": "Equipment Store A", "total_units": 10 },
+    { "name": "SCRUM-49 TC09 Projector", "description": "Portable projector", "location": "Equipment Store A", "total_units": 10 },
+    { "name": "SCRUM-49 TC10 Projector", "description": "Portable projector", "location": "Equipment Store A", "total_units": 10 },
+    { "name": "SCRUM-49 TC11 Projector", "description": "Portable projector", "location": "Equipment Store A", "total_units": 10 },
+    { "name": "SCRUM-49 TC12 Projector", "description": "Portable projector", "location": "Equipment Store A", "total_units": 5 }
   ],
   "event_requests": [
     {
