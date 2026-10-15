@@ -3,7 +3,8 @@
 of a Venue), SCRUM-41 (Reserve Setup and Turnaround Time Around a Booking),
 SCRUM-42 (Warn When a Requested Venue Appears Unsuitable), SCRUM-77
 (Withdraw a Venue Booking Request) and SCRUM-78 (Suggest an Alternative When
-Rejecting a Venue Booking) and SCRUM-84 (Place a Tentative Venue Hold).
+Rejecting a Venue Booking), SCRUM-84 (Place a Tentative Venue Hold) and
+SCRUM-83 (Manage Several Venues for One Event).
 
 Every rule the acceptance criteria state lives here, next to the query, and
 refuses by raising ApiRefusal; the route never decides (ADR-002).
@@ -25,6 +26,10 @@ venue for the event's occupied period until an expiry. A Held hold of another
 event holds the venue in occupancy.py exactly as an Approved booking does, so
 search, approval and the warnings see it with no check of their own; approving
 the event's own booking request for the venue releases its hold.
+
+SCRUM-83 lists an event's booking requests and lets its assigned Event
+Coordinator cancel an Approved one. A Cancelled booking no longer holds the
+venue with no check of its own: occupancy.py counts only Approved bookings.
 """
 
 from datetime import datetime, timezone
@@ -376,6 +381,57 @@ def withdraw_booking(venue_id, booking_id, account):
     return booking
 
 
+# --- SCRUM-83: an event's bookings, and cancelling an approved one -----------
+
+APPROVED = occupancy.HOLDING_BOOKING_STATUS
+CANCELLED = "Cancelled"
+
+# AC3: only while the event is in one of these statuses.
+CANCELLABLE_EVENT_STATUSES = ("Approved", "Planning")
+
+
+def list_bookings_for_event(event_request_id):
+    """Every booking request raised for one event, oldest first (AC1)."""
+    event_request = _get_event_request(event_request_id)
+    return sorted(event_request.booking_requests, key=lambda row: (row.raised_at, row.id))
+
+
+def cancel_booking(venue_id, booking_id, account, data):
+    """Approved -> Cancelled (state-model.md), by the event's assigned Event Coordinator (AC3, AC4).
+
+    Anyone else is refused 404 first, a write not revealing the record
+    (permissions.md), so they learn nothing about its status either; SCRUM-87
+    owns the functional rows for this. AC4: refused, nothing changed, when the
+    booking is not Approved (a request awaiting a decision is withdrawn
+    instead, SCRUM-77), when the event is not Approved or Planning, and when
+    the reason is missing, blank or whitespace only. AC3: the booking becomes
+    Cancelled with the trimmed reason, who and when; its approval stays on
+    record. AC5: only this one row changes, never another booking, a hold or
+    the event's status, so a hold Released by this booking's approval stays
+    Released (SCRUM-84 curation). Venue Staff are not notified (SCRUM-63).
+    """
+    booking = _get_booking(venue_id, booking_id)
+    # The rule _get_assigned_event applies to holds, answered for the booking.
+    if booking.event_request.assigned_coordinator_id != account.id:
+        raise ApiRefusal(404, "Booking request not found.")
+    if booking.status != APPROVED:
+        raise ApiRefusal(409, "Only an approved booking can be cancelled.")
+    if booking.event_request.status not in CANCELLABLE_EVENT_STATUSES:
+        raise ApiRefusal(
+            409, "A booking can be cancelled only while the event is Approved or Planning."
+        )
+    reason = _optional_reason(data)
+    if not reason:
+        raise ApiRefusal(400, "Reason is required.")
+
+    booking.status = CANCELLED
+    booking.cancel_reason = reason
+    booking.cancelled_at = datetime.now(timezone.utc)
+    booking.cancelled_by_id = account.id
+    db.session.commit()
+    return booking
+
+
 def booking_to_dict(booking):
     """Public JSON for a booking request: the event it is for, its own fields,
     and its decision once made (SCRUM-37 AC4, AC5).
@@ -419,6 +475,12 @@ def booking_to_dict(booking):
         "suggested_date": booking.suggested_date,
         "suggested_start_time": booking.suggested_start_time,
         "suggested_end_time": booking.suggested_end_time,
+        # SCRUM-83: the venue's name for the event's own list, and the
+        # cancellation once made; all null until then.
+        "venue_name": booking.venue.name,
+        "cancel_reason": booking.cancel_reason,
+        "cancelled_at": booking.cancelled_at.isoformat() if booking.cancelled_at else None,
+        "cancelled_by": booking.cancelled_by.username if booking.cancelled_by else None,
     }
 
 

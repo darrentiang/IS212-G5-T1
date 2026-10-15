@@ -7,7 +7,7 @@ booking (SCRUM-38 AC1-AC6) and the booking page's warnings (SCRUM-38 AC7) all
 ask venue_holders() what holds a venue, so they can never disagree.
 
 Only a block, an Approved booking or a Held hold of the same venue holds it; a
-booking that is Requested, Rejected or Withdrawn does not, and neither does a
+booking that is Requested, Rejected, Withdrawn or Cancelled (SCRUM-83) does not, and neither does a
 Released hold. Periods that only touch at a boundary do not overlap. Times are
 naive local, the same as a block's and as an event's stored date and times.
 

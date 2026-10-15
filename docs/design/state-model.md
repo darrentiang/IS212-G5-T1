@@ -18,8 +18,9 @@ Every acceptance criterion that changes a status uses a value from these tables.
 | 1.11 | 14-10-2026 | Event request: Planning → Safety Check is built (sent by the assigned Event Coordinator when every recorded arrangement is approved); Planning → Confirmed (Confirm) is removed, so an event becomes Confirmed only when the Safety Officer approves it | Week 7 customer change 6; SCRUM-53 (copied from `target/state-model.md` v1.3, this story's slice) |
 | 1.12 | 15-10-2026 | Event request: Approved → Planning when the first hold is placed for the event (the booking-request half is SCRUM-86's). Venue booking request: another event's Held hold is a conflict on Approve. New: Venue hold (Held, Released; Expired is SCRUM-85's) | Week 7 customer change 4; SCRUM-84 (copied from `target/state-model.md` v1.3, this story's slice) |
 | 1.13 | 14-10-2026 | Equipment reservation: no status change; the committed peak may leave one event's reservations out; SCRUM-50 reports the peak as the units reserved for the period | SCRUM-50 AC3, AC4 and AC6 |
+| 1.14 | 15-10-2026 | Venue booking request: Approved → Cancelled (reason required; event Approved or Planning) by the event's assigned Event Coordinator; a Cancelled booking never conflicts; an event's booking requests each keep their own status | Week 7 customer change 3; SCRUM-83 (copied from `target/state-model.md` v1.3, this story's slice; the Venue unavailable flag is SCRUM-82's) |
 
-The front end holds these words in `frontend/src/app/format.js` (`STATUS`); a change here changes that file in the same pull request. v1.12 adds Held and Released (`STATUS.HOLD`).
+The front end holds these words in `frontend/src/app/format.js` (`STATUS`); a change here changes that file in the same pull request. v1.12 adds Held and Released (`STATUS.HOLD`); v1.14 adds Cancelled to a venue booking request's words (`STATUS.BOOKING.CANCELLED`).
 
 ## Event request
 
@@ -75,8 +76,11 @@ Each decision the Safety Officer makes is kept with the event: the decision, its
 | Requested | Approved | Approve (conflict check passes) | Venue Staff |
 | Requested | Rejected | Reject (reason required) | Venue Staff |
 | Requested | Withdrawn | Withdraw before a decision | Event Coordinator |
+| Approved | Cancelled | Cancel (reason required; event Approved or Planning) | Assigned Event Coordinator |
 
-A conflict (SCRUM-38, widened by SCRUM-41) is an Approved booking or a block of the same venue whose occupied period overlaps the booking's occupied period; SCRUM-84 adds another event's Held hold, compared by the period it covers (below). The event's own hold is never a conflict for its own booking. A booking's occupied period is its own period widened by the venue's setup and turnaround time (SCRUM-41 AC1); a block keeps its own recorded period and is never widened. Requested, Rejected and Withdrawn bookings never conflict, periods that only touch at a boundary do not overlap, and a booking never conflicts with itself. A refused approval leaves the booking Requested. Rejecting is never checked.
+An event may have several booking requests, each with its own status; a transition on one never changes another, nor the event's status (SCRUM-83). Cancelling keeps the approval on record beside the cancellation (its reason, who and when); a hold Released when the booking was approved stays Released.
+
+A conflict (SCRUM-38, widened by SCRUM-41) is an Approved booking or a block of the same venue whose occupied period overlaps the booking's occupied period; SCRUM-84 adds another event's Held hold, compared by the period it covers (below). The event's own hold is never a conflict for its own booking. A booking's occupied period is its own period widened by the venue's setup and turnaround time (SCRUM-41 AC1); a block keeps its own recorded period and is never widened. Requested, Rejected, Withdrawn and Cancelled bookings never conflict, periods that only touch at a boundary do not overlap, and a booking never conflicts with itself. A refused approval leaves the booking Requested. Rejecting is never checked.
 
 A recorded duration carries no maximum, so an extreme setup or turnaround time can push an occupied period past the first or last date Python represents. The period then clamps to that edge instead of raising: it stays as wide as the duration asks for, and every read that derives it — the booking list, search, warnings, the clash list and the conflict check — still answers. No maximum duration is invented (occupancy.py, `_shift`).
 
@@ -86,6 +90,7 @@ stateDiagram-v2
     Requested --> Approved: Approve (conflict check passes)
     Requested --> Rejected: Reject (reason required)
     Requested --> Withdrawn: Withdraw before a decision
+    Approved --> Cancelled: Cancel (reason required)
 ```
 
 ## Venue hold

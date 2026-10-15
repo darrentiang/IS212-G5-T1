@@ -2106,6 +2106,20 @@ const CLASH_B = {
 }
 
 describe('VenueDetailPage occupied periods', () => {
+  // @story: SCRUM-83
+  // @ac: 3
+  it('leaves a Cancelled booking out of the occupied periods while still listing it as Cancelled', async () => {
+    api.getVenue.mockResolvedValue(RECORDED_TIMES)
+    api.listVenueBookings.mockResolvedValue([{ ...APPROVED_A, status: 'Cancelled' }, APPROVED_B])
+
+    renderPage()
+
+    expect(await screen.findByTestId('venue-detail-occupied-row-13')).toBeVisible()
+    expect(screen.queryByTestId('venue-detail-occupied-row-12')).not.toBeInTheDocument()
+    expect(screen.getByTestId('venue-detail-booking-status-12')).toHaveTextContent('Cancelled')
+    expect(screen.queryByTestId('venue-detail-booking-approve-button-12')).not.toBeInTheDocument()
+  })
+
   // @story: SCRUM-41
   // @ac: 1, 5
   it('shows a clamped occupied period exactly as the API sends it', async () => {

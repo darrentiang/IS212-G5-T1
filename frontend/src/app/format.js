@@ -90,7 +90,8 @@ export const STATUS = Object.freeze({
     'Completed',
     'Cancelled',
   ]),
-  BOOKING: group(['Requested', 'Approved', 'Rejected', 'Withdrawn']),
+  // SCRUM-83 adds Cancelled: an Approved booking its event's coordinator cancelled.
+  BOOKING: group(['Requested', 'Approved', 'Rejected', 'Withdrawn', 'Cancelled']),
   RESERVATION: group(['Reserved', 'Released']),
   UNIT: group(['In Service', 'Out of Service']),
   REGISTRATION: group(['Registered', 'Withdrawn']),
@@ -112,6 +113,8 @@ const BADGE = Object.freeze({
   [STATUS.REQUEST.COMPLETED]: 'badge-neutral',
   [STATUS.BOOKING.REQUESTED]: 'badge-info',
   [STATUS.BOOKING.WITHDRAWN]: 'badge-neutral',
+  // A booking's Approved, Rejected and Cancelled are the same words as an event
+  // request's, so they take the colours above (ui-guidelines.md §12).
   [STATUS.HOLD.HELD]: 'badge-warning',
   [STATUS.HOLD.RELEASED]: 'badge-neutral',
 })

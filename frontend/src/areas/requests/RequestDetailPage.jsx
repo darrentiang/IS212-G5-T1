@@ -3,13 +3,18 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import { useAuth } from '../../app/auth'
 import { STATUS, formatDate, formatDateTime, formatTime, statusBadgeClass } from '../../app/format'
 import SafetyCheckSection from './SafetyCheckSection'
+import PlaceHoldForm from './PlaceHoldForm'
+import VenueBookingsSection from './VenueBookingsSection'
 import VenueHoldsSection from './VenueHoldsSection'
+import VenuesSection from './VenuesSection'
 import {
   approveRequest,
   approveSafetyCheck,
+  cancelBooking,
   deleteDraft,
   getRequest,
   getRequestOptions,
+  listBookings,
   listHolds,
   listVenues,
   placeHold,
@@ -21,6 +26,7 @@ import {
   sendForSafetyCheck,
   submitDraft,
   updateDraft,
+  withdrawBooking,
 } from './api'
 import Banner from '../../app/Banner'
 import { useReveal, useRevealError } from '../../app/reveal'
@@ -59,6 +65,11 @@ import { useReveal, useRevealError } from '../../app/reveal'
 // assigned Event Coordinator places a hold from there while the event is
 // Approved or Planning (placing the first moves an Approved event to
 // Planning), and releases a Held one.
+// SCRUM-83: one Venues section holds the event's booking requests and its
+// holds, with Search venues, Place hold and Request venue booking at its top.
+// The assigned coordinator cancels an Approved booking there with a reason,
+// while the event is Approved or Planning, and the coordinator who raised a
+// Requested one withdraws it (SCRUM-77).
 
 // Same order and labels as RequestNewPage's form (ui-guidelines.md §7): FIELDS
 // come before the Venue requirements and Accessibility needs groups,
@@ -152,6 +163,10 @@ export default function RequestDetailPage() {
   const [resubmitErrors, setResubmitErrors] = useState({})
   const [holds, setHolds] = useState(null)
   const [holdVenues, setHoldVenues] = useState([])
+  const [bookings, setBookings] = useState(null)
+  const [cancellingId, setCancellingId] = useState(null)
+  const [cancelReason, setCancelReason] = useState('')
+  const [cancelError, setCancelError] = useState(null)
 
   // Keyed to id: a reply for the request the user has left can
   // arrive after the current one, so a stale reply is ignored
@@ -297,7 +312,7 @@ const openDecision = (action) => {
       () => requestSafetyChanges(id, reasonText, areas, notes),
       'changes requested, back in Planning',
     )
-  // SCRUM-84: the holds are read with venues.view; a Draft can have none.
+  // SCRUM-84, SCRUM-83: the holds and bookings are read with venues.view; a Draft can have neither.
   const canSeeHolds = Boolean(can?.('venues.view')) && Boolean(row) && row.status !== STATUS.REQUEST.DRAFT
   // Offered to the assigned coordinator only; the API refuses anyone else.
   const isAssignedCoordinator =
@@ -323,6 +338,101 @@ const openDecision = (action) => {
       active = false
     }
   }, [id, canSeeHolds])
+
+  // SCRUM-83: read like the holds, keyed to id.
+  useEffect(() => {
+    if (!canSeeHolds) return undefined
+    let active = true
+    listBookings(id)
+      .then((data) => {
+        if (active) setBookings(data)
+      })
+      .catch((error) => {
+        if (active) {
+          setBanner(error.message)
+          setSuccessBanner(null)
+        }
+      })
+    return () => {
+      active = false
+    }
+  }, [id, canSeeHolds])
+
+  // SCRUM-83 AC3: offered on an Approved booking to the assigned coordinator
+  // while the event is Approved or Planning; the API refuses anything else.
+  const canCancelBooking = (booking) => canPlaceHold && booking.status === STATUS.BOOKING.APPROVED
+  // SCRUM-77: whoever raised a Requested booking may withdraw it.
+  const canWithdrawBooking = (booking) =>
+    Boolean(can?.('bookings.edit')) &&
+    booking.status === STATUS.BOOKING.REQUESTED &&
+    booking.raised_by === account?.username
+
+  const openCancel = (bookingId) => {
+    setOpenAction('cancel')
+    setCancellingId(bookingId)
+    setCancelReason('')
+    setCancelError(null)
+    setBanner(null)
+    setSuccessBanner(null)
+  }
+
+  const closeCancel = () => {
+    setOpenAction(null)
+    setCancellingId(null)
+  }
+
+  // AC4: a blank reason is refused here and nothing is sent (§13 pattern C);
+  // a refusal from the API keeps the form open with its reason.
+  const handleConfirmCancel = async () => {
+    if (cancelReason.trim() === '') {
+      setCancelError('Reason is required.')
+      return
+    }
+    setCancelError(null)
+    const booking = bookings.find((item) => item.id === cancellingId)
+    setSubmitting(true)
+    try {
+      await cancelBooking(booking.venue_id, booking.id, cancelReason)
+    } catch (error) {
+      setBanner(error.message)
+      setSuccessBanner(null)
+      setSubmitting(false)
+      return
+    }
+    closeCancel()
+    setBanner(null)
+    setSuccessBanner('Booking cancelled')
+    try {
+      setBookings(await listBookings(id))
+    } catch (error) {
+      setBanner(error.message)
+      setSuccessBanner(null)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  // SCRUM-77's Withdraw, acting at once as on the venue page.
+  const handleWithdrawBooking = async (booking) => {
+    setSubmitting(true)
+    try {
+      const updated = await withdrawBooking(booking.venue_id, booking.id)
+      setBookings((prev) => prev.map((item) => (item.id === updated.id ? updated : item)))
+      setBanner(null)
+      setSuccessBanner('Booking withdrawn')
+    } catch (error) {
+      setBanner(error.message)
+      setSuccessBanner(null)
+      // The refusal may mean it was already decided: show the bookings as they now stand.
+      try {
+        setBookings(await listBookings(id))
+      } catch (reloadError) {
+        setBanner(reloadError.message)
+      }
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   // The venue picker is needed only to place a hold, so it loads when the form opens.
   const openHold = async () => {
@@ -778,31 +888,6 @@ const openDecision = (action) => {
             </div>
           )}
 
-          {/* SCRUM-36: an Approved or Planning event may have a venue booking requested.
-              SCRUM-33: and the venues free for it searched. */}
-          {(canSearchVenues || canRaiseBooking) && (
-            <div className="flex flex-wrap justify-end gap-2">
-              {canSearchVenues && (
-                <Link
-                  to={`/requests/${id}/venues/search`}
-                  className="btn btn-secondary"
-                  data-testid="request-detail-search-venues-button"
-                >
-                  Search venues
-                </Link>
-              )}
-              {canRaiseBooking && (
-                <Link
-                  to={`/requests/${id}/bookings/new`}
-                  className="btn btn-primary"
-                  data-testid="request-detail-raise-booking-button"
-                >
-                  Request venue booking
-                </Link>
-              )}
-            </div>
-          )}
-
           {/* SCRUM-29: approve or reject a Submitted request, in the card's action row (§7). */}
           {canDecide && (
             <div className="flex flex-wrap justify-end gap-2">
@@ -932,20 +1017,53 @@ const openDecision = (action) => {
       )}
 
 
-      {/* SCRUM-84: the event's venue holds, placed and released by its assigned coordinator. */}
-      {!loading && canSeeHolds && holds && (
-        <VenueHoldsSection
-          holds={holds}
-          canPlace={canPlaceHold}
-          canRelease={isAssignedCoordinator}
-          formOpen={openAction === 'hold'}
-          venues={holdVenues}
+      {/* SCRUM-83: the event's bookings and holds in one Venues section, with
+          SCRUM-33's Search venues, SCRUM-84's Place hold and SCRUM-36's Request
+          venue booking at its top. */}
+      {!loading && row && (canSeeHolds || canSearchVenues || canRaiseBooking) && (
+        <VenuesSection
+          requestId={id}
+          canSearch={canSearchVenues}
+          canRaise={canRaiseBooking}
+          canPlaceHold={canPlaceHold}
+          holdFormOpen={openAction === 'hold'}
           submitting={submitting}
-          onOpen={openHold}
-          onCancel={() => setOpenAction(null)}
-          onPlace={handlePlaceHold}
-          onRelease={handleReleaseHold}
-        />
+          onPlaceHold={openHold}
+        >
+          {canPlaceHold && openAction === 'hold' && (
+            <PlaceHoldForm
+              venues={holdVenues}
+              submitting={submitting}
+              onCancel={() => setOpenAction(null)}
+              onPlace={handlePlaceHold}
+            />
+          )}
+          {canSeeHolds && bookings && (
+            <VenueBookingsSection
+              bookings={bookings}
+              canCancel={canCancelBooking}
+              canWithdraw={canWithdrawBooking}
+              hasActions={Boolean(can?.('bookings.edit'))}
+              cancellingId={openAction === 'cancel' ? cancellingId : null}
+              reason={cancelReason}
+              reasonError={cancelError}
+              submitting={submitting}
+              onOpenCancel={openCancel}
+              onReasonChange={setCancelReason}
+              onConfirmCancel={handleConfirmCancel}
+              onCloseCancel={closeCancel}
+              onWithdraw={handleWithdrawBooking}
+            />
+          )}
+          {canSeeHolds && holds && (
+            <VenueHoldsSection
+              holds={holds}
+              canRelease={isAssignedCoordinator}
+              submitting={submitting}
+              onRelease={handleReleaseHold}
+            />
+          )}
+        </VenuesSection>
       )}
 
       {/* SCRUM-89: review an event in Safety Check, and decide it. */}

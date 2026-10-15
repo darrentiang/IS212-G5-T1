@@ -19,6 +19,7 @@ Kept current by every story that adds an action: the row is added or changed in 
 | Raise a venue booking request | No | Yes* | No | No | No | No |
 | Withdraw a venue booking request before a decision | No | Own only (whoever raised it) | No | No | No | No |
 | Place or release a venue hold | No | Assigned coordinator | No | No | No | No |
+| Cancel an approved venue booking | No | Assigned coordinator | No | No | No | No |
 | See warnings that a venue appears unsuitable for an event, before raising a venue booking request | No | Yes* | No | No | No | No |
 | Approve or reject a venue booking | No | No | Yes | No | No | No |
 | Approve, reject or request changes on a safety check | No | No | No | No | Yes | No |
@@ -85,3 +86,4 @@ Keys used in `backend/permissions.py` and on API routes / `features` from `/api/
 | 1.18 | 14-10-2026 | "Confirm" replaced by "Send for safety check" in the Assigned coordinator row; new key `safety.send` for Event Coordinator (the assigned-only rule stays in the service) | Week 7 customer change 6; SCRUM-53: sending needs a key of its own, `requests.decide` being the Submitted request decision |
 | 1.19 | 15-10-2026 | "Place or release a venue hold" row, assigned coordinator only, on `bookings.edit` (no new feature key; the assigned-only rule is enforced in the service and answers 404 to anyone else, the write rule); "View venues and venue booking requests" adds venue holds, on `venues.view` | Week 7 customer change 4; SCRUM-84 (this story's slice of `target/permissions.md`, which puts holds in the same row as raising a booking request) |
 | 1.20 | 14-10-2026 | "Check equipment availability for a period" row and new key `equipment.check`, Technical Support Staff only | SCRUM-50: Event Coordinators hold `equipment.view` since SCRUM-49 and may see the inventory, but running the check (AC9) is Technical Support Staff's, so `equipment.view` cannot carry it |
+| 1.21 | 15-10-2026 | "Cancel an approved venue booking" row, assigned coordinator only, on `bookings.edit` (no new feature key; the assigned-only rule is enforced in the service and answers 404 to anyone else, the write rule); an event's booking requests are read on `venues.view`, the existing "View venues, venue booking requests and venue holds" row | Week 7 customer change 3; SCRUM-83 (this story's slice of `target/permissions.md`, which puts cancelling in the same row as raising a booking request) |

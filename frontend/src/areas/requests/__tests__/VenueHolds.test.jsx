@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from 'vitest'
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, RouterProvider, Routes, createMemoryRouter } from 'react-router'
@@ -9,6 +9,11 @@ import RequestDetailPage from '../RequestDetailPage'
 
 vi.mock('../api')
 vi.mock('../../../app/auth')
+
+beforeEach(() => {
+  // SCRUM-83: the Venues section reads the event's bookings beside its holds.
+  api.listBookings.mockResolvedValue([])
+})
 
 afterEach(() => {
   vi.restoreAllMocks()

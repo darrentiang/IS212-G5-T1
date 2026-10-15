@@ -180,8 +180,8 @@ def _approved_equipment_requirements(event_request):
 def _safety_check_to_dict(event_request):
     """What the Safety Officer reviews on an event in Safety Check (AC3).
 
-    Only Approved venue bookings are listed: a Rejected or Withdrawn booking is
-    not an arrangement the event has.
+    Only Approved venue bookings are listed: a Rejected, Withdrawn or Cancelled
+    booking is not an arrangement the event has.
     """
     bookings = [
         row
@@ -787,7 +787,8 @@ def _outstanding_arrangements(event_request):
     Empty means ready: at least one Approved venue booking, none of them marked
     Venue unavailable, no venue booking request awaiting a decision, and every
     recorded equipment requirement Approved (an event with none is not
-    blocked). Rejected and Withdrawn requests are not arrangements.
+    blocked). Rejected, Withdrawn and Cancelled requests are not arrangements
+    (SCRUM-83 curation).
     """
     bookings = sorted(event_request.booking_requests, key=lambda row: row.id)
     approved = [row for row in bookings if row.status == "Approved"]

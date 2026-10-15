@@ -159,4 +159,11 @@ describe('statusBadgeClass', () => {
   it('falls back to neutral for a status without a colour of its own', () => {
     expect(statusBadgeClass(STATUS.RESERVATION.RESERVED)).toBe('badge badge-neutral')
   })
+
+  // @story: SCRUM-83
+  // @ac: 3
+  it('holds a cancelled booking and shows it as Danger, like a cancelled request', () => {
+    expect(Object.values(STATUS.BOOKING)).toEqual(['Requested', 'Approved', 'Rejected', 'Withdrawn', 'Cancelled'])
+    expect(statusBadgeClass(STATUS.BOOKING.CANCELLED)).toBe('badge badge-danger')
+  })
 })
