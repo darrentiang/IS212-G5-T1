@@ -109,7 +109,9 @@ def test_tech_sees_inventory_with_totals(client):
     by_name = {row["name"]: row for row in rows}
     assert by_name["Projector"]["total_units"] == 10
     assert by_name["Microphones"]["total_units"] == 20
-    assert set(by_name["Projector"]) == {"id", "name", "total_units"}
+    assert set(by_name["Projector"]) == {"id", "name", "description", "location", "total_units"}
+    assert by_name["Projector"]["description"] == "Portable projector"
+    assert by_name["Projector"]["location"] == "Equipment Store A"
 
 
 # @story: SCRUM-49
@@ -176,6 +178,8 @@ def test_tech_changes_total_and_it_persists(client):
     assert resp.get_json() == {
         "id": equipment.id,
         "name": "SCRUM-49 persist",
+        "description": "",
+        "location": "",
         "total_units": 8,
     }
     client.post("/api/logout")
@@ -679,7 +683,12 @@ def _fixture_file(tmp_path, data, name="fixture.json"):
 
 def _small_fixture():
     return {
-        "equipment_types": [{"name": "SCRUM-49 extra type", "total_units": 5}],
+        "equipment_types": [{
+            "name": "SCRUM-49 extra type",
+            "description": "Fixture projector",
+            "location": "Fixture Store",
+            "total_units": 5,
+        }],
         "event_requests": [
             {
                 "name": "SCRUM-49 extra event",
@@ -816,3 +825,55 @@ def test_parse_helper_matches_the_documented_boundary():
         services._parse_total_units("30.00000000000000001")
     assert services._parse_total_units("8.0") == 8
     assert services._parse_total_units(8.0) == 8
+
+
+# @story: SCRUM-49
+# @ac: 1
+@pytest.mark.parametrize("username", ["tech1", "coord1"])
+def test_catalogue_metadata_is_visible_to_both_inventory_roles(client, username):
+    _login(client, username)
+    rows = client.get("/api/equipment").get_json()
+    projector = next(row for row in rows if row["name"] == "Projector")
+    assert projector["description"] == "Portable projector"
+    assert projector["location"] == "Equipment Store A"
+
+
+# @story: SCRUM-49
+# @ac: 1, 2, 6
+def test_stock_edit_cannot_change_read_only_catalogue_metadata(client):
+    projector = db.session.query(EquipmentType).filter_by(name="Projector").one()
+    resp = _patch(client, "tech1", projector.id, {
+        "total_units": 8,
+        "name": "Changed name",
+        "description": "Changed description",
+        "location": "Changed location",
+    })
+    assert resp.status_code == 200
+    expected = {
+        "id": projector.id, "name": "Projector",
+        "description": "Portable projector", "location": "Equipment Store A",
+        "total_units": 8,
+    }
+    assert resp.get_json() == expected
+    db.session.expire_all()
+    reopened = next(row for row in client.get("/api/equipment").get_json()
+                    if row["id"] == projector.id)
+    assert reopened == expected
+
+
+# @story: SCRUM-49
+# @ac: 1, 6
+def test_extra_seed_preserves_catalogue_metadata_on_rerun(tmp_path):
+    data = _small_fixture()
+    path = _fixture_file(tmp_path, data)
+    assert apply_extra(db, path) == 3
+    equipment = db.session.query(EquipmentType).filter_by(name="SCRUM-49 extra type").one()
+    assert equipment.description == "Fixture projector"
+    assert equipment.location == "Fixture Store"
+    data["equipment_types"][0]["description"] = "Replacement description"
+    data["equipment_types"][0]["location"] = "Replacement location"
+    path = _fixture_file(tmp_path, data)
+    assert apply_extra(db, path) == 0
+    db.session.expire_all()
+    assert equipment.description == "Fixture projector"
+    assert equipment.location == "Fixture Store"

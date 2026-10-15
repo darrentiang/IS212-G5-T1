@@ -40,7 +40,8 @@ from db import db
 # Released storage only), so 15. SCRUM-89 added an event request's
 # safety_check_at and the SafetyDecision table, so 16. SCRUM-90 added a
 # safety decision's areas, so 17. SCRUM-84 added the VenueHold table, so 18.
-SCHEMA_VERSION = 18
+# SCRUM-49 catalogue follow-up added description and location, so 19.
+SCHEMA_VERSION = 19
 
 
 account_roles = db.Table(
@@ -465,7 +466,7 @@ class VenueHold(db.Model):
 
 
 class EquipmentType(db.Model):
-    """A recognised equipment type and the total units held of it (SCRUM-49).
+    """A recognised type, catalogue description, storage location and total (SCRUM-49).
 
     Seeded data: there is no workflow that creates, renames, deletes or
     retires a type (docs/design/permissions.md, "View equipment inventory"
@@ -479,12 +480,22 @@ class EquipmentType(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(128), unique=True, nullable=False)
+    # Seeded catalogue information, read-only in the inventory workflow.
+    # Empty defaults keep stock-only fixtures compatible; the UI says None.
+    description = db.Column(db.Text, nullable=False, default="")
+    location = db.Column(db.String(200), nullable=False, default="")
     total_units = db.Column(db.Integer, nullable=False)
 
     reservations = db.relationship("Reservation", backref="equipment_type")
 
     def to_dict(self):
-        return {"id": self.id, "name": self.name, "total_units": self.total_units}
+        return {
+            "id": self.id,
+            "name": self.name,
+            "description": self.description,
+            "location": self.location,
+            "total_units": self.total_units,
+        }
 
     def __repr__(self):
         return f"<EquipmentType {self.id} {self.name}>"

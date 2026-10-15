@@ -242,7 +242,12 @@ def seed_database(db, data_path=DEFAULT_DATA_PATH, standing_bookings=True):
 
         for entry in data.get("equipment_types", []):
             db.session.add(
-                EquipmentType(name=entry["name"], total_units=entry["total_units"])
+                EquipmentType(
+                    name=entry["name"],
+                    description=entry.get("description", ""),
+                    location=entry.get("location", ""),
+                    total_units=entry["total_units"],
+                )
             )
 
         # SCRUM-58: standing notifications, so the inbox has rows to show.
@@ -345,7 +350,14 @@ def apply_extra(db, data_path):
                     f"equipment type {name!r}: total_units must be a non-negative whole number"
                 )
             if db.session.query(EquipmentType).filter_by(name=name).first() is None:
-                db.session.add(EquipmentType(name=name, total_units=total))
+                db.session.add(
+                    EquipmentType(
+                        name=name,
+                        description=entry.get("description", ""),
+                        location=entry.get("location", ""),
+                        total_units=total,
+                    )
+                )
                 added += 1
         db.session.flush()
 

@@ -15,7 +15,7 @@ vi.mock('../../../app/auth', () => ({
   useAuth: () => ({ can: (feature) => features.includes(feature) }),
 }))
 
-const TYPE = { id: 1, name: 'Projector', total_units: 10 }
+const TYPE = { id: 1, name: 'Projector', description: 'Portable projector', location: 'Equipment Store A', total_units: 10 }
 
 afterEach(() => {
   features = ['equipment.view', 'equipment.edit']
@@ -29,7 +29,7 @@ function renderPage() {
 describe('EquipmentPage', () => {
   // @story: SCRUM-49
   // @ac: 1
-  it('lists every type with its total units', async () => {
+  it('lists every type with its description, storage location and total units', async () => {
     api.listEquipment.mockResolvedValue([TYPE])
 
     renderPage()
@@ -37,8 +37,19 @@ describe('EquipmentPage', () => {
     await waitFor(() => {
       expect(screen.getByTestId('equipment-name-1')).toHaveTextContent('Projector')
     })
+    expect(screen.getByTestId('equipment-description-1')).toHaveTextContent('Portable projector')
+    expect(screen.getByTestId('equipment-location-1')).toHaveTextContent('Equipment Store A')
     expect(screen.getByTestId('equipment-units-1')).toHaveTextContent('10 units')
     expect(screen.getByTestId('equipment-row-1')).toBeInTheDocument()
+  })
+
+  // @story: SCRUM-49
+  // @ac: 1
+  it('shows None for catalogue information not recorded in a stock-only fixture', async () => {
+    api.listEquipment.mockResolvedValue([{ ...TYPE, description: '', location: '' }])
+    renderPage()
+    expect(await screen.findByTestId('equipment-description-1')).toHaveTextContent('None')
+    expect(screen.getByTestId('equipment-location-1')).toHaveTextContent('None')
   })
 
   // @story: SCRUM-49
@@ -117,6 +128,8 @@ describe('EquipmentPage', () => {
     await waitFor(() => {
       expect(screen.getByTestId('equipment-name-1')).toBeInTheDocument()
     })
+    expect(screen.getByTestId('equipment-description-1')).toHaveTextContent('Portable projector')
+    expect(screen.getByTestId('equipment-location-1')).toHaveTextContent('Equipment Store A')
     expect(screen.queryByTestId('equipment-edit-button-1')).not.toBeInTheDocument()
   })
 
@@ -190,6 +203,9 @@ describe('EquipmentPage', () => {
     await waitFor(() => {
       expect(screen.getByTestId('equipment-units-1')).toHaveTextContent('8 units')
     })
+    expect(screen.getByTestId('equipment-description-1')).toHaveTextContent('Portable projector')
+    expect(screen.getByTestId('equipment-location-1')).toHaveTextContent('Equipment Store A')
+    expect(screen.getByTestId('equipment-edit-button-1').closest('tr')).toHaveTextContent('Portable projector')
   })
 
   // @story: SCRUM-49

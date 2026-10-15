@@ -4,8 +4,9 @@ import { checkAvailability, listEquipment, updateTotalUnits } from './api'
 import Banner from '../../app/Banner'
 import { useReveal } from '../../app/reveal'
 
-// SCRUM-49: the equipment inventory — every recognised type and its total
-// units (ui-guidelines.md §7, "Equipment inventory"). Only an account with
+// SCRUM-49: the equipment inventory — every recognised type, description,
+// storage location and total units (ui-guidelines.md §7, "Equipment inventory").
+// Only an account with
 // equipment.edit (Technical Support Staff) is offered Change total on a row;
 // the control is hidden for everyone else, and the API refuses regardless
 // (ADR-002). The type's name is plain text: there is no detail page.
@@ -283,6 +284,8 @@ export default function EquipmentPage() {
               <thead>
                 <tr>
                   <th>Equipment type</th>
+                  <th>Description</th>
+                  <th>Storage location</th>
                   <th>Total units</th>
                   <th>Action</th>
                 </tr>
@@ -292,6 +295,8 @@ export default function EquipmentPage() {
                   <Fragment key={row.id}>
                     <tr data-testid={`equipment-row-${row.id}`}>
                       <td data-testid={`equipment-name-${row.id}`}>{row.name}</td>
+                      <td data-testid={`equipment-description-${row.id}`}>{row.description || 'None'}</td>
+                      <td data-testid={`equipment-location-${row.id}`}>{row.location || 'None'}</td>
                       <td data-testid={`equipment-units-${row.id}`}>
                         {row.total_units} {row.total_units === 1 ? 'unit' : 'units'}
                       </td>
@@ -311,7 +316,7 @@ export default function EquipmentPage() {
                     </tr>
                     {canEdit && editingId === row.id && (
                       <tr>
-                        <td colSpan={3}>
+                        <td colSpan={5}>
                           <form ref={editRef} onSubmit={handleSave} noValidate className="space-y-4">
                             <label htmlFor="equipment-edit-units" className="label">
                               Total units *
