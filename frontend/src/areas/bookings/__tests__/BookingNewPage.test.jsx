@@ -417,3 +417,59 @@ const ALL_WARNINGS = [
 
 // Lets the late reply's callbacks run before the assertion that they changed nothing.
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0))
+
+// SCRUM-82 AC6: venue search's Request booking opens this page with its venue chosen.
+async function renderWithVenue(venueId) {
+  api.listVenues.mockResolvedValue(VENUES)
+  render(
+    <MemoryRouter initialEntries={[`/requests/5/bookings/new?venue=${venueId}`]}>
+      <Routes>
+        <Route path="/requests/:requestId/bookings/new" element={<BookingNewPage />} />
+      </Routes>
+    </MemoryRouter>,
+  )
+  await waitFor(() => {
+    expect(screen.getByTestId('booking-new-venue-input')).toBeInTheDocument()
+  })
+}
+
+describe('BookingNewPage opened from venue search', () => {
+  // @story: SCRUM-82
+  // @ac: 6
+  it('has the venue in the address already chosen, checks it, and raises for it', async () => {
+    const user = userEvent.setup()
+    api.raiseBooking.mockResolvedValue({ id: 11 })
+    await renderWithVenue(2)
+
+    await waitFor(() => expect(screen.getByTestId('booking-new-venue-input')).toHaveValue('2'))
+    expect(api.checkVenue).toHaveBeenCalledWith('5', '2')
+    await user.click(screen.getByTestId('booking-new-raise-button'))
+
+    expect(api.raiseBooking).toHaveBeenCalledWith('5', '2')
+    expect(navigate).toHaveBeenCalledWith('/venues/2', { state: { banner: 'Venue booking requested' } })
+  })
+
+  // @story: SCRUM-82
+  // @ac: 6
+  it('still lets the coordinator choose another venue', async () => {
+    const user = userEvent.setup()
+    await renderWithVenue(2)
+    await waitFor(() => expect(screen.getByTestId('booking-new-venue-input')).toHaveValue('2'))
+
+    await user.selectOptions(screen.getByTestId('booking-new-venue-input'), '1')
+
+    expect(screen.getByTestId('booking-new-venue-input')).toHaveValue('1')
+  })
+
+  // @story: SCRUM-82
+  // @ac: 6
+  it.each([
+    ['an unknown venue', 99],
+    ['a retired venue', 3],
+  ])('ignores %s in the address: nothing is chosen', async (_label, venueId) => {
+    await renderWithVenue(venueId)
+
+    expect(screen.getByTestId('booking-new-venue-input')).toHaveValue('')
+    expect(api.checkVenue).not.toHaveBeenCalled()
+  })
+})

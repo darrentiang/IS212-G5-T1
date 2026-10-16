@@ -163,6 +163,8 @@ export default function RequestDetailPage() {
   const [resubmitErrors, setResubmitErrors] = useState({})
   const [holds, setHolds] = useState(null)
   const [holdVenues, setHoldVenues] = useState([])
+  // SCRUM-82 AC6: venue search's Place hold opens the form with its venue chosen.
+  const [holdVenueId, setHoldVenueId] = useState('')
   const [bookings, setBookings] = useState(null)
   const [cancellingId, setCancellingId] = useState(null)
   const [cancelReason, setCancelReason] = useState('')
@@ -435,11 +437,15 @@ const openDecision = (action) => {
   }
 
   // The venue picker is needed only to place a hold, so it loads when the form opens.
-  const openHold = async () => {
+  // SCRUM-82 AC6: presetVenueId chooses the venue; an unknown or retired one
+  // is ignored and the form stays closed, so the page opens normally.
+  const openHold = async (presetVenueId = '') => {
     setSubmitting(true)
     try {
-      const venues = await listVenues()
-      setHoldVenues(venues.filter((venue) => venue.is_active))
+      const venues = (await listVenues()).filter((venue) => venue.is_active)
+      if (presetVenueId && !venues.some((venue) => String(venue.id) === presetVenueId)) return
+      setHoldVenues(venues)
+      setHoldVenueId(presetVenueId)
       setBanner(null)
       setSuccessBanner(null)
       setOpenAction('hold')
@@ -476,6 +482,16 @@ const openDecision = (action) => {
       setSubmitting(false)
     }
   }
+
+  // SCRUM-82 AC6: ?hold=<venueId> from venue search opens the form once, as
+  // soon as it can be offered: the coordinator may place a hold and the holds are listed.
+  const holdFromSearch = new URLSearchParams(location.search).get('hold')
+  const holdFromSearchOpened = useRef(false)
+  useEffect(() => {
+    if (!holdFromSearch || !canPlaceHold || holds === null || holdFromSearchOpened.current) return
+    holdFromSearchOpened.current = true
+    openHold(holdFromSearch)
+  })
 
   const handleReleaseHold = async (holdId) => {
     setSubmitting(true)
@@ -1028,11 +1044,12 @@ const openDecision = (action) => {
           canPlaceHold={canPlaceHold}
           holdFormOpen={openAction === 'hold'}
           submitting={submitting}
-          onPlaceHold={openHold}
+          onPlaceHold={() => openHold()}
         >
           {canPlaceHold && openAction === 'hold' && (
             <PlaceHoldForm
               venues={holdVenues}
+              venueId={holdVenueId}
               submitting={submitting}
               onCancel={() => setOpenAction(null)}
               onPlace={handlePlaceHold}

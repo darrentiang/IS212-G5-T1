@@ -481,6 +481,8 @@ def booking_to_dict(booking):
         "cancel_reason": booking.cancel_reason,
         "cancelled_at": booking.cancelled_at.isoformat() if booking.cancelled_at else None,
         "cancelled_by": booking.cancelled_by.username if booking.cancelled_by else None,
+        # SCRUM-82: derived at every read, never stored; only ever true on an Approved booking.
+        "venue_unavailable": bool(occupancy.blocks_over(booking)),
     }
 
 

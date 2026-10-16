@@ -2,9 +2,9 @@
 sends a Planning event whose arrangements are approved; it moves to Safety
 Check and records when it was sent.
 
-Built on SCRUM-89's Safety Check status. Two parts of AC2 wait for stories
-that are not merged and are pending here: the Venue unavailable marker
-(SCRUM-82) and equipment requirements with their status (SCRUM-48, SCRUM-81).
+Built on SCRUM-89's Safety Check status. One part of AC2 waits for stories
+that are not merged and is pending here: equipment requirements with their
+status (SCRUM-48, SCRUM-81). The Venue unavailable marker is SCRUM-82's.
 These tests build their events with tests/factories.py.
 """
 
@@ -13,7 +13,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from db import db
-from factories import account, make_event
+from factories import account, make_block, make_event
 from models import EventRequest, Notification, Venue, VenueBookingRequest
 
 
@@ -271,9 +271,22 @@ def test_an_event_with_no_equipment_requirement_is_not_blocked(client, app):
 
 # @story: SCRUM-53
 # @ac: 2, 3
-@pytest.mark.skip(reason="PENDING SCRUM-82: no Venue unavailable marker exists yet")
 def test_an_approved_booking_marked_venue_unavailable_is_refused_and_listed(client, app):
-    raise AssertionError("mark a booking Venue unavailable and prove the send is refused and lists it")
+    # SCRUM-82: a block over the booking's occupied period is the marker.
+    row = ready_event("Marked Gala")
+    make_block(
+        venue=db.session.query(Venue).filter_by(name="Seminar Room 1").one(),
+        starts_at="2027-10-12T13:00",
+        ends_at="2027-10-12T16:00",
+        reason="Pipe burst",
+    )
+    login_as(client, "coord1")
+
+    reply = send(client, row)
+
+    assert reply.status_code == 400
+    assert "The booking at Seminar Room 1 is marked Venue unavailable" in reply.get_json()["message"]
+    assert stored(row).status == "Planning"
 
 
 # @story: SCRUM-53
@@ -422,24 +435,6 @@ def test_a_multi_role_account_assigned_to_the_event_can_send_it(client, app):
 
 
 # ---- the outstanding list, whatever supplies the marker and the requirements --
-
-
-# @story: SCRUM-53
-# @ac: 2, 3
-def test_a_booking_marked_venue_unavailable_is_listed_by_the_stub_seam(client, app, monkeypatch):
-    # The marker itself arrives with SCRUM-82; this proves the listing and the
-    # refusal around it, so the replacement only has to supply the answer.
-    from areas.requests import services
-
-    row = ready_event("Marker Seam")
-    monkeypatch.setattr(services, "_booking_is_marked_venue_unavailable", lambda booking: True)
-    login_as(client, "coord1")
-
-    reply = send(client, row)
-
-    assert reply.status_code == 400
-    assert "The booking at Seminar Room 1 is marked Venue unavailable" in reply.get_json()["message"]
-    assert stored(row).status == "Planning"
 
 
 # @story: SCRUM-53

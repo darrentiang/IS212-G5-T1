@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { formatDateTimePeriod, formatPeriod, formatTime } from '../../app/format'
 import { checkVenue, listVenues, raiseBooking } from './api'
 import Banner from '../../app/Banner'
@@ -60,8 +60,12 @@ const WARNINGS = {
 // SCRUM-42: choosing or changing the venue checks it against the event and
 // shows a warning per mismatch above Raise; the coordinator may still raise,
 // or go back to the request (the back link is the Cancel, AC5).
+// SCRUM-82 AC6: venue search's Request booking opens this page with its venue
+// already chosen (?venue=<id>); the coordinator may still choose another.
 export default function BookingNewPage() {
   const { requestId } = useParams()
+  const [searchParams] = useSearchParams()
+  const chosenVenueId = searchParams.get('venue')
   const navigate = useNavigate()
   const [venues, setVenues] = useState([])
   const [loading, setLoading] = useState(true)
@@ -75,10 +79,15 @@ export default function BookingNewPage() {
     listVenues()
       // A retired venue cannot be booked (AC10): hide it from the picker
       // rather than let the user pick it only to be refused.
-      .then((data) => setVenues(data.filter((venue) => venue.is_active)))
+      .then((data) => {
+        const active = data.filter((venue) => venue.is_active)
+        setVenues(active)
+        // An unknown or retired venue in the address is ignored: nothing is chosen.
+        if (active.some((venue) => String(venue.id) === chosenVenueId)) setVenueId(chosenVenueId)
+      })
       .catch((error) => setBanner(error.message))
       .finally(() => setLoading(false))
-  }, [])
+  }, [chosenVenueId])
 
   // Keyed to the chosen venue: a reply for a venue the user has moved away
   // from can arrive after the current one, so a stale reply is ignored

@@ -147,6 +147,9 @@ def test_search_reports_the_event_values_it_used(client):
         "start_time": "08:30",
         "end_time": "09:45",
         "attendance": 20,
+        # SCRUM-82 AC6: what the page needs to offer Request booking and Place hold.
+        "status": "Approved",
+        "assigned_coordinator": None,
     }
 
 

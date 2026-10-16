@@ -123,3 +123,9 @@ const BADGE = Object.freeze({
 export function statusBadgeClass(status) {
   return `badge ${BADGE[status] ?? 'badge-neutral'}`
 }
+
+// SCRUM-82: Venue unavailable is a flag on an Approved booking, not a status
+// (state-model.md). Its badge is Danger, so it reads apart from the Approved
+// badge (Success) beside it (ui-guidelines.md §12).
+export const VENUE_UNAVAILABLE = 'Venue unavailable'
+export const VENUE_UNAVAILABLE_BADGE = 'badge badge-danger'
