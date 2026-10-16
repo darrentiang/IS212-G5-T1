@@ -166,4 +166,11 @@ describe('statusBadgeClass', () => {
     expect(Object.values(STATUS.BOOKING)).toEqual(['Requested', 'Approved', 'Rejected', 'Withdrawn', 'Cancelled'])
     expect(statusBadgeClass(STATUS.BOOKING.CANCELLED)).toBe('badge badge-danger')
   })
+
+  // @story: SCRUM-48
+  // @ac: 3
+  it('shows a Declined requirement as Danger, like a rejected request', () => {
+    expect(Object.values(STATUS.REQUIREMENT)).toEqual(['Requested', 'Approved', 'Declined'])
+    expect(statusBadgeClass(STATUS.REQUIREMENT.DECLINED)).toBe('badge badge-danger')
+  })
 })

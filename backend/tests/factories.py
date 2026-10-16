@@ -131,3 +131,14 @@ def make_hold(*, event, venue, expires_at, status="Held", placed_by="coord1"):
     db.session.add(hold)
     db.session.commit()
     return hold
+
+
+def make_equipment_requirement(*, event, equipment, quantity, status="Requested", technical_requirements=""):
+    """Stage a requirement; review states are fixtures, not a review workflow."""
+    from models import EquipmentRequirement
+    row = EquipmentRequirement(event_request=event, equipment_type=equipment,
+                               quantity=quantity, status=status,
+                               technical_requirements=technical_requirements)
+    db.session.add(row)
+    db.session.commit()
+    return row

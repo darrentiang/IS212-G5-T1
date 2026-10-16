@@ -168,15 +168,10 @@ def _requested_changes(event_request):
 
 
 def _approved_equipment_requirements(event_request):
-    """The event's Approved equipment requirements, for the Safety Officer (AC3).
-
-    STUB, replaced when equipment requirements exist: SCRUM-48 records them and
-    SCRUM-81 approves them (Hong Yi). Until then nothing is recorded, so the
-    list is empty. When it is replaced, return one dict per requirement whose
-    status is Approved, and prove it with the pending test in
-    tests/test_safety_check.py.
-    """
-    return []
+    """SCRUM-48 records; SCRUM-81 reviews. Safety sees Approved only."""
+    return [{**row.to_dict(), "equipment_type": row.equipment_type.name}
+            for row in sorted(event_request.equipment_items, key=lambda row: row.id)
+            if row.status == "Approved"]
 
 
 def _safety_check_to_dict(event_request):
@@ -761,15 +756,10 @@ def request_safety_changes(account, request_id, data):
 
 
 def _unapproved_equipment_requirements(event_request):
-    """The event's equipment requirements that are not Approved, as short texts (AC2).
-
-    STUB, replaced when SCRUM-48 (record) and SCRUM-81 (review) exist: return
-    one text per requirement whose status is Requested or Declined, such as
-    ``"Projector, 2 (Requested)"``. Until then nothing is recorded, so none
-    is outstanding. Prove the replacement with the pending tests in
-    tests/test_safety_send.py.
-    """
-    return []
+    """Readiness uses recorded review states, never stock availability."""
+    return [f"{row.equipment_type.name}, {row.quantity} ({row.status})"
+            for row in sorted(event_request.equipment_items, key=lambda row: row.id)
+            if row.status != "Approved"]
 
 
 def _outstanding_arrangements(event_request):

@@ -31,3 +31,33 @@ export const updateTotalUnits = (id, data) => request('PATCH', `/api/equipment/$
 // 400/401/403/404: { message }   equipment.check — Technical Support Staff only
 export const checkAvailability = (id, params) =>
   request('GET', `/api/equipment/${id}/availability?${new URLSearchParams(params).toString()}`)
+
+// SCRUM-48: scoped equipment context, not the Organiser's free-text needs.
+// GET /api/equipment/requests -> [{id,name,status,date,start_time,end_time}]
+// Assigned Coordinator: own non-Draft events. Technical Support: non-Draft events.
+// equipment.requirements.view; 401/403: {message}.
+export const listEquipmentEvents = () => request('GET', '/api/equipment/requests')
+
+// GET /api/requests/:id/equipment -> {id,name,status,date,start_time,end_time,
+//   approved_venue_bookings:[{id,venue_name,date,start_time,end_time}],
+//   requirements:[{id,equipment_type_id,equipment_type_name,quantity,technical_requirements,status}]}
+// equipment.requirements.view; object read refusal 403; absent event 404.
+export const getEquipmentRequirements = (id) => request('GET', `/api/requests/${id}/equipment`)
+
+// POST same collection: {equipment_type_id: integer, quantity, technical_requirements?: string}
+// quantity: positive whole numeric string (exact) or JSON number (parser precision),
+// at most 2^53-1. Blank/fraction/non-finite/bool refused, never rounded.
+// Recognised type, unique per event, Requested on creation; stock not checked.
+// 201: requirement. 400/401/403/404/409: {message}. Both mutations below use
+// equipment.requirements.edit + assigned Coordinator + Approved/Planning.
+export const addEquipmentRequirement = (id, data) => request('POST', `/api/requests/${id}/equipment`, data)
+
+// PATCH /api/requests/:id/equipment/:requirementId: {quantity,technical_requirements?}
+// Only Requested. Optional text omitted: unchanged; "": clear. Type immutable.
+// 200: requirement. Refusals leave requirements/stock/reservations unchanged.
+export const updateEquipmentRequirement = (id, requirementId, data) =>
+  request('PATCH', `/api/requests/${id}/equipment/${requirementId}`, data)
+
+// DELETE same item, Requested only. 204, or {message} with 401/403/404/409.
+export const removeEquipmentRequirement = (id, requirementId) =>
+  request('DELETE', `/api/requests/${id}/equipment/${requirementId}`)

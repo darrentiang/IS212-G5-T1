@@ -272,8 +272,8 @@ def test_detail_shows_the_date_and_time_the_event_was_sent(client, app):
 
 # @story: SCRUM-89
 # @ac: 3
-# STUB: equipment requirements arrive with SCRUM-48 and SCRUM-81 (Hong Yi). Until
-# then nothing is recorded, so the list is empty; see _approved_equipment_requirements.
+# Empty state: nothing recorded means nothing listed (SCRUM-48 records the rows;
+# see _approved_equipment_requirements).
 def test_detail_lists_no_equipment_until_requirements_exist(client, app):
     login_as(client, app, "safety1")
     body = client.get(f"/api/requests/{event('Harbour Gala').id}").get_json()
@@ -282,9 +282,19 @@ def test_detail_lists_no_equipment_until_requirements_exist(client, app):
 
 # @story: SCRUM-89
 # @ac: 3
-@pytest.mark.skip(reason="PENDING SCRUM-48 and SCRUM-81: needs equipment requirements to exist")
 def test_detail_shows_each_approved_equipment_requirement_and_not_others(client, app):
-    raise AssertionError("replace the stub in _approved_equipment_requirements and prove this")
+    from factories import make_equipment_requirement
+    from models import EquipmentType
+    row = event("Harbour Gala")
+    types = db.session.query(EquipmentType).order_by(EquipmentType.id).all()
+    for equipment, status in zip(types, ("Approved", "Requested", "Declined")):
+        make_equipment_requirement(event=row, equipment=equipment, quantity=2,
+                                   status=status, technical_requirements="HDMI")
+    login_as(client, app, "safety1")
+    listed = client.get(f"/api/requests/{row.id}").json["safety_check"]["equipment_requirements"]
+    assert len(listed) == 1
+    assert listed[0]["equipment_type"] == types[0].name
+    assert listed[0]["technical_requirements"] == "HDMI"
 
 
 # @story: SCRUM-89

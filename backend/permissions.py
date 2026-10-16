@@ -24,6 +24,8 @@ SAFETY_SEND = "safety.send"  # SCRUM-53: send a Planning event for safety check 
 SAFETY_DECIDE = "safety.decide"  # SCRUM-89: approve or reject an event in Safety Check (Safety Officer)
 EQUIPMENT_VIEW = "equipment.view"
 EQUIPMENT_CHECK = "equipment.check"  # SCRUM-50: check availability for a period (Technical Support Staff)
+EQUIPMENT_REQUIREMENTS_VIEW = "equipment.requirements.view"
+EQUIPMENT_REQUIREMENTS_EDIT = "equipment.requirements.edit"
 EQUIPMENT_EDIT = "equipment.edit"  # SCRUM-49: change an equipment type's total units
 REGISTRATION_VIEW = "registration.view"
 INTERNAL_NOTES_VIEW = "internal_notes.view"
@@ -43,6 +45,8 @@ ALL_FEATURES = frozenset(
         SAFETY_DECIDE,
         EQUIPMENT_VIEW,
         EQUIPMENT_CHECK,
+        EQUIPMENT_REQUIREMENTS_VIEW,
+        EQUIPMENT_REQUIREMENTS_EDIT,
         EQUIPMENT_EDIT,
         REGISTRATION_VIEW,
         INTERNAL_NOTES_VIEW,
@@ -65,6 +69,8 @@ ROLE_FEATURES = {
         VENUES_SEARCH,
         BOOKINGS_EDIT,
         SAFETY_SEND,  # SCRUM-53: only the assigned coordinator, enforced in the service
+        EQUIPMENT_REQUIREMENTS_VIEW,
+        EQUIPMENT_REQUIREMENTS_EDIT,
         EQUIPMENT_VIEW,  # SCRUM-49 AC1: view the inventory and its totals
         REGISTRATION_VIEW,
         INTERNAL_NOTES_VIEW,
@@ -78,6 +84,7 @@ ROLE_FEATURES = {
         NOTIFICATIONS_VIEW,
     },
     "Technical Support Staff": {
+        EQUIPMENT_REQUIREMENTS_VIEW,
         EQUIPMENT_VIEW,
         EQUIPMENT_CHECK,  # SCRUM-50 AC9: check availability for a period
         EQUIPMENT_EDIT,  # SCRUM-49 AC2/AC7: change a type's total units

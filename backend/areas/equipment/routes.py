@@ -14,10 +14,11 @@ GET, and equipment.check (Technical Support Staff only; an Event Coordinator
 holds equipment.view and still may not run it).
 """
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, g, jsonify, request
 
-from areas.equipment import services
-from permissions import EQUIPMENT_CHECK, EQUIPMENT_EDIT, EQUIPMENT_VIEW, require
+from areas.equipment import requirements, services
+from permissions import (EQUIPMENT_CHECK, EQUIPMENT_EDIT, EQUIPMENT_VIEW,
+                         EQUIPMENT_REQUIREMENTS_VIEW, EQUIPMENT_REQUIREMENTS_EDIT, require)
 
 bp = Blueprint("equipment", __name__, url_prefix="/api")
 
@@ -44,3 +45,36 @@ def check_availability(equipment_id):
     """SCRUM-50: start and end, or event_request_id and quantity (a requirement)."""
     result = services.check_availability(equipment_id, request.args)
     return jsonify(result), 200
+
+
+@bp.get("/equipment/requests")
+@require(EQUIPMENT_REQUIREMENTS_VIEW)
+def list_requirement_events():
+    return jsonify(requirements.list_events(g.account))
+
+
+@bp.get("/requests/<int:event_id>/equipment")
+@require(EQUIPMENT_REQUIREMENTS_VIEW)
+def requirement_detail(event_id):
+    return jsonify(requirements.detail(g.account, event_id))
+
+
+@bp.post("/requests/<int:event_id>/equipment")
+@require(EQUIPMENT_REQUIREMENTS_EDIT)
+def add_requirement(event_id):
+    row = requirements.add(g.account, event_id, request.get_json(silent=True))
+    return jsonify(row.to_dict()), 201
+
+
+@bp.patch("/requests/<int:event_id>/equipment/<int:requirement_id>")
+@require(EQUIPMENT_REQUIREMENTS_EDIT)
+def update_requirement(event_id, requirement_id):
+    row = requirements.update(g.account, event_id, requirement_id, request.get_json(silent=True))
+    return jsonify(row.to_dict()), 200
+
+
+@bp.delete("/requests/<int:event_id>/equipment/<int:requirement_id>")
+@require(EQUIPMENT_REQUIREMENTS_EDIT)
+def remove_requirement(event_id, requirement_id):
+    requirements.remove(g.account, event_id, requirement_id)
+    return "", 204

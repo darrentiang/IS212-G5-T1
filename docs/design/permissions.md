@@ -25,7 +25,8 @@ Kept current by every story that adds an action: the row is added or changed in 
 | Approve, reject or request changes on a safety check | No | No | No | No | Yes | No |
 | View equipment inventory | No | Yes | No | Yes | No | No |
 | Check equipment availability for a period (SCRUM-50) | No | No | No | Yes | No | No |
-| Record equipment requirements | No | Assigned coordinator | No | View | View, events in Safety Check | No |
+| View detailed equipment requirements | No | Assigned coordinator | No | Non-Draft events | Approved requirements, events in Safety Check | No |
+| Add requirements, or change/remove Requested requirements while event Approved or Planning | No | Assigned coordinator | No | No | No | No |
 | Maintain equipment inventory; reserve or release; withdraw from service | No | No | No | Yes | No | No |
 | View confirmed events open for registration | No | Yes | No | No | No | Yes |
 | Register or withdraw registration | No | No | No | No | No | Own only |
@@ -38,7 +39,7 @@ Rule: an action not listed as permitted for any of the account's roles is refuse
 
 Rule: when the refusal is object-level (the role is right but this particular record is not the account's to touch — "own only" and "events in Safety Check" above), a read (GET) answers 403: it may say a record exists that the account cannot open. A write (create, edit, submit, delete) instead answers 404: what another account is allowed to change never confirms that the record exists at all. Established by SCRUM-27 (reads) and SCRUM-28 (writes); kept by every story since. Not to be "corrected" into one status code for both.
 
-Rule: \* "Assigned coordinator" is not yet a real restriction anywhere in this table — SCRUM-43 now records the coordinator the system auto-assigns at Approved → Planning (state-model.md), but no story yet enforces the restriction. SCRUM-36 is the first story to need the rule enforced and could not build it without inventing the assignment mechanism itself, so for now any Event Coordinator may raise a venue booking request for any Approved or Planning event (team decision, 07-10-2026). Narrow this back to the assigned coordinator once that story exists; every other "Assigned coordinator" row in this table is similarly unenforced today, for the same reason. Withdrawing is unaffected either way: SCRUM-77 restricts it to whoever raised that specific booking, not to the event's assigned coordinator, so there is nothing to narrow there later.
+Rule: \* "Assigned coordinator" is a real restriction on the equipment requirement rows (SCRUM-48): only the event's assigned Event Coordinator may add, change or remove them, and reads are scoped the same way — Technical Support Staff sees a non-Draft event's timing, Approved venue bookings and the requirements themselves, never the request's private fields, and a Safety Officer sees Approved requirements through the existing Safety Check view. It is not yet a real restriction on the rows marked \*: SCRUM-43 now records the coordinator the system auto-assigns at Approved → Planning (state-model.md), but SCRUM-36 is the first story to need the rule enforced and could not build it without inventing the assignment mechanism itself, so for now any Event Coordinator may raise a venue booking request for any Approved or Planning event (team decision, 07-10-2026), and the suitability warnings row is \* for the same reason. Narrow those back to the assigned coordinator once that story exists. Withdrawing is unaffected either way: SCRUM-77 restricts it to whoever raised that specific booking, not to the event's assigned coordinator, so there is nothing to narrow there later.
 
 ## Feature keys
 
@@ -54,6 +55,8 @@ Keys used in `backend/permissions.py` and on API routes / `features` from `/api/
 | venues.search | No | Yes | No | No | No | No |
 | equipment.view | No | Yes | No | Yes | No | No |
 | equipment.check | No | No | No | Yes | No | No |
+| equipment.requirements.view | No | Yes | No | Yes | No | No |
+| equipment.requirements.edit | No | Yes | No | No | No | No |
 | equipment.edit | No | No | No | Yes | No | No |
 | registration.view | No | Yes | No | No | No | Yes |
 | internal_notes.view | No | Yes | No | No | No | No |
@@ -87,3 +90,4 @@ Keys used in `backend/permissions.py` and on API routes / `features` from `/api/
 | 1.19 | 15-10-2026 | "Place or release a venue hold" row, assigned coordinator only, on `bookings.edit` (no new feature key; the assigned-only rule is enforced in the service and answers 404 to anyone else, the write rule); "View venues and venue booking requests" adds venue holds, on `venues.view` | Week 7 customer change 4; SCRUM-84 (this story's slice of `target/permissions.md`, which puts holds in the same row as raising a booking request) |
 | 1.20 | 14-10-2026 | "Check equipment availability for a period" row and new key `equipment.check`, Technical Support Staff only | SCRUM-50: Event Coordinators hold `equipment.view` since SCRUM-49 and may see the inventory, but running the check (AC9) is Technical Support Staff's, so `equipment.view` cannot carry it |
 | 1.21 | 15-10-2026 | "Cancel an approved venue booking" row, assigned coordinator only, on `bookings.edit` (no new feature key; the assigned-only rule is enforced in the service and answers 404 to anyone else, the write rule); an event's booking requests are read on `venues.view`, the existing "View venues, venue booking requests and venue holds" row | Week 7 customer change 3; SCRUM-83 (this story's slice of `target/permissions.md`, which puts cancelling in the same row as raising a booking request) |
+| 1.22 | 16-10-2026 | "View detailed equipment requirements" and "Add requirements, or change/remove Requested requirements while event Approved or Planning" rows; `equipment.requirements.view` (assigned Coordinator; Technical Support Staff, non-Draft events) and `equipment.requirements.edit` (assigned Coordinator only, Approved/Planning only); Rule \* now records that assigned-coordinator ownership is enforced on these rows and folds in the scoped-read and Safety Officer notes | SCRUM-48: structured equipment requirements, scoped reads rather than general Technical Support event access |
