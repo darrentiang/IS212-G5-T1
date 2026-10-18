@@ -13,8 +13,8 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from db import db
-from factories import account, make_block, make_event
-from models import EventRequest, Notification, Venue, VenueBookingRequest
+from factories import account, make_block, make_event, make_equipment_requirement
+from models import EquipmentType, EventRequest, Notification, Venue, VenueBookingRequest
 
 
 def login_as(client, username):
@@ -291,16 +291,26 @@ def test_an_approved_booking_marked_venue_unavailable_is_refused_and_listed(clie
 
 # @story: SCRUM-53
 # @ac: 2, 3
-@pytest.mark.skip(reason="PENDING SCRUM-48 and SCRUM-81: no equipment requirement exists yet")
 def test_an_equipment_requirement_that_is_not_approved_is_refused_and_listed(client, app):
-    raise AssertionError("record a Requested requirement and prove the send is refused and lists it")
+    row = ready_event("Requested equipment blocks safety")
+    equipment = db.session.query(EquipmentType).filter_by(name="Projector").one()
+    make_equipment_requirement(event=row, equipment=equipment, quantity=2)
+    login_as(client, "coord1")
+    response = send(client, row)
+    assert response.status_code == 400
+    assert "Projector, 2 (Requested)" in response.json["message"]
+    assert stored(row).status == "Planning"
 
 
 # @story: SCRUM-53
 # @ac: 2
-@pytest.mark.skip(reason="PENDING SCRUM-48 and SCRUM-81: no equipment requirement exists yet")
 def test_an_event_whose_equipment_requirements_are_all_approved_is_sent(client, app):
-    raise AssertionError("approve every requirement and prove the event is sent")
+    row = ready_event("Approved equipment allows safety")
+    equipment = db.session.query(EquipmentType).filter_by(name="Projector").one()
+    make_equipment_requirement(event=row, equipment=equipment, quantity=2, status="Approved")
+    login_as(client, "coord1")
+    assert send(client, row).status_code == 200
+    assert stored(row).status == "Safety Check"
 
 
 # ---- AC5: sent again ---------------------------------------------------------

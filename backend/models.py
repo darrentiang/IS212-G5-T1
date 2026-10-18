@@ -43,7 +43,8 @@ from db import db
 # SCRUM-49 catalogue follow-up added description and location, so 19.
 # SCRUM-83 added a venue booking request's cancellation (cancel_reason,
 # cancelled_at, cancelled_by), so 20.
-SCHEMA_VERSION = 20
+# SCRUM-48 adds structured equipment requirements, so 21.
+SCHEMA_VERSION = 21
 
 
 account_roles = db.Table(
@@ -623,3 +624,34 @@ class SchemaMeta(db.Model):
 
     def __repr__(self):
         return f"<SchemaMeta v{self.version}>"
+
+
+class EquipmentRequirement(db.Model):
+    """SCRUM-48: Coordinator's detailed needs, not stock commitments.
+
+    Requested records can be corrected/removed. SCRUM-81 owns review decisions;
+    SCRUM-51 owns reservations. The Organiser's free-text needs stay untouched.
+    """
+
+    __tablename__ = "equipment_requirements"
+    __table_args__ = (db.UniqueConstraint("event_request_id", "equipment_type_id"),)
+    STATUSES = ("Requested", "Approved", "Declined")
+
+    id = db.Column(db.Integer, primary_key=True)
+    event_request_id = db.Column(db.Integer, db.ForeignKey("event_requests.id"), nullable=False)
+    equipment_type_id = db.Column(db.Integer, db.ForeignKey("equipment_types.id"), nullable=False)
+    quantity = db.Column(db.Integer, nullable=False)
+    technical_requirements = db.Column(db.Text, nullable=False, default="")
+    status = db.Column(db.String(32), nullable=False, default="Requested")
+    event_request = db.relationship("EventRequest", backref="equipment_items")
+    equipment_type = db.relationship("EquipmentType", backref="requirements")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "equipment_type_id": self.equipment_type_id,
+            "equipment_type_name": self.equipment_type.name,
+            "quantity": self.quantity,
+            "technical_requirements": self.technical_requirements,
+            "status": self.status,
+        }

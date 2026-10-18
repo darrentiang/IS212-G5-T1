@@ -43,7 +43,11 @@ async function renderLayout(account, unreadCount = 0) {
       </MemoryRouter>
     </AuthProvider>,
   )
-  await screen.findByTestId('layout-username')
+  // The shell exists before /api/me resolves; wait for account data, not the node.
+  await waitFor(() => {
+    expect(screen.getByTestId('layout-username')).toHaveTextContent(account.username)
+    expect(screen.getByTestId('layout-nav-notifications')).toHaveTextContent(unreadCount ? `Notifications (${unreadCount})` : 'Notifications')
+  })
 }
 
 describe('Layout', () => {

@@ -43,6 +43,7 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | 1.34 | 15-10-2026 | §7 equipment inventory displays seeded descriptions and storage locations; stock remains the only editable field | SCRUM-49 AC1 refinement closes the equipment-catalogue information gap in the Week 1 customer brief |
 | 1.35 | 15-10-2026 | §7 the request page's Venues section: Search venues, Place hold and Request venue booking grouped at its top (moved there, same rules), the event's Venue bookings list with Cancel booking and its inline form, Withdraw, the Cancelled row's reason, and the Venue holds list inside it, with their test ids, messages and banners; §12 a Cancelled booking reuses the Cancelled colour | SCRUM-83 lets the assigned Event Coordinator see and manage each venue booked for an event separately, and cancel one Approved booking without touching the others |
 | 1.36 | 16-10-2026 | §7 the request page's Venue bookings row carries a Venue unavailable marker (`request-detail-booking-unavailable-<id>`); the venue-search page's Action column with Request booking and Place hold on each result (`venue-search-request-booking-button-<id>`, `venue-search-place-hold-button-<id>`); `?venue=<id>` on the booking-new page and `?hold=<id>` on the request page choose a venue; §6 a button-styled link in a cell keeps the button's colours; §12 the Venue unavailable flag's Danger badge | SCRUM-82 tells the assigned Event Coordinator a booked venue became unavailable and lets them request a replacement or place a hold from the search results |
+| 1.37 | 16-10-2026 | §1 the Equipment requests list (`/equipment-requirements`) and the per-event requirements page (`/requests/:id/equipment`); §7 their forms, status badges, ids and permission gates | Record Coordinator equipment needs, preserve stock and reservations |
 
 ## 1. Pages
 
@@ -59,6 +60,8 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | `/requests/:id/bookings/new` | `booking-new` | Feature per `permissions.md` |
 | `/requests/:id/venues/search` | `venue-search` | Feature per `permissions.md` |
 | `/equipment` | `equipment` | Feature per `permissions.md` |
+| `/equipment-requirements` | `equipment-requests` (nav: Equipment requests) | `equipment.requirements.view`; the API returns only the events this account may read |
+| `/requests/:id/equipment` | `equipment-requirements` (no nav) | `equipment.requirements.view`; the API returns only the events this account may read |
 | `/notifications` | `notifications` | Logged in; every role holds `notifications.view` |
 | — (shown in place of a refused page) | `not-permitted` | Anyone whose account lacks the page's feature |
 
@@ -478,6 +481,34 @@ The page opens to the current week (Monday to Sunday), "current" read from the b
 | Save and Cancel buttons | `equipment-edit-save-button`, `equipment-edit-cancel-button` |
 | No equipment types | `equipment-empty` |
 | Unavailable notice and its Reload control (after an initial read or refresh failure) | `equipment-unavailable`, `equipment-reload-button` |
+
+**Equipment requirements** (SCRUM-48). Two pages record what an event needs without touching stock or reservations. The scoped index (`equipment-requests`, route `/equipment-requirements`, nav "Equipment requests") lists only the events this account may read requirements for — the assigned Coordinator's non-Draft events, every non-Draft event for Technical Support Staff — each a link with `formatPeriod` timing and its status badge; it is Technical Support's real entry point and grants no `requests.view`. The detail page (`equipment-requirements`, route `/requests/:id/equipment`) shows the event name and status badge, `formatPeriod` timing, its Approved venue bookings or "No Approved venue bookings.", and the recorded requirements or "No equipment requirements."; an Event details link appears only where the account also holds `requests.view`. Each requirement row shows type, quantity, optional technical text (`None` when blank) and its status badge. Add, Change and Remove appear only with `equipment.requirements.edit` while the event is Approved or Planning; Change and Remove only on a Requested row; the type cannot change on edit. One inline form or confirmation at a time, directly below its row (Add below its trigger), `useReveal` (Cancel focused for a removal), `noValidate`, required-field messages only under the field, server refusals in the banner (§4). A refusal keeps the typed values and the stored row; a success updates the list, closes the form and announces the action (§13). Recording a requirement never checks stock and never creates a reservation. A late reply to a discarded load or mutation never replaces the event on screen. SCRUM-86/87 integration must recheck assignment transitions, not relax the Approved/Planning rule.
+
+| Element | `data-testid` |
+|---|---|
+| Index title (`Equipment requests`) | `equipment-requests-title` |
+| Index event link | `equipment-requests-event-<id>` |
+| Index event status badge | `equipment-requests-status-<id>` |
+| Index empty | `equipment-requests-empty` |
+| Detail title (`Equipment requirements`) | `equipment-requirements-title` |
+| Event status badge | `equipment-requirements-status` |
+| Event timing, `formatPeriod` | `equipment-requirements-timing` |
+| Event details link (only with `requests.view`) | `equipment-requirements-event-link` |
+| Approved venue booking | `equipment-requirements-venue-<bookingId>` |
+| No Approved venue bookings | `equipment-requirements-no-venues` |
+| Requirement row | `equipment-requirements-row-<id>` |
+| Type name | `equipment-requirements-type-<id>` |
+| Quantity | `equipment-requirements-quantity-<id>` |
+| Technical text (`None` when blank) | `equipment-requirements-technical-<id>` |
+| Requirement status badge | `equipment-requirements-status-<id>` |
+| No requirements | `equipment-requirements-empty` |
+| Add button | `equipment-requirements-add-button` |
+| Change and Remove buttons | `equipment-requirements-edit-<id>`, `equipment-requirements-remove-<id>` |
+| Inline form | `equipment-requirements-form` |
+| Type, quantity and technical inputs | `equipment-requirements-type-input`, `equipment-requirements-quantity-input`, `equipment-requirements-technical-input` |
+| Save, Cancel and Remove-confirmation buttons | `equipment-requirements-save-button`, `equipment-requirements-cancel-button`, `equipment-requirements-confirm-remove-button` |
+
+Banner uses the shared page prefix (§4). Forms and rows use existing card and list styles; no new visual tokens.
 
 **Notifications** (SCRUM-58). The notifications page (`notifications`) lists this account's own notifications only, newest first, each showing when it was created (`formatDateTime`, §9), its message, and Unread or Read as a badge (its own neutral/info pair, not a state-model.md status — read is a flag, not a transition). A notification's event is named, and opening it navigates there, only when this account may open that event's own page (the same rule `request-detail` itself uses); otherwise nothing about the event is shown beyond the message (AC6) — not even its name. "Opening" a notification is the single action that marks it read, nothing else does: clicking its event name when one is shown, or its own Open button when none is (there is then nowhere to navigate to, so the button exists only to mark it read). Either one marking an already-read notification is a no-op — the row was already Read, and stays so (AC4). Mark all as read marks every currently unread row read in one action (AC5); no row's own control is needed first. No notifications is one sentence instead of the list, same as any other empty list (§6).
 
