@@ -40,11 +40,14 @@ async function apiAs(username) {
   return api
 }
 
-// A date far enough ahead to be clear of every other spec's events and blocks;
-// each test passes its own offset so no two tests share a day.
+// A date far enough ahead to be clear of every other spec's events, blocks and
+// the seeded 2026-2027 series; each test passes its own offset so no two tests
+// share a day. 600 keeps this band clear of the other specs' bands, which start
+// at +30/+90/+200/+300/+400/+700 days: every band advances one day per day, so
+// the separation between them is permanent.
 function dateAhead(offset) {
   const date = new Date()
-  date.setDate(date.getDate() + 200 + offset)
+  date.setDate(date.getDate() + 600 + offset)
   const mm = String(date.getMonth() + 1).padStart(2, '0')
   const dd = String(date.getDate()).padStart(2, '0')
   return `${date.getFullYear()}-${mm}-${dd}`

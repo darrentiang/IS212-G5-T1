@@ -20,6 +20,7 @@ Every acceptance criterion that changes a status uses a value from these tables.
 | 1.13 | 14-10-2026 | Equipment reservation: no status change; the committed peak may leave one event's reservations out; SCRUM-50 reports the peak as the units reserved for the period | SCRUM-50 AC3, AC4 and AC6 |
 | 1.14 | 15-10-2026 | Venue booking request: Approved → Cancelled (reason required; event Approved or Planning) by the event's assigned Event Coordinator; a Cancelled booking never conflicts; an event's booking requests each keep their own status | Week 7 customer change 3; SCRUM-83 (copied from `target/state-model.md` v1.3, this story's slice; the Venue unavailable flag is SCRUM-82's) |
 | 1.15 | 16-10-2026 | Event request: Safety Check / Confirmed → Planning when an approved venue booking is marked Venue unavailable (System). Venue booking request: the Venue unavailable flag on Approved | Week 7 customer change 2; SCRUM-82 (copied from `target/state-model.md` v1.3, this story's slice) |
+| 1.17 | 18-10-2026 | Equipment review/correction and arrangement notes; review metadata; schema 22 | SCRUM-81 AC1–7 |
 | 1.16 | 16-10-2026 | Equipment requirements: Requested creation/correction/removal, unique per event/type, scoped reads; existing safety checks use stored review states | SCRUM-48; review decisions remain SCRUM-81 |
 
 The front end holds these words in `frontend/src/app/format.js` (`STATUS`); a change here changes that file in the same pull request. v1.12 adds Held and Released (`STATUS.HOLD`); v1.14 adds Cancelled to a venue booking request's words (`STATUS.BOOKING.CANCELLED`); v1.15's Venue unavailable is a flag, held there as `VENUE_UNAVAILABLE`.
@@ -188,3 +189,34 @@ and the existing Safety Officer view includes only Approved rows.
 
 Schema version 21 adds equipment_requirements. Development reset is destructive:
 back up local data before seed.py --reset. No production migration is claimed.
+
+## SCRUM-81 — Equipment requirement review
+
+| From | To | Action | Who |
+|---|---|---|---|
+| Requested | Approved | Approve | Technical Support Staff |
+| Requested | Declined | Decline, nonblank reason required | Technical Support Staff |
+| Approved | Declined | Correct decision, nonblank reason required | Technical Support Staff |
+| Declined | Approved | Correct decision, clear current decline reason | Technical Support Staff |
+
+All decisions require the event to be Approved or Planning and **no Reserved
+reservation for this event and equipment type**, including a partial reservation.
+Released reservations do not block, nor do reservations for other events/types.
+No clock-based exception: a reservation still marked Reserved remains unreleased.
+Each successful decision records the acting account and UTC time. Repeating a
+valid decision is accepted and records that successful decision in the same way.
+There is no reset-to-Requested action or new decision-history subsystem.
+
+Only Technical Support may add/change the arrangement note, including on Approved
+or Declined rows, while the event is Approved or Planning. A Reserved reservation
+does not lock notes. Notes do not change the review metadata or decline reason.
+Decisions and notes never change requested details, other requirements, event
+status, stock or reservations. Approval is not reservation. Coordinator Requested
+quantity/text edits and removals remain SCRUM-48 actions with their existing rules.
+
+Schema 22 adds decline_reason, decided_by_id, decided_at and arrangement_note to
+equipment_requirements. The read-only has_unreleased_reservation flag is derived,
+not stored. Back up local data before the existing destructive development reset:
+`python backend/seed.py --reset`. No production migration is claimed. SCRUM-51 must
+recheck Approved status and the authoritative event stage in its reserve transaction
+and use the same event/type identity; this story adds no reservation endpoint.

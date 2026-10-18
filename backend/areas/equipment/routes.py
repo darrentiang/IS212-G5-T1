@@ -16,9 +16,10 @@ holds equipment.view and still may not run it).
 
 from flask import Blueprint, g, jsonify, request
 
-from areas.equipment import requirements, services
+from areas.equipment import requirements, review, services
 from permissions import (EQUIPMENT_CHECK, EQUIPMENT_EDIT, EQUIPMENT_VIEW,
-                         EQUIPMENT_REQUIREMENTS_VIEW, EQUIPMENT_REQUIREMENTS_EDIT, require)
+                         EQUIPMENT_REQUIREMENTS_VIEW, EQUIPMENT_REQUIREMENTS_EDIT,
+                         EQUIPMENT_REQUIREMENTS_REVIEW, require)
 
 bp = Blueprint("equipment", __name__, url_prefix="/api")
 
@@ -78,3 +79,17 @@ def update_requirement(event_id, requirement_id):
 def remove_requirement(event_id, requirement_id):
     requirements.remove(g.account, event_id, requirement_id)
     return "", 204
+
+
+@bp.patch("/requests/<int:event_id>/equipment/<int:requirement_id>/decision")
+@require(EQUIPMENT_REQUIREMENTS_REVIEW)
+def decide_requirement(event_id, requirement_id):
+    row = review.decide(g.account, event_id, requirement_id, request.get_json(silent=True))
+    return jsonify(row.to_dict()), 200
+
+
+@bp.patch("/requests/<int:event_id>/equipment/<int:requirement_id>/note")
+@require(EQUIPMENT_REQUIREMENTS_REVIEW)
+def note_requirement(event_id, requirement_id):
+    row = review.update_note(g.account, event_id, requirement_id, request.get_json(silent=True))
+    return jsonify(row.to_dict()), 200
