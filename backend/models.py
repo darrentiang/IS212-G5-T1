@@ -44,7 +44,8 @@ from db import db
 # SCRUM-83 added a venue booking request's cancellation (cancel_reason,
 # cancelled_at, cancelled_by), so 20.
 # SCRUM-48 adds structured equipment requirements, so 21.
-SCHEMA_VERSION = 21
+# SCRUM-81 adds requirement review metadata and arrangement notes.
+SCHEMA_VERSION = 22
 
 
 account_roles = db.Table(
@@ -643,8 +644,21 @@ class EquipmentRequirement(db.Model):
     quantity = db.Column(db.Integer, nullable=False)
     technical_requirements = db.Column(db.Text, nullable=False, default="")
     status = db.Column(db.String(32), nullable=False, default="Requested")
+    decline_reason = db.Column(db.Text, nullable=True)
+    decided_at = db.Column(db.DateTime, nullable=True)
+    decided_by_id = db.Column(db.Integer, db.ForeignKey("accounts.id"), nullable=True)
+    arrangement_note = db.Column(db.Text, nullable=False, default="")
+    decided_by = db.relationship("Account", foreign_keys=[decided_by_id])
     event_request = db.relationship("EventRequest", backref="equipment_items")
     equipment_type = db.relationship("EquipmentType", backref="requirements")
+
+    @property
+    def has_unreleased_reservation(self):
+        """Storage identity shared with SCRUM-51: one unique event/type pair."""
+        return db.session.query(Reservation.id).filter_by(
+            event_request_id=self.event_request_id,
+            equipment_type_id=self.equipment_type_id, status="Reserved",
+        ).first() is not None
 
     def to_dict(self):
         return {
@@ -653,5 +667,10 @@ class EquipmentRequirement(db.Model):
             "equipment_type_name": self.equipment_type.name,
             "quantity": self.quantity,
             "technical_requirements": self.technical_requirements,
+            "decline_reason": self.decline_reason,
+            "decided_at": self.decided_at.isoformat() if self.decided_at else None,
+            "decided_by": self.decided_by.username if self.decided_by else None,
+            "arrangement_note": self.arrangement_note,
+            "has_unreleased_reservation": self.has_unreleased_reservation,
             "status": self.status,
         }

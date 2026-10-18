@@ -61,3 +61,21 @@ export const updateEquipmentRequirement = (id, requirementId, data) =>
 // DELETE same item, Requested only. 204, or {message} with 401/403/404/409.
 export const removeEquipmentRequirement = (id, requirementId) =>
   request('DELETE', `/api/requests/${id}/equipment/${requirementId}`)
+
+// SCRUM-81: every requirement read/mutation also returns decline_reason (null
+// unless Declined), decided_by (username|null), decided_at (ISO UTC|null),
+// arrangement_note (text), has_unreleased_reservation (derived event/type flag).
+// PATCH /api/requests/:id/equipment/:requirementId/decision
+// body: {decision: 'Approved'|'Declined', reason?: string}; decline needs nonblank
+// reason; approval clears current reason. TSS + Approved/Planning + no Reserved
+// reservation for this event/type. Corrections supported; no reservation created.
+// 200: updated requirement; 400/401/403/404/409: {message}, no mutation.
+export const decideEquipmentRequirement = (id, requirementId, data) =>
+  request('PATCH', `/api/requests/${id}/equipment/${requirementId}/decision`, data)
+
+// PATCH /api/requests/:id/equipment/:requirementId/note
+// body: {arrangement_note: string}; TSS + Approved/Planning, any review state,
+// Reserved rows included. Only note changes. 200: updated requirement;
+// 400/401/403/404/409: {message}, no mutation. Neither action changes stock.
+export const updateEquipmentArrangementNote = (id, requirementId, data) =>
+  request('PATCH', `/api/requests/${id}/equipment/${requirementId}/note`, data)

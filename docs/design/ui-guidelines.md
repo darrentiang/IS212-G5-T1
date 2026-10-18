@@ -43,6 +43,7 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | 1.34 | 15-10-2026 | §7 equipment inventory displays seeded descriptions and storage locations; stock remains the only editable field | SCRUM-49 AC1 refinement closes the equipment-catalogue information gap in the Week 1 customer brief |
 | 1.35 | 15-10-2026 | §7 the request page's Venues section: Search venues, Place hold and Request venue booking grouped at its top (moved there, same rules), the event's Venue bookings list with Cancel booking and its inline form, Withdraw, the Cancelled row's reason, and the Venue holds list inside it, with their test ids, messages and banners; §12 a Cancelled booking reuses the Cancelled colour | SCRUM-83 lets the assigned Event Coordinator see and manage each venue booked for an event separately, and cancel one Approved booking without touching the others |
 | 1.36 | 16-10-2026 | §7 the request page's Venue bookings row carries a Venue unavailable marker (`request-detail-booking-unavailable-<id>`); the venue-search page's Action column with Request booking and Place hold on each result (`venue-search-request-booking-button-<id>`, `venue-search-place-hold-button-<id>`); `?venue=<id>` on the booking-new page and `?hold=<id>` on the request page choose a venue; §6 a button-styled link in a cell keeps the button's colours; §12 the Venue unavailable flag's Danger badge | SCRUM-82 tells the assigned Event Coordinator a booked venue became unavailable and lets them request a replacement or place a hold from the search results |
+| 1.38 | 18-10-2026 | Equipment requirement decisions, corrections, notes, decision metadata and per-row test ids | SCRUM-81; approval never reserves |
 | 1.37 | 16-10-2026 | §1 the Equipment requests list (`/equipment-requirements`) and the per-event requirements page (`/requests/:id/equipment`); §7 their forms, status badges, ids and permission gates | Record Coordinator equipment needs, preserve stock and reservations |
 
 ## 1. Pages
@@ -591,3 +592,40 @@ A page picks one of these patterns for each control. They are built with `useRev
 | **D. Act at once** | An action with no form (Submit, Send for safety check, Remove, Withdraw, Release, Mark as read) | The change shows where the action was (the row, its badge or the status), and the banner (§4) says what happened. Nothing moves. |
 
 A control that leaves the page (a link, or an action that navigates) needs none of these: the next page opens at its top, with its banner (§4).
+
+## SCRUM-81 — Equipment review on the existing requirement page
+
+Each requirement shows the current decline reason and arrangement note (`None`
+when blank), and the latest decision as `<username> — <UTC moment>` using
+formatDateTime, or `Not yet reviewed`. Technical Support (`equipment.requirements.review`)
+sees Approve/Decline for Requested, Decline for Approved, Approve for Declined,
+only in Approved/Planning and with no unreleased reservation. Reserved rows show
+`Review decision locked while equipment is reserved.` Notes can be changed in
+Approved/Planning regardless of requirement status or reservation. No Reserve
+button is added. Assigned Coordinators see the same recorded outcomes, not the
+Technical Support controls. Existing scoped event visibility remains unchanged.
+
+One inline form at a time across Coordinator and Technical Support actions.
+Approve opens confirmation, Decline opens a required-reason textarea, and
+Change arrangement note opens its own textarea. Forms use noValidate, useReveal
+and existing shared classes; API errors appear only in the banner, required-field
+errors beside the required reason. Refusals retain typed values. All action
+controls are disabled during a write; an opened editor is hidden if its current
+permission/state/reservation guards no longer permit it. A success applies the
+returned row, closes the form and announces `Equipment requirement approved`,
+`Equipment requirement declined` or `Arrangement note updated`. No dependent
+read is needed to acknowledge a successful write.
+
+All ids below start `equipment-requirements-`:
+
+| Element | Suffix |
+|---|---|
+| Current decline reason | `decline-reason-<id>` |
+| Arrangement note | `note-<id>` |
+| Latest reviewer and decision time | `decision-<id>` |
+| Reservation lock explanation | `review-locked-<id>` |
+| Approve / Decline / Change arrangement note | `approve-<id>`, `decline-<id>`, `edit-note-<id>` |
+| Review/note inline form | `review-form` |
+| Decline reason / arrangement note input | `review-reason-input`, `review-note-input` |
+| Required reason error | `review-reason-error` |
+| Confirm / Cancel | `review-save-button`, `review-cancel-button` |
