@@ -44,6 +44,7 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | 1.35 | 15-10-2026 | §7 the request page's Venues section: Search venues, Place hold and Request venue booking grouped at its top (moved there, same rules), the event's Venue bookings list with Cancel booking and its inline form, Withdraw, the Cancelled row's reason, and the Venue holds list inside it, with their test ids, messages and banners; §12 a Cancelled booking reuses the Cancelled colour | SCRUM-83 lets the assigned Event Coordinator see and manage each venue booked for an event separately, and cancel one Approved booking without touching the others |
 | 1.36 | 16-10-2026 | §7 the request page's Venue bookings row carries a Venue unavailable marker (`request-detail-booking-unavailable-<id>`); the venue-search page's Action column with Request booking and Place hold on each result (`venue-search-request-booking-button-<id>`, `venue-search-place-hold-button-<id>`); `?venue=<id>` on the booking-new page and `?hold=<id>` on the request page choose a venue; §6 a button-styled link in a cell keeps the button's colours; §12 the Venue unavailable flag's Danger badge | SCRUM-82 tells the assigned Event Coordinator a booked venue became unavailable and lets them request a replacement or place a hold from the search results |
 | 1.38 | 18-10-2026 | Equipment requirement decisions, corrections, notes, decision metadata and per-row test ids | SCRUM-81; approval never reserves |
+| 1.39 | 19-10-2026 | §7 the per-event requirements page gains a Check availability button on each requirement for an account with `equipment.check`, and a result card (brought into view, §13) with the verdict covered or short by N | SCRUM-50 AC2, AC6 and AC7: the check can be opened from a recorded requirement; the event's own reservation is left out |
 | 1.37 | 16-10-2026 | §1 the Equipment requests list (`/equipment-requirements`) and the per-event requirements page (`/requests/:id/equipment`); §7 their forms, status badges, ids and permission gates | Record Coordinator equipment needs, preserve stock and reservations |
 
 ## 1. Pages
@@ -503,6 +504,8 @@ The page opens to the current week (Monday to Sunday), "current" read from the b
 | Technical text (`None` when blank) | `equipment-requirements-technical-<id>` |
 | Requirement status badge | `equipment-requirements-status-<id>` |
 | No requirements | `equipment-requirements-empty` |
+| Check availability button on a requirement (only with `equipment.check`; SCRUM-50) | `equipment-requirements-check-<id>` |
+| Check result for that requirement, the period it was checked for, total, reserved for the period, out of service, available, and the verdict (`Covered: the N requested are available.` or `Short by N: M requested, K available.`) | `equipment-requirements-check-result-<id>`, `-period-<id>`, `-total-<id>`, `-reserved-<id>`, `-out-of-service-<id>`, `-available-<id>`, `-verdict-<id>` |
 | Add button | `equipment-requirements-add-button` |
 | Change and Remove buttons | `equipment-requirements-edit-<id>`, `equipment-requirements-remove-<id>` |
 | Inline form | `equipment-requirements-form` |
