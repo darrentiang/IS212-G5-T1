@@ -6,8 +6,11 @@ The type lock serializes competing commitments; the event lock serializes
 safety transitions; the requirement lock serializes review corrections.
 No inventory quantity is changed. All refusal paths roll the transaction back.
 SCRUM-52's out-of-service input is consumed through SCRUM-50, never redefined.
+SCRUM-63: reserve and release tell the event's assigned Event Coordinator in
+the same transaction, so a refusal tells nobody.
 """
 from contextlib import contextmanager
+from datetime import datetime
 
 from sqlalchemy import update
 
@@ -16,6 +19,7 @@ from areas.equipment.requirements import EDITABLE_STATUSES, MAX_QUANTITY, _event
 from db import db
 from errors import ApiRefusal
 from models import EquipmentRequirement, EquipmentType, EventRequest, Reservation
+from notifications import create_notification
 from permissions import EQUIPMENT_RESERVE, can
 
 
@@ -31,6 +35,19 @@ def list_for_event(account, event_id):
     event = _event(account, event_id)
     return [to_dict(row) for row in db.session.query(Reservation)
             .filter_by(event_request_id=event.id).order_by(Reservation.id).all()]
+
+
+def _tell_coordinator(event, reservation, action):
+    """SCRUM-63 AC4, AC5, the curated texts (ui-guidelines.md, SCRUM-63):
+    'Equipment reserved for Annual Gala: Projector × 2, 15 Dec 2026, 10:00–12:00.'
+    With no assigned coordinator nobody is told."""
+    if event.assigned_coordinator is None:
+        return
+    equipment = db.session.get(EquipmentType, reservation.equipment_type_id)
+    day = datetime.strptime(reservation.date, "%Y-%m-%d").strftime("%d %b %Y")
+    create_notification(event.assigned_coordinator,
+        f"Equipment {action} for {event.name}: {equipment.name} × {reservation.quantity}, "
+        f"{day}, {reservation.start_time}–{reservation.end_time}.", event)
 
 
 @contextmanager
@@ -95,6 +112,7 @@ def reserve(account, event_id, requirement_id):
             end_time=event.end_time, status="Reserved")
         db.session.add(reservation)
         db.session.flush()
+        _tell_coordinator(event, reservation, "reserved")
         result = {"reservation": to_dict(reservation), "requirement": row.to_dict()}
     return result
 
@@ -111,6 +129,7 @@ def release(account, event_id, reservation_id):
             raise ApiRefusal(409, "This equipment reservation has already been released.")
         row.status = "Released"
         db.session.flush()
+        _tell_coordinator(event, row, "released")
         requirement = db.session.query(EquipmentRequirement).filter_by(
             event_request_id=event.id, equipment_type_id=row.equipment_type_id).first()
         result = {"reservation": to_dict(row), "requirement": requirement.to_dict() if requirement else None}

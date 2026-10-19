@@ -425,7 +425,10 @@ def test_a_hold_released_by_its_own_booking_approval_gets_no_notices(client, now
         assert client.get(f"/api/venues/{venue.id}/holds").status_code == 200
 
     assert fresh(hold).status == "Released"
-    assert messages(hold.event_request) == []
+    # The approval's own notice (SCRUM-63 AC1) is the only one: no hold notice.
+    assert messages(hold.event_request) == [
+        ("coord1", "Venue booking approved for Clock Gala: TC85 Room, 05 Dec 2026, 10:00–12:00.")
+    ]
 
 
 # @story: SCRUM-85

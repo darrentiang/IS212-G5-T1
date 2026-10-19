@@ -36,6 +36,10 @@ SCRUM-85 expires a hold. There is no scheduler: check_hold_expiry runs at the
 start of every API request (app.py) and saves what is due since the last one,
 a Held hold Expired at its expiry and the 24-hour warning before it, each
 notice once.
+
+SCRUM-63 tells the event's assigned Event Coordinator of each approval or
+rejection, in the same commit as the decision, so a refused decision tells
+nobody. Withdrawing tells nobody (AC7).
 """
 
 from datetime import datetime, timedelta, timezone
@@ -206,8 +210,40 @@ def _record_decision(booking, account, decision, reason, suggestion=None):
     booking.decided_by_id = account.id
     for column, value in (suggestion or {}).items():
         setattr(booking, column, value)
+    # SCRUM-63 AC5: only the coordinator assigned now; with none, nobody is told.
+    coordinator = booking.event_request.assigned_coordinator
+    if coordinator is not None:
+        create_notification(coordinator, _decision_message(booking), booking.event_request)
     db.session.commit()
     return booking
+
+
+def _decision_message(booking):
+    """SCRUM-63 AC1, AC2, the curated texts (ui-guidelines.md, SCRUM-63):
+    'Venue booking approved for Annual Gala: Venue A, 15 Dec 2026, 10:00–12:00.'
+    A rejection adds whichever suggestion was made (SCRUM-78), then the reason.
+    """
+    period = _period_text(booking.date, booking.start_time, booking.end_time)
+    message = (
+        f"Venue booking {booking.decision.lower()} for {booking.event_request.name}: "
+        f"{booking.venue.name}, {period}."
+    )
+    if booking.decision == "Approved":
+        return message
+    if booking.suggested_venue_id is not None:
+        message += f" Suggested venue: {db.session.get(Venue, booking.suggested_venue_id).name}."
+    if booking.suggested_date is not None:
+        suggested = _period_text(
+            booking.suggested_date, booking.suggested_start_time, booking.suggested_end_time
+        )
+        message += f" Suggested period: {suggested}."
+    return f"{message} Reason: {booking.decision_reason}"
+
+
+def _period_text(date_text, start_time, end_time):
+    """'15 Dec 2026, 10:00–12:00' from ISO date and HH:MM texts (ui-guidelines.md §9)."""
+    day = datetime.strptime(date_text, "%Y-%m-%d").strftime(DATE_TEXT_FORMAT)
+    return f"{day}, {start_time}–{end_time}"
 
 
 def _text(data, key):
@@ -293,8 +329,7 @@ def _suggestion_columns(booking, data):
 
 def _booking_text(booking):
     """'TC38 Holder, 10 Dec 2026, 14:00–17:00': the event and the booking's own period."""
-    day = datetime.strptime(booking.date, "%Y-%m-%d").strftime(DATE_TEXT_FORMAT)
-    return f"{booking.event_request.name}, {day}, {booking.start_time}–{booking.end_time}"
+    return f"{booking.event_request.name}, {_period_text(booking.date, booking.start_time, booking.end_time)}"
 
 
 def _block_text(block):
