@@ -133,7 +133,8 @@ export default function VenueAvailabilityPage() {
   }))
 
   // SCRUM-84 AC5: a Held hold over the period it takes the venue for, the same
-  // widened period as an Approved booking; a Released hold holds nothing.
+  // widened period as an Approved booking; a Released or Expired (SCRUM-85)
+  // hold holds nothing.
   const holdEntries = holds
     .filter((hold) => hold.status === STATUS.HOLD.HELD)
     .map((hold) => ({

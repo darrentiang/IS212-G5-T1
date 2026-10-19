@@ -4,6 +4,7 @@ import { occupiedText } from './occupied'
 // SCRUM-84: the event's venue holds, inside the request page's Venues section
 // (SCRUM-83, ui-guidelines.md §7). The Place hold button and form sit at the
 // top of that section (PlaceHoldForm); the page owns the API calls and the banner.
+// SCRUM-85: only a Held row offers Release, so a Released or Expired row has none.
 
 export default function VenueHoldsSection({ holds, canRelease, submitting, onRelease }) {
   return (

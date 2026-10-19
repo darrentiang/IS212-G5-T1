@@ -473,4 +473,22 @@ describe('VenueAvailabilityPage', () => {
     expect(await screen.findByTestId('venue-availability-day-empty-2026-10-08')).toHaveTextContent('Free')
     expect(screen.queryByTestId('venue-availability-entry-row-hold-4-2026-10-08')).not.toBeInTheDocument()
   })
+
+  // @story: SCRUM-85
+  // @ac: 1
+  it('does not show an Expired hold', async () => {
+    api.listVenueHolds.mockResolvedValue([
+      {
+        id: 5,
+        status: STATUS.HOLD.EXPIRED,
+        event_request_name: 'Clock Gala',
+        occupied_start: '2026-10-08T09:30',
+        occupied_end: '2026-10-08T12:30',
+      },
+    ])
+    renderPage()
+
+    expect(await screen.findByTestId('venue-availability-day-empty-2026-10-08')).toHaveTextContent('Free')
+    expect(screen.queryByTestId('venue-availability-entry-row-hold-5-2026-10-08')).not.toBeInTheDocument()
+  })
 })

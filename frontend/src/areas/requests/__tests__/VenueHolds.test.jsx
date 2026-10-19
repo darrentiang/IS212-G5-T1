@@ -476,3 +476,18 @@ describe('placing a hold, at the point of action', () => {
     expect(Element.prototype.scrollIntoView.mock.contexts.at(-1)).toBe(form)
   })
 })
+
+describe('an Expired hold (SCRUM-85)', () => {
+  // @story: SCRUM-85
+  // @ac: 1
+  it('shows the Expired badge in its own colour and offers no Release', async () => {
+    signInWith(COORDINATOR)
+    api.getRequest.mockResolvedValue(EVENT)
+    api.listHolds.mockResolvedValue([{ ...HOLD, status: STATUS.HOLD.EXPIRED, expired_at: '2026-12-04T17:00' }])
+    renderDetail()
+
+    const badge = within(await screen.findByTestId('request-detail-hold-status-3')).getByText('Expired')
+    expect(badge).toHaveClass('badge', 'badge-danger')
+    expect(screen.queryByTestId('request-detail-hold-release-button-3')).not.toBeInTheDocument()
+  })
+})

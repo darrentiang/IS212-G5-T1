@@ -4,7 +4,8 @@ of a Venue), SCRUM-41 (Reserve Setup and Turnaround Time Around a Booking),
 SCRUM-42 (Warn When a Requested Venue Appears Unsuitable), SCRUM-77
 (Withdraw a Venue Booking Request) and SCRUM-78 (Suggest an Alternative When
 Rejecting a Venue Booking), SCRUM-84 (Place a Tentative Venue Hold) and
-SCRUM-83 (Manage Several Venues for One Event).
+SCRUM-83 (Manage Several Venues for One Event) and SCRUM-85 (Expire a
+Tentative Venue Hold).
 
 Every rule the acceptance criteria state lives here, next to the query, and
 refuses by raising ApiRefusal; the route never decides (ADR-002).
@@ -30,9 +31,14 @@ the event's own booking request for the venue releases its hold.
 SCRUM-83 lists an event's booking requests and lets its assigned Event
 Coordinator cancel an Approved one. A Cancelled booking no longer holds the
 venue with no check of its own: occupancy.py counts only Approved bookings.
+
+SCRUM-85 expires a hold. There is no scheduler: check_hold_expiry runs at the
+start of every API request (app.py) and saves what is due since the last one,
+a Held hold Expired at its expiry and the 24-hour warning before it, each
+notice once.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import clock
 import occupancy
@@ -40,6 +46,7 @@ from areas.requests.services import start_planning_if_approved
 from db import db
 from errors import ApiRefusal
 from models import EventRequest, Venue, VenueBookingRequest, VenueHold
+from notifications import create_notification
 
 # AC2: only these event statuses may receive a booking request.
 RAISABLE_STATUSES = ("Approved", "Planning")
@@ -663,6 +670,7 @@ HOLDABLE_STATUSES = ("Approved", "Planning")
 
 HELD = occupancy.HOLDING_HOLD_STATUS
 RELEASED = "Released"
+EXPIRED = "Expired"
 
 EXPIRY_FORMAT = "%Y-%m-%d %H:%M"
 
@@ -782,6 +790,73 @@ def release_hold(account, event_request_id, hold_id):
     return hold
 
 
+# --- SCRUM-85: expiring a hold ------------------------------------------------
+
+# AC2: the warning is due when this much time or less remains.
+WARNING_WINDOW = timedelta(hours=24)
+
+# AC2, AC3: the curated texts (ui-guidelines.md §7, Venue holds).
+WARNING_MESSAGE = "The hold on {venue} for {event} expires {expiry}."
+EXPIRED_MESSAGE = "The hold on {venue} for {event} expired {expiry} and the venue was released."
+
+
+def _hold_message(template, hold):
+    return template.format(
+        venue=hold.venue.name,
+        event=hold.event_request.name,
+        expiry=hold.expires_at.strftime(MOMENT_TEXT_FORMAT),
+    )
+
+
+def _tell_coordinator(hold, template):
+    """Notify the event's assigned Event Coordinator; with none, nobody is told."""
+    coordinator = hold.event_request.assigned_coordinator
+    if coordinator is not None:
+        create_notification(coordinator, _hold_message(template, hold), hold.event_request)
+
+
+def check_hold_expiry():
+    """Save every expiry and warning due by now, in one commit (SCRUM-85 AC1-AC3).
+
+    The time is read once, from clock.now_local(). Only a Held hold
+    with something still to do is read, in one query: its expiry has been
+    reached, or it is 24 hours away or less and its warning has not been sent.
+
+    - Expiry reached (equal counts): Held -> Expired, recorded when, and the
+      expiry notice is sent (AC1, AC3). A warning never sent is not sent now:
+      the coordinator hears only that it expired (PO decision).
+    - Otherwise: the warning is sent and recorded when, so it is never sent
+      twice (AC2), including straight away for a hold placed with less than
+      24 hours left.
+
+    The event's status never changes, and a Released hold is never read. With
+    no assigned coordinator the hold still expires and nobody is told.
+    Returns the number of holds changed; nothing is committed when it is 0.
+    """
+    now = clock.now_local()
+    due = (
+        db.session.query(VenueHold)
+        .filter(
+            VenueHold.status == HELD,
+            VenueHold.expires_at <= now + WARNING_WINDOW,
+            db.or_(VenueHold.expires_at <= now, VenueHold.warning_sent_at.is_(None)),
+        )
+        .order_by(VenueHold.expires_at, VenueHold.id)
+        .all()
+    )
+    for hold in due:
+        if hold.expires_at <= now:
+            hold.status = EXPIRED
+            hold.expired_at = now
+            _tell_coordinator(hold, EXPIRED_MESSAGE)
+        else:
+            hold.warning_sent_at = now
+            _tell_coordinator(hold, WARNING_MESSAGE)
+    if due:
+        db.session.commit()
+    return len(due)
+
+
 def list_holds_for_event(event_request_id):
     """Every hold of one event, oldest first (AC1, AC6, AC7)."""
     event_request = _get_event_request(event_request_id)
@@ -817,4 +892,6 @@ def hold_to_dict(hold):
         "placed_by": hold.placed_by.username,
         "placed_at": hold.placed_at.isoformat(),
         "released_at": hold.released_at.isoformat() if hold.released_at else None,
+        # SCRUM-85: naive local, like expires_at.
+        "expired_at": hold.expired_at.isoformat(timespec="minutes") if hold.expired_at else None,
     }
