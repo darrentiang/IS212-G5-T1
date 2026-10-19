@@ -46,7 +46,7 @@ function Decisions({ decisions }) {
             )}
             {decision.areas.length > 0 && (
               <p data-testid={`request-detail-safety-decision-${decision.id}-areas`}>
-                Areas: {list(decision.areas.map((area) => CHANGE_AREAS[area] ?? area))}
+                Areas: {list(decision.areas.map((area) => CHANGE_AREAS[area]))}
               </p>
             )}
             {Object.entries(decision.notes).map(([area, note]) => (
@@ -55,7 +55,7 @@ function Decisions({ decisions }) {
                 className="whitespace-pre-wrap"
                 data-testid={`request-detail-safety-decision-${decision.id}-note-${kebab(area)}`}
               >
-                {AREA_LABELS[area] ?? area}: {note}
+                {AREA_LABELS[area]}: {note}
               </p>
             ))}
           </li>
@@ -73,7 +73,7 @@ function RequestedChanges({ changes }) {
         <div>
           <dt>Areas</dt>
           <dd data-testid="request-detail-requested-changes-areas">
-            {list(changes.areas.map((area) => CHANGE_AREAS[area] ?? area))}
+            {list(changes.areas.map((area) => CHANGE_AREAS[area]))}
           </dd>
         </div>
         <div>
@@ -84,7 +84,7 @@ function RequestedChanges({ changes }) {
         </div>
         {Object.entries(changes.notes).map(([area, note]) => (
           <div key={area}>
-            <dt>{AREA_LABELS[area] ?? area}</dt>
+            <dt>{AREA_LABELS[area]}</dt>
             <dd className="whitespace-pre-wrap" data-testid={`request-detail-requested-changes-note-${kebab(area)}`}>
               {note}
             </dd>
@@ -246,7 +246,7 @@ export default function SafetyCheckSection({
             {safetyCheck.note_areas.map((area) => (
               <div key={area}>
                 <label htmlFor={`request-detail-safety-note-${kebab(area)}`} className="label">
-                  {AREA_LABELS[area] ?? area}
+                  {AREA_LABELS[area]}
                 </label>
                 <textarea
                   id={`request-detail-safety-note-${kebab(area)}`}

@@ -121,6 +121,36 @@ describe('the Safety Officer reviews an event in Safety Check', () => {
     expect(screen.getByTestId('request-detail-accessibility-features')).toHaveTextContent('Step-free access')
   })
 
+  it('shows None for a venue with no layouts, facilities or accessibility features', async () => {
+    signInWith(SAFETY_OFFICER)
+    const booking = EVENT.safety_check.venue_bookings[0]
+    api.getRequest.mockResolvedValue({
+      ...EVENT,
+      safety_check: {
+        ...EVENT.safety_check,
+        venue_bookings: [
+          { ...booking, venue: { ...booking.venue, layouts: [], facilities: [], accessibility_features: [] } },
+        ],
+      },
+    })
+    renderDetail()
+
+    expect(await screen.findByTestId('request-detail-safety-booking-31-layouts')).toHaveTextContent('None')
+    expect(screen.getByTestId('request-detail-safety-booking-31-facilities')).toHaveTextContent('None')
+    expect(screen.getByTestId('request-detail-safety-booking-31-accessibility')).toHaveTextContent('None')
+  })
+
+  it('says the sent time was not recorded when the event has none', async () => {
+    signInWith(SAFETY_OFFICER)
+    api.getRequest.mockResolvedValue({
+      ...EVENT,
+      safety_check: { ...EVENT.safety_check, sent_at: null },
+    })
+    renderDetail()
+
+    expect(await screen.findByTestId('request-detail-safety-sent-at')).toHaveTextContent('Not recorded')
+  })
+
   it('says so when there is no Approved booking or equipment requirement', async () => {
     signInWith(SAFETY_OFFICER)
     api.getRequest.mockResolvedValue({
