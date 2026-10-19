@@ -25,7 +25,7 @@ npm install
 npx playwright install chromium
 ```
 
-Log in at http://localhost:5173 with a seeded account: `org1`, `org2` (Event Organisers), `coord1`, `coord2` (Event Coordinators), `venue1` (Venue Staff), `tech1` (Technical Support Staff), `att1` (Attendee), `multi1` (Event Coordinator and Venue Staff). Password for all: `Passw0rd!`. Login works once SCRUM-26 is merged.
+Log in at http://localhost:5173 with a seeded account: `org1`, `org2` (Event Organisers), `coord1`, `coord2` (Event Coordinators), `venue1` (Venue Staff), `tech1` (Technical Support Staff), `att1` (Attendee), `multi1` (Event Coordinator and Venue Staff), `lead1` (Event Coordinator Lead), `leadcoord1` (Event Coordinator Lead and Event Coordinator). Password for all: `Passw0rd!`. Login works once SCRUM-26 is merged.
 
 **After pulling `main`:** if `python app.py` refuses to start with `Database schema is v… code expects v…`, a story changed the database. Run `python seed.py --reset`. The development database is disposable; nothing in it is kept. If `npm run dev` fails on a missing module, run `npm install` again in that folder.
 
