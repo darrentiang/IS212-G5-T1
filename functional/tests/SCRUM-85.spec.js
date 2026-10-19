@@ -1,4 +1,5 @@
 import { test, expect, request as playwrightRequest } from '@playwright/test'
+import { assignAsLead, startPlanning } from './helpers/assign.js'
 import { pinClock, clearClock } from './helpers/clock.js'
 
 // SCRUM-85 Expire a Tentative Venue Hold. TC-SCRUM-85-01 to 08 (test-case
@@ -103,7 +104,8 @@ async function ownVenue(name, times = SETUP) {
 }
 
 // A Planning event, 10:00–12:00 for 40 people, with its assigned coordinator:
-// org1 submits it and an Event Coordinator approves it, which assigns one.
+// org1 submits it, the Event Coordinator Lead assigns coord1 (SCRUM-86) and coord1
+// approves it, and its first booking request, withdrawn, starts planning.
 async function planningEvent(name, date) {
   const id = await as('org1', async (organiser) => {
     const submitted = await organiser.post('/api/requests', {
@@ -112,12 +114,14 @@ async function planningEvent(name, date) {
     expect(submitted.status()).toBe(201)
     return (await submitted.json()).id
   })
+  await assignAsLead(id)
   const body = await as('coord1', async (coordinator) => {
     const approved = await coordinator.post(`/api/requests/${id}/approve`, { data: { reason: '' } })
     expect(approved.ok()).toBeTruthy()
     return approved.json()
   })
-  expect(body.status).toBe('Planning')
+  expect(body.status).toBe('Approved')
+  await startPlanning(id, body.assigned_coordinator)
   return { id, name, coordinator: body.assigned_coordinator }
 }
 
