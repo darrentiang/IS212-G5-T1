@@ -22,8 +22,9 @@ Every acceptance criterion that changes a status uses a value from these tables.
 | 1.15 | 16-10-2026 | Event request: Safety Check / Confirmed → Planning when an approved venue booking is marked Venue unavailable (System). Venue booking request: the Venue unavailable flag on Approved | Week 7 customer change 2; SCRUM-82 (copied from `target/state-model.md` v1.3, this story's slice) |
 | 1.17 | 18-10-2026 | Equipment review/correction and arrangement notes; review metadata; schema 22 | SCRUM-81 AC1–7 |
 | 1.16 | 16-10-2026 | Equipment requirements: Requested creation/correction/removal, unique per event/type, scoped reads; existing safety checks use stored review states | SCRUM-48; review decisions remain SCRUM-81 |
+| 1.18 | 19-10-2026 | Venue hold: Held → Expired when its expiry date and time is reached (System); an Expired hold holds nothing and offers no Release | SCRUM-85 (copied from `target/state-model.md` v1.3, this story's slice) |
 
-The front end holds these words in `frontend/src/app/format.js` (`STATUS`); a change here changes that file in the same pull request. v1.12 adds Held and Released (`STATUS.HOLD`); v1.14 adds Cancelled to a venue booking request's words (`STATUS.BOOKING.CANCELLED`); v1.15's Venue unavailable is a flag, held there as `VENUE_UNAVAILABLE`.
+The front end holds these words in `frontend/src/app/format.js` (`STATUS`); a change here changes that file in the same pull request. v1.12 adds Held and Released (`STATUS.HOLD`); v1.18 adds Expired (`STATUS.HOLD.EXPIRED`); v1.14 adds Cancelled to a venue booking request's words (`STATUS.BOOKING.CANCELLED`); v1.15's Venue unavailable is a flag, held there as `VENUE_UNAVAILABLE`.
 
 ## Event request
 
@@ -108,13 +109,17 @@ stateDiagram-v2
 | — | Held | Place a hold (expiry required, in the future and before the event's start) | Assigned Event Coordinator |
 | Held | Released | Release before expiry | Assigned Event Coordinator |
 | Held | Released | A booking request for the same venue and event is approved | System |
+| Held | Expired | Expiry date and time reached | System |
 
-Only a Held hold makes the venue unavailable. A hold is never a booking and never counts as an approved arrangement (SCRUM-84). The period a hold covers is its event's own period widened by the venue's setup and turnaround time, derived at every read like a booking's occupied period and never stored, so changing either duration moves it. Both expiry limits are strict: the expiry must be after now (`clock.now_local()`) and before the event's published start, not the start of its occupied period. A hold is refused when another event's Approved booking or Held hold, or a block, overlaps that period; periods that only touch do not. An event holds a venue at most once at a time (PO decision at curation). Expired, and what happens when the expiry is reached, is SCRUM-85's.
+Only a Held hold makes the venue unavailable. A hold is never a booking and never counts as an approved arrangement (SCRUM-84, SCRUM-85). The period a hold covers is its event's own period widened by the venue's setup and turnaround time, derived at every read like a booking's occupied period and never stored, so changing either duration moves it. Both expiry limits are strict: the expiry must be after now (`clock.now_local()`) and before the event's published start, not the start of its occupied period. A hold is refused when another event's Approved booking or Held hold, or a block, overlaps that period; periods that only touch do not. An event holds a venue at most once at a time (PO decision at curation); a Released or Expired hold does not count, so the venue may be held again.
+
+A hold stops holding when the current time (`clock.now_local()`) reaches its expiry: equal counts, one minute before it still holds (SCRUM-85). There is no scheduler: at the start of every API request the system saves a Held hold whose expiry has been reached as Expired and tells the event's assigned Event Coordinator it expired and the venue was released; a Held hold with 24 hours or less left gets one warning, recorded on the hold so it is never sent twice, and none once it has expired. Whether a hold holds also compares its expiry with the time, so it stops at exactly its expiry even before the next request saves it. Expiry never changes the event's status; with no assigned coordinator the hold still expires and nobody is told. An Expired hold offers no Release (SCRUM-85, PO decisions).
 
 ```mermaid
 stateDiagram-v2
     [*] --> Held: Place a hold
     Held --> Released: Release, or booking approved
+    Held --> Expired: Expiry reached
 ```
 
 ## Equipment reservation

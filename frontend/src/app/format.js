@@ -96,7 +96,8 @@ export const STATUS = Object.freeze({
   RESERVATION: group(['Reserved', 'Released']),
   UNIT: group(['In Service', 'Out of Service']),
   REGISTRATION: group(['Registered', 'Withdrawn']),
-  HOLD: group(['Held', 'Released']),
+  // SCRUM-85 adds Expired: a Held hold whose expiry was reached.
+  HOLD: group(['Held', 'Released', 'Expired']),
 })
 
 // Status -> badge class (docs/design/ui-guidelines.md, Look). Keyed by the
@@ -121,6 +122,8 @@ const BADGE = Object.freeze({
   [STATUS.REQUIREMENT.DECLINED]: 'badge-danger',
   [STATUS.HOLD.HELD]: 'badge-warning',
   [STATUS.HOLD.RELEASED]: 'badge-neutral',
+  // SCRUM-85: Danger, so a lapsed hold reads apart from Held and Released.
+  [STATUS.HOLD.EXPIRED]: 'badge-danger',
 })
 
 // 'Submitted' -> 'badge badge-info'

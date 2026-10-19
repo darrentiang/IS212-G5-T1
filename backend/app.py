@@ -12,13 +12,18 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import sqlalchemy as sa
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 
 from areas import BLUEPRINTS
+from areas.bookings.services import check_hold_expiry
 from config import Config
 from db import db
 from errors import register_error_handlers
 from models import SCHEMA_VERSION, SchemaMeta
+
+# Infrastructure endpoints do no business work, so they never run the hold
+# check: /api/health must still answer when the database does not.
+INFRASTRUCTURE_PATHS = ("/api/health", "/api/ping")
 
 INSTANCE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "instance")
 
@@ -81,6 +86,15 @@ def create_app(config=None):
     # here. Everything a story adds goes in backend/areas/<area>/routes.py.
     for blueprint in BLUEPRINTS:
         app.register_blueprint(blueprint)
+
+    # SCRUM-85: there is no scheduler. Every API request first saves the hold
+    # expiries and warnings that fell due since the last one, before its own
+    # work, so its response already shows them. Registered after the
+    # blueprints, so it runs after auth has loaded the session's account.
+    @app.before_request
+    def expire_holds():
+        if request.path.startswith("/api/") and request.path not in INFRASTRUCTURE_PATHS:
+            check_hold_expiry()
 
     @app.route("/api/health")
     def health():

@@ -24,7 +24,11 @@ name the event that is asking: that event's own holds are never holders for it,
 so its own search still lists the venue, its own booking page warns of nothing,
 and approving its own request is not refused (AC6). Only holds are exempted;
 the event's own Approved bookings still hold the venue. Whether a hold is still
-holding is decided in is_holding alone, so SCRUM-85's expiry is one change.
+holding is decided in is_holding alone.
+
+SCRUM-85: a Held hold stops holding once its expiry is reached (is_holding),
+so search, approval, the warnings and the calendar all release the venue at
+the same moment.
 
 SCRUM-82: an Approved booking is Venue unavailable while a block of its venue
 overlaps its occupied period (blocks_over). The marker is derived at every
@@ -34,6 +38,8 @@ booking, or changing the venue's setup or turnaround time moves it at once.
 
 from datetime import datetime, timedelta
 from typing import NamedTuple
+
+import clock
 
 # Only a booking in this status takes the venue's time (SCRUM-33 AC3, AC4).
 HOLDING_BOOKING_STATUS = "Approved"
@@ -119,11 +125,15 @@ def hold_period(hold):
 
 
 def is_holding(hold):
-    """Whether a hold currently holds its venue (SCRUM-84 AC4, AC6, AC7).
+    """Whether a hold currently holds its venue (SCRUM-84 AC4, AC6, AC7; SCRUM-85 AC1).
 
-    The one place this is decided: SCRUM-85 adds the expiry test here.
+    The one place this is decided. A hold holds while it is Held and the
+    current time (clock.now_local()) is still before its expiry: reaching the
+    expiry exactly ends it, one minute before it still holds. Comparing with
+    the time here, not only the stored status, means a hold stops holding at
+    its expiry even before the expiry check has saved it as Expired.
     """
-    return hold.status == HOLDING_HOLD_STATUS
+    return hold.status == HOLDING_HOLD_STATUS and clock.now_local() < hold.expires_at
 
 
 def venue_holders(venue, starts_at, ends_at, asking_event=None):

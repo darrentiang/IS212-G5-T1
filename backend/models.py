@@ -45,7 +45,8 @@ from db import db
 # cancelled_at, cancelled_by), so 20.
 # SCRUM-48 adds structured equipment requirements, so 21.
 # SCRUM-81 adds requirement review metadata and arrangement notes.
-SCHEMA_VERSION = 22
+# SCRUM-85 adds a venue hold's expired_at and warning_sent_at, so 23.
+SCHEMA_VERSION = 23
 
 
 account_roles = db.Table(
@@ -455,13 +456,19 @@ class VenueHold(db.Model):
     request's raised_at. The period a hold covers is never stored: it is the
     event's own period widened by the venue's current setup and turnaround
     time (occupancy.hold_period), so a later change to either duration moves
-    it, as it moves a booking's. Expired is SCRUM-85's; this story has only
-    Held and Released.
+    it, as it moves a booking's.
+
+    SCRUM-85: a Held hold becomes Expired once its expiry is reached, recorded
+    by the first check at or after it (bookings.services.check_hold_expiry);
+    expired_at is when that check saved it. warning_sent_at is when the
+    24-hour warning was sent, and is what keeps it from being sent twice. Both
+    are naive local, like expires_at, since both are read from
+    clock.now_local(): a pinned clock pins them too.
     """
 
     __tablename__ = "venue_holds"
 
-    STATUSES = ("Held", "Released")
+    STATUSES = ("Held", "Released", "Expired")
 
     id = db.Column(db.Integer, primary_key=True)
     venue_id = db.Column(db.Integer, db.ForeignKey("venues.id"), nullable=False)
@@ -471,6 +478,8 @@ class VenueHold(db.Model):
     placed_by_id = db.Column(db.Integer, db.ForeignKey("accounts.id"), nullable=False)
     placed_at = db.Column(db.DateTime, nullable=False)
     released_at = db.Column(db.DateTime, nullable=True)
+    expired_at = db.Column(db.DateTime, nullable=True)
+    warning_sent_at = db.Column(db.DateTime, nullable=True)
 
     venue = db.relationship("Venue", backref="holds")
     event_request = db.relationship("EventRequest", backref="venue_holds")
