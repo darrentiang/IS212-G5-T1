@@ -9,9 +9,11 @@ import { test, expect, request as playwrightRequest } from '@playwright/test'
 // Planning), a coordinator raises a booking and venue1 approves it. "The
 // assigned coordinator" is whoever the approval assigned, read from the event.
 //
-// Rows 05, 06 and 07 wait for SCRUM-82 (the Venue unavailable marker) and
-// SCRUM-48/81 (equipment requirements). They are test.fixme: reported as
-// skipped, never as passed. Row 09 uses SCRUM-90's Request changes control.
+// Rows 05, 06 and 07 were pending SCRUM-82 (the Venue unavailable marker) and
+// SCRUM-48/81 (equipment requirements) and run now that those are merged: the
+// marker comes from a block venue1 puts over the Approved booking, and the
+// requirements are recorded by the assigned coordinator and reviewed by tech1
+// through the API. Row 09 uses SCRUM-90's Request changes control.
 
 const BASE_URL = 'http://localhost:5173'
 
@@ -103,6 +105,53 @@ async function planningEvent(name, offset, { venues = [], approve = true } = {})
     await staff.dispose()
   }
   return { id, name, coordinator: body.assigned_coordinator, bookingIds }
+}
+
+// A block venue1 puts over the venue for the whole day of offset, which marks
+// the event's Approved booking there Venue unavailable (SCRUM-82).
+async function blockVenue(venueId, offset) {
+  const staff = await apiAs('venue1')
+  const day = dateFor(offset)
+  const created = await staff.post(`/api/venues/${venueId}/blocks`, {
+    data: { start_date: day, start_time: '08:00', end_date: day, end_time: '20:00', reason: 'Maintenance for SCRUM-53' },
+  })
+  expect(created.status()).toBe(201)
+  await staff.dispose()
+}
+
+async function typeId(api, name) {
+  const types = await (await api.get('/api/equipment')).json()
+  const found = types.find((row) => row.name === name)
+  expect(found, `equipment type ${name}`).toBeTruthy()
+  return found.id
+}
+
+// The assigned coordinator records a requirement (it starts Requested); tech1
+// then approves it when approve is true (SCRUM-48 and SCRUM-81).
+async function recordRequirement(event, typeName, quantity, { approve = false } = {}) {
+  const coordinator = await apiAs(event.coordinator)
+  const recorded = await coordinator.post(`/api/requests/${event.id}/equipment`, {
+    data: { equipment_type_id: await typeId(coordinator, typeName), quantity },
+  })
+  expect(recorded.status()).toBe(201)
+  const { id } = await recorded.json()
+  await coordinator.dispose()
+  if (approve) {
+    const staff = await apiAs('tech1')
+    const decided = await staff.patch(`/api/requests/${event.id}/equipment/${id}/decision`, {
+      data: { decision: 'Approved' },
+    })
+    expect(decided.ok()).toBeTruthy()
+    await staff.dispose()
+  }
+  return id
+}
+
+async function requirementsOf(event) {
+  const staff = await apiAs('tech1')
+  const detail = await (await staff.get(`/api/requests/${event.id}/equipment`)).json()
+  await staff.dispose()
+  return detail.requirements.map((row) => `${row.equipment_type_name}, ${row.quantity} (${row.status})`)
 }
 
 async function openEvent(page, name) {
@@ -199,24 +248,60 @@ test('a booking request still awaiting a decision is refused, and every outstand
 // @test: an Approved booking marked Venue unavailable is refused and listed
 // @story: SCRUM-53
 // @ac: 2, 3
-test.fixme('an Approved booking marked Venue unavailable is refused and listed', async () => {
-  // PENDING SCRUM-82: no Venue unavailable marker exists yet.
+test('an Approved booking marked Venue unavailable is refused and listed', async ({ page }) => {
+  const venue = await ownVenue('TC53 Room 05')
+  const event = await planningEvent('SCRUM-53 TC-05 Blocked Gala', 5, { venues: [venue] })
+  await blockVenue(venue, 5)
+
+  await sendAs(page, event)
+
+  await expect(page.getByTestId('request-detail-banner')).toContainText(
+    'The booking at TC53 Room 05 is marked Venue unavailable',
+  )
+  await expect(page.getByTestId('request-detail-status')).toHaveText('Planning')
+  await page.reload()
+  await expect(page.getByTestId('request-detail-status')).toHaveText('Planning')
+  await expect(page.getByTestId('request-detail-safety-check-at')).toHaveCount(0)
+  const bookings = await (await page.request.get(`/api/venues/${venue}/bookings`)).json()
+  expect(bookings.filter((item) => item.event_request_name === event.name).map((item) => item.status)).toEqual([
+    'Approved',
+  ])
 })
 
 // @tc: TC-SCRUM-53-06
 // @test: an equipment requirement that is not Approved is refused and listed
 // @story: SCRUM-53
 // @ac: 2, 3
-test.fixme('an equipment requirement that is not Approved is refused and listed', async () => {
-  // PENDING SCRUM-48 and SCRUM-81: no equipment requirement exists yet.
+test('an equipment requirement that is not Approved is refused and listed', async ({ page }) => {
+  const venue = await ownVenue('TC53 Room 06')
+  const event = await planningEvent('SCRUM-53 TC-06 Gear Gala', 6, { venues: [venue] })
+  await recordRequirement(event, 'Projector', 2)
+
+  await sendAs(page, event)
+
+  await expect(page.getByTestId('request-detail-banner')).toContainText('Projector, 2 (Requested)')
+  await expect(page.getByTestId('request-detail-status')).toHaveText('Planning')
+  await page.reload()
+  await expect(page.getByTestId('request-detail-status')).toHaveText('Planning')
+  expect(await requirementsOf(event)).toEqual(['Projector, 2 (Requested)'])
 })
 
 // @tc: TC-SCRUM-53-07
 // @test: when every equipment requirement is Approved the event is sent
 // @story: SCRUM-53
 // @ac: 2
-test.fixme('when every equipment requirement is Approved the event is sent', async () => {
-  // PENDING SCRUM-48 and SCRUM-81: no equipment requirement exists yet.
+test('when every equipment requirement is Approved the event is sent', async ({ page }) => {
+  const venue = await ownVenue('TC53 Room 07')
+  const event = await planningEvent('SCRUM-53 TC-07 Ready Gear Gala', 7, { venues: [venue] })
+  await recordRequirement(event, 'Projector', 2, { approve: true })
+  await recordRequirement(event, 'Microphones', 3, { approve: true })
+
+  await sendAs(page, event)
+
+  await expect(page.getByTestId('request-detail-banner')).toHaveText('Sent for safety check')
+  await expect(page.getByTestId('request-detail-status')).toHaveText('Safety Check')
+  await expect(page.getByTestId('request-detail-safety-check-at')).toBeVisible()
+  expect(await requirementsOf(event)).toEqual(['Projector, 2 (Approved)', 'Microphones, 3 (Approved)'])
 })
 
 // @tc: TC-SCRUM-53-08
