@@ -31,13 +31,13 @@ def _target(account, event_id, requirement_id):
     return row
 
 
-def _write(row, values, *, message=None):
+def _write(row, values, *, decision=False, message=None):
     stage_allowed = exists().where(
         EventRequest.id == row.event_request_id,
         EventRequest.status.in_(EDITABLE_STATUSES),
     )
     conditions = [EquipmentRequirement.id == row.id, stage_allowed]
-    if message is not None:
+    if decision:
         conditions.append(~exists().where(
             Reservation.event_request_id == row.event_request_id,
             Reservation.equipment_type_id == row.equipment_type_id,
@@ -71,7 +71,7 @@ def decide(account, event_id, requirement_id, body):
         reason = value.strip()
     return _write(row, {"status": body["decision"], "decline_reason": reason,
                         "decided_by_id": account.id, "decided_at": datetime.now(timezone.utc)},
-                  message=_decision_message(row, body["decision"], reason))
+                  decision=True, message=_decision_message(row, body["decision"], reason))
 
 
 def _decision_message(row, decision, reason):

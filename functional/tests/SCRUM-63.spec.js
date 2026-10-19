@@ -389,10 +389,10 @@ test('Withdrawing a booking request notifies no one.', async ({ page }) => {
 // @ac: 8
 test("A decision notification appears in the coordinator's notifications list with the event name and is private to that coordinator.", async ({ page }) => {
   const f = setup(14)
-  // The unread number is this row's own: coord1's inbox is read first so no
-  // other spec's notice is counted.
+  // Other specs share coord1's inbox, so the row's "unread number is 1" is
+  // proved as one more than before the decision, leaving their rows untouched.
   const coord1 = await apiAs('coord1')
-  expect((await coord1.post('/api/notifications/mark-all-read')).status()).toBe(200)
+  const unreadBefore = (await (await coord1.get('/api/notifications/unread-count')).json()).unread_count
   await login(page, 'venue1')
   await approveBooking(page, f)
   await logout(page)
@@ -401,7 +401,7 @@ test("A decision notification appears in the coordinator's notifications list wi
   const id = await expectOneNotice(page, f.event,
     `Venue booking approved for ${f.event.name}: ${f.venue_a.name}, ${PERIOD}.`)
   await expect(page.getByTestId(`notifications-created-at-${id}`)).toHaveText(/^\d{2} \w{3} \d{4}, \d{2}:\d{2}$/)
-  await expect(page.getByTestId('layout-nav-notifications-count')).toHaveText('1')
+  await expect(page.getByTestId('layout-nav-notifications-count')).toHaveText(String(unreadBefore + 1))
   await logout(page)
 
   expect(await openNotifications(page, 'coord2', f.event)).toEqual([])
