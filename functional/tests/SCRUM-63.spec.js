@@ -12,8 +12,7 @@ import { fileURLToPath } from 'node:url'
 // found by the row's own event, never by counting the whole inbox.
 //
 // SCRUM-44 (reassignment) is not built, so TC08 stages its effect: the event
-// is assigned to coord2. There is no Event Coordinator Lead account yet, so
-// TC13 checks coord1 and venue1 only.
+// is assigned to coord2. The Event Coordinator Lead is lead1 (SCRUM-86).
 
 const script = fileURLToPath(new URL('../fixtures/scrum63.py', import.meta.url))
 const BASE_URL = 'http://localhost:5173'
@@ -381,6 +380,8 @@ test('Withdrawing a booking request notifies no one.', async ({ page }) => {
   expect(await noticesAbout(page, f.event)).toEqual([])
   await logout(page)
   expect(await openNotifications(page, 'venue1', f.event)).toEqual([])
+  await logout(page)
+  expect(await openNotifications(page, 'lead1', f.event)).toEqual([])
 })
 
 // @tc: TC-SCRUM-63-14
