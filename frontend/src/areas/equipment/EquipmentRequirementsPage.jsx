@@ -4,7 +4,7 @@ import Banner from '../../app/Banner'
 import { useAuth } from '../../app/auth'
 import { formatDateTime, formatPeriod, STATUS, statusBadgeClass } from '../../app/format'
 import { useReveal, useRevealError } from '../../app/reveal'
-import { addEquipmentRequirement, decideEquipmentRequirement, getEquipmentRequirements, listEquipment, removeEquipmentRequirement, updateEquipmentArrangementNote, updateEquipmentRequirement } from './api'
+import { addEquipmentRequirement, checkAvailability, decideEquipmentRequirement, getEquipmentRequirements, listEquipment, removeEquipmentRequirement, updateEquipmentArrangementNote, updateEquipmentRequirement } from './api'
 
 export default function EquipmentRequirementsPage() {
   const { id } = useParams()
@@ -27,6 +27,10 @@ function RequirementForm({ id }) {
   const [fieldError, setFieldError] = useState(null)
   const [busy, setBusy] = useState(false)
   const generation = useRef(0)
+  // SCRUM-50: the availability check for one recorded requirement; its result
+  // card is brought into view like every fresh result (ui-guidelines.md §13).
+  const [check, setCheck] = useState(null)
+  const resultRef = useReveal(check, null)
   const formRef = useReveal(action, action?.mode === 'approve' ? '[data-testid="equipment-requirements-review-cancel-button"]' : action?.mode === 'remove' ? '[data-testid="equipment-requirements-cancel-button"]' : 'input, select, textarea')
   useRevealError(formRef, fieldError)
   useEffect(() => {
@@ -47,6 +51,17 @@ function RequirementForm({ id }) {
   const reviewing = action && ['approve', 'decline', 'note'].includes(action.mode)
   const reviewAllowed = canReview && (action?.mode === 'note' || !action?.row?.has_unreleased_reservation)
   const available = types.filter((item) => !event?.requirements.some((row) => row.equipment_type_id === item.id))
+  const canCheck = can('equipment.check')
+  const runCheck = async (row) => {
+    setError(null)
+    setSuccess(null)
+    setCheck(null)
+    try {
+      setCheck({ rowId: row.id, data: await checkAvailability(row.equipment_type_id, { event_request_id: id, quantity: row.quantity }) })
+    } catch (failure) {
+      setError(failure.message)
+    }
+  }
   const open = (mode, row) => {
     setAction({ mode, row })
     setType('')
@@ -178,6 +193,21 @@ function RequirementForm({ id }) {
             {canEdit && row.status === STATUS.REQUIREMENT.REQUESTED && <div className="flex flex-wrap gap-2">
               <button className="btn btn-secondary" disabled={busy} data-testid={`equipment-requirements-edit-${row.id}`} onClick={() => open('edit', row)}>Change</button>
               <button className="btn btn-secondary" disabled={busy} data-testid={`equipment-requirements-remove-${row.id}`} onClick={() => open('remove', row)}>Remove</button>
+            </div>}
+            {canCheck && <div className="flex flex-wrap gap-2">
+              <button className="btn btn-secondary" disabled={busy} data-testid={`equipment-requirements-check-${row.id}`} onClick={() => runCheck(row)}>Check availability</button>
+            </div>}
+            {check?.rowId === row.id && <div ref={resultRef} className="card space-y-2" data-testid={`equipment-requirements-check-result-${row.id}`}>
+              <p data-testid={`equipment-requirements-check-period-${row.id}`}>Checked for {formatPeriod(event.date, event.start_time, event.end_time)}</p>
+              <dl className="detail-list">
+                <div><dt>Total units</dt><dd data-testid={`equipment-requirements-check-total-${row.id}`}>{check.data.total_units}</dd></div>
+                <div><dt>Reserved for the period</dt><dd data-testid={`equipment-requirements-check-reserved-${row.id}`}>{check.data.reserved_units}</dd></div>
+                <div><dt>Out of service</dt><dd data-testid={`equipment-requirements-check-out-of-service-${row.id}`}>{check.data.out_of_service_units}</dd></div>
+                <div><dt>Available</dt><dd data-testid={`equipment-requirements-check-available-${row.id}`}>{check.data.available_units}</dd></div>
+              </dl>
+              <p data-testid={`equipment-requirements-check-verdict-${row.id}`}>{check.data.covered
+                ? `Covered: the ${check.data.requested_units} requested are available.`
+                : `Short by ${check.data.short_by}: ${check.data.requested_units} requested, ${check.data.available_units} available.`}</p>
             </div>}
             {action?.row?.id === row.id && form}
           </li>)}</ul>

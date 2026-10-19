@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, request as playwrightRequest } from '@playwright/test'
 import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 
@@ -10,10 +10,15 @@ import { fileURLToPath } from 'node:url'
 // server command (the mechanism SCRUM-49 added). The check changes nothing, so
 // none of them is used up by running a row; row 11 proves that.
 //
-// Rows 08, 09 and 10 open the check from a recorded requirement, which
-// SCRUM-48 (record equipment required for an event) has not built. They are
-// test.fixme: reported as skipped, never as passed. The same rules are
-// proved at the API in backend/tests/test_equipment_availability.py.
+// Rows 08, 09 and 10 open the check from a recorded requirement on the
+// equipment requirements page (SCRUM-48). Their events, requirements and
+// reservations are staged by fixtures/scrum50.py, as SCRUM-48 and SCRUM-81 do,
+// because nothing in the app can reserve equipment yet (SCRUM-51). The same
+// rules are also proved at the API in backend/tests/test_equipment_availability.py.
+
+const fixtureScript = fileURLToPath(new URL('../fixtures/scrum50.py', import.meta.url))
+test.beforeAll(() => execFileSync('python', [fixtureScript], { encoding: 'utf8' }))
+test.afterAll(() => execFileSync('python', [fixtureScript, '--clear'], { encoding: 'utf8' }))
 
 async function login(page, username) {
   await page.goto('/login')
@@ -41,6 +46,30 @@ async function expectResult(page, { total, reserved, outOfService = '0', availab
   await expect(page.getByTestId('equipment-check-reserved')).toHaveText(reserved)
   await expect(page.getByTestId('equipment-check-out-of-service')).toHaveText(outOfService)
   await expect(page.getByTestId('equipment-check-available')).toHaveText(available)
+}
+
+// The staged event and its one requirement, found through the API as tech1.
+async function stagedRequirement(n) {
+  const staff = await playwrightRequest.newContext({ baseURL: 'http://localhost:5173' })
+  const logged = await staff.post('/api/login', { data: { username: 'tech1', password: 'Passw0rd!' } })
+  expect(logged.ok()).toBeTruthy()
+  const events = await (await staff.get('/api/equipment/requests')).json()
+  const event = events.find((row) => row.name === `SCRUM-50 TC${String(n).padStart(2, '0')} Requirement event`)
+  expect(event, `staged event ${n}`).toBeTruthy()
+  const detail = await (await staff.get(`/api/requests/${event.id}/equipment`)).json()
+  await staff.dispose()
+  return { event, requirement: detail.requirements[0] }
+}
+
+async function openRequirement(page, staged) {
+  await page.getByTestId('layout-nav-equipment-requirements').click()
+  await page.getByTestId(`equipment-requests-event-${staged.event.id}`).click()
+  await expect(page.getByTestId(`equipment-requirements-row-${staged.requirement.id}`)).toBeVisible()
+}
+
+async function checkRequirement(page, staged) {
+  await page.getByTestId(`equipment-requirements-check-${staged.requirement.id}`).click()
+  return (suffix) => page.getByTestId(`equipment-requirements-check-${suffix}-${staged.requirement.id}`)
 }
 
 // Read-only snapshot of the reservations of a type, as SCRUM-49's spec does.
@@ -148,24 +177,52 @@ test('a period whose start is after its end is refused', async ({ page }) => {
 // @test: opening the check from a recorded requirement uses the event's period and says it is covered
 // @story: SCRUM-50
 // @ac: 2, 7
-test.fixme("opening the check from a recorded requirement uses the event's period and says it is covered", async () => {
-  // PENDING SCRUM-48: no equipment requirement can be recorded yet.
+test("opening the check from a recorded requirement uses the event's period and says it is covered", async ({
+  page,
+}) => {
+  const staged = await stagedRequirement(8)
+  await login(page, 'tech1')
+  await openRequirement(page, staged)
+
+  const at = await checkRequirement(page, staged)
+
+  await expect(at('period')).toHaveText('Checked for 20 Feb 2027, 10:00–12:00')
+  await expect(at('total')).toHaveText('10')
+  await expect(at('reserved')).toHaveText('0')
+  await expect(at('available')).toHaveText('10')
+  await expect(at('verdict')).toHaveText('Covered: the 2 requested are available.')
 })
 
 // @tc: TC-SCRUM-50-09
 // @test: a requirement that cannot be fully covered shows how many units short it is
 // @story: SCRUM-50
 // @ac: 7
-test.fixme('a requirement that cannot be fully covered shows how many units short it is', async () => {
-  // PENDING SCRUM-48: no equipment requirement can be recorded yet.
+test('a requirement that cannot be fully covered shows how many units short it is', async ({ page }) => {
+  const staged = await stagedRequirement(9)
+  await login(page, 'tech1')
+  await openRequirement(page, staged)
+
+  const at = await checkRequirement(page, staged)
+
+  await expect(at('reserved')).toHaveText('5')
+  await expect(at('available')).toHaveText('5')
+  await expect(at('verdict')).toHaveText('Short by 3: 8 requested, 5 available.')
 })
 
 // @tc: TC-SCRUM-50-10
 // @test: the event's own reservation is not counted against its requirement
 // @story: SCRUM-50
 // @ac: 6
-test.fixme("the event's own reservation is not counted against its requirement", async () => {
-  // PENDING SCRUM-48: no equipment requirement can be recorded yet.
+test("the event's own reservation is not counted against its requirement", async ({ page }) => {
+  const staged = await stagedRequirement(10)
+  await login(page, 'tech1')
+  await openRequirement(page, staged)
+
+  const at = await checkRequirement(page, staged)
+
+  await expect(at('reserved')).toHaveText('0')
+  await expect(at('available')).toHaveText('5')
+  await expect(at('verdict')).toHaveText('Covered: the 4 requested are available.')
 })
 
 // @tc: TC-SCRUM-50-11
