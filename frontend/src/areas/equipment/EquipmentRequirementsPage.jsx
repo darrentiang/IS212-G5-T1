@@ -4,7 +4,7 @@ import Banner from '../../app/Banner'
 import { useAuth } from '../../app/auth'
 import { formatDateTime, formatPeriod, STATUS, statusBadgeClass } from '../../app/format'
 import { useReveal, useRevealError } from '../../app/reveal'
-import { addEquipmentRequirement, checkAvailability, decideEquipmentRequirement, getEquipmentRequirements, listEquipment, removeEquipmentRequirement, updateEquipmentArrangementNote, updateEquipmentRequirement } from './api'
+import { addEquipmentRequirement, checkAvailability, decideEquipmentRequirement, getEquipmentRequirements, listEquipment, removeEquipmentRequirement, releaseEquipment, reserveEquipment, updateEquipmentArrangementNote, updateEquipmentRequirement } from './api'
 
 export default function EquipmentRequirementsPage() {
   const { id } = useParams()
@@ -27,11 +27,13 @@ function RequirementForm({ id }) {
   const [fieldError, setFieldError] = useState(null)
   const [busy, setBusy] = useState(false)
   const generation = useRef(0)
+  const checkSequence = useRef(0)
   // SCRUM-50: the availability check for one recorded requirement; its result
   // card is brought into view like every fresh result (ui-guidelines.md §13).
   const [check, setCheck] = useState(null)
   const resultRef = useReveal(check, null)
-  const formRef = useReveal(action, action?.mode === 'approve' ? '[data-testid="equipment-requirements-review-cancel-button"]' : action?.mode === 'remove' ? '[data-testid="equipment-requirements-cancel-button"]' : 'input, select, textarea')
+  const reserving = action && ['reserve', 'release'].includes(action.mode)
+  const formRef = useReveal(action, reserving ? '[data-testid="equipment-requirements-reservation-cancel-button"]' : action?.mode === 'approve' ? '[data-testid="equipment-requirements-review-cancel-button"]' : action?.mode === 'remove' ? '[data-testid="equipment-requirements-cancel-button"]' : 'input, select, textarea')
   useRevealError(formRef, fieldError)
   useEffect(() => {
     const loaded = ++generation.current
@@ -48,6 +50,7 @@ function RequirementForm({ id }) {
   }, [id])
   const canEdit = can('equipment.requirements.edit') && [STATUS.REQUEST.APPROVED, STATUS.REQUEST.PLANNING].includes(event?.status)
   const canReview = can('equipment.requirements.review') && [STATUS.REQUEST.APPROVED, STATUS.REQUEST.PLANNING].includes(event?.status)
+  const canReserve = can('equipment.reserve') && [STATUS.REQUEST.APPROVED, STATUS.REQUEST.PLANNING].includes(event?.status)
   const reviewing = action && ['approve', 'decline', 'note'].includes(action.mode)
   const reviewAllowed = canReview && (action?.mode === 'note' || !action?.row?.has_unreleased_reservation)
   const available = types.filter((item) => !event?.requirements.some((row) => row.equipment_type_id === item.id))
@@ -56,10 +59,14 @@ function RequirementForm({ id }) {
     setError(null)
     setSuccess(null)
     setCheck(null)
+    const checkedGeneration = generation.current
+    const sequence = ++checkSequence.current
+    const current = () => generation.current === checkedGeneration && checkSequence.current === sequence
     try {
-      setCheck({ rowId: row.id, data: await checkAvailability(row.equipment_type_id, { event_request_id: id, quantity: row.quantity }) })
+      const data = await checkAvailability(row.equipment_type_id, { event_request_id: id, quantity: row.quantity })
+      if (current()) setCheck({ rowId: row.id, data })
     } catch (failure) {
-      setError(failure.message)
+      if (current()) setError(failure.message)
     }
   }
   const open = (mode, row) => {
@@ -80,7 +87,7 @@ function RequirementForm({ id }) {
       setFieldError({ message: 'A decline reason is required.' })
       return
     }
-    if (!reviewing && action.mode !== 'remove' && (!quantity.trim() || (action.mode === 'add' && !type))) {
+    if (!reviewing && !reserving && action.mode !== 'remove' && (!quantity.trim() || (action.mode === 'add' && !type))) {
       setFieldError({ message: 'Equipment type and quantity are required.' })
       return
     }
@@ -89,7 +96,11 @@ function RequirementForm({ id }) {
     const submittedGeneration = generation.current
     try {
       let saved
-      if (reviewing) {
+      if (reserving) {
+        saved = action.mode === 'reserve'
+          ? await reserveEquipment(id, action.row.id)
+          : await releaseEquipment(id, action.row.id)
+      } else if (reviewing) {
         saved = action.mode === 'note'
           ? await updateEquipmentArrangementNote(id, action.row.id, { arrangement_note: reviewText })
           : await decideEquipmentRequirement(id, action.row.id, {
@@ -105,7 +116,15 @@ function RequirementForm({ id }) {
           : await updateEquipmentRequirement(id, action.row.id, body)
       }
       if (generation.current !== submittedGeneration) return
-      if (reviewing) {
+      if (reserving) {
+        setEvent((value) => ({ ...value,
+          requirements: saved.requirement ? value.requirements.map((row) => row.id === saved.requirement.id ? saved.requirement : row) : value.requirements,
+          reservations: [...(value.reservations || []).filter((row) => row.id !== saved.reservation.id), saved.reservation].sort((a, b) => a.id - b.id),
+        }))
+        checkSequence.current += 1
+        setCheck(null)
+        setSuccess(action.mode === 'reserve' ? 'Equipment reserved' : 'Equipment reservation released')
+      } else if (reviewing) {
         setEvent((value) => ({ ...value, requirements: value.requirements.map((row) => row.id === saved.id ? saved : row) }))
         setSuccess(action.mode === 'note' ? 'Arrangement note updated' : action.mode === 'approve' ? 'Equipment requirement approved' : 'Equipment requirement declined')
       } else if (action.mode === 'remove') {
@@ -124,7 +143,15 @@ function RequirementForm({ id }) {
       if (generation.current === submittedGeneration) setBusy(false)
     }
   }
-  const form = action && (reviewing ? reviewAllowed && <form noValidate ref={formRef} onSubmit={submit} className="space-y-4" data-testid="equipment-requirements-review-form">
+  const form = action && (reserving ? canReserve && <form noValidate ref={formRef} onSubmit={submit} className="space-y-4" data-testid="equipment-requirements-reservation-form">
+    <h3 className="section-title">{action.mode === 'reserve' ? 'Reserve equipment?' : 'Release reservation?'}</h3>
+    <p>{action.row.equipment_type_name} × {action.row.quantity}</p>
+    <p>{action.mode === 'reserve' ? 'Reserve the full Approved requirement quantity for this event.' : 'Release these units while preserving the reservation record.'}</p>
+    <div className="flex gap-2">
+      <button className="btn btn-primary" disabled={busy} data-testid="equipment-requirements-reservation-save-button">{action.mode === 'reserve' ? 'Reserve' : 'Release'}</button>
+      <button className="btn btn-secondary" type="button" disabled={busy} data-testid="equipment-requirements-reservation-cancel-button" onClick={() => setAction(null)}>Cancel</button>
+    </div>
+  </form> : reviewing ? reviewAllowed && <form noValidate ref={formRef} onSubmit={submit} className="space-y-4" data-testid="equipment-requirements-review-form">
     <h3 className="section-title">{action.mode === 'approve' ? 'Approve requirement?' : action.mode === 'decline' ? 'Decline requirement' : 'Change arrangement note'}</h3>
     <p>{action.row.equipment_type_name} × {action.row.quantity}</p>
     {action.mode === 'approve' ? <p>Approval does not reserve equipment.</p> : <div>
@@ -194,6 +221,7 @@ function RequirementForm({ id }) {
               <button className="btn btn-secondary" disabled={busy} data-testid={`equipment-requirements-edit-${row.id}`} onClick={() => open('edit', row)}>Change</button>
               <button className="btn btn-secondary" disabled={busy} data-testid={`equipment-requirements-remove-${row.id}`} onClick={() => open('remove', row)}>Remove</button>
             </div>}
+            {canReserve && row.status === STATUS.REQUIREMENT.APPROVED && !row.has_unreleased_reservation && <button className="btn btn-secondary" disabled={busy} data-testid={`equipment-requirements-reserve-${row.id}`} onClick={() => open('reserve', row)}>Reserve</button>}
             {canCheck && <div className="flex flex-wrap gap-2">
               <button className="btn btn-secondary" disabled={busy} data-testid={`equipment-requirements-check-${row.id}`} onClick={() => runCheck(row)}>Check availability</button>
             </div>}
@@ -209,11 +237,21 @@ function RequirementForm({ id }) {
                 ? `Covered: the ${check.data.requested_units} requested are available.`
                 : `Short by ${check.data.short_by}: ${check.data.requested_units} requested, ${check.data.available_units} available.`}</p>
             </div>}
-            {action?.row?.id === row.id && form}
+            {action?.mode !== 'release' && action?.row?.id === row.id && form}
           </li>)}</ul>
           {canEdit && available.length > 0 && <button className="btn btn-primary" disabled={busy} data-testid="equipment-requirements-add-button" onClick={() => open('add')}>Add requirement</button>}
           {action?.mode === 'add' && form}
-
+        </section>
+        <section className="card space-y-4">
+          <h2 className="section-title">Equipment reservations</h2>
+          {!(event.reservations || []).length && <p data-testid="equipment-requirements-reservations-empty">No equipment reservations.</p>}
+          <ul className="space-y-4">{(event.reservations || []).map((row) => <li className="space-y-2" key={row.id} data-testid={`equipment-requirements-reservation-${row.id}`}>
+            <p><strong>{row.equipment_type_name}</strong> × {row.quantity}</p>
+            <p data-testid={`equipment-requirements-reservation-period-${row.id}`}>{formatPeriod(row.date, row.start_time, row.end_time)}</p>
+            <p data-testid={`equipment-requirements-reservation-status-${row.id}`}>{row.status}</p>
+            {canReserve && row.status === STATUS.RESERVATION.RESERVED && <button className="btn btn-secondary" disabled={busy} data-testid={`equipment-requirements-release-${row.id}`} onClick={() => open('release', row)}>Release</button>}
+            {action?.mode === 'release' && action.row.id === row.id && form}
+          </li>)}</ul>
         </section>
       </>}
     </div>

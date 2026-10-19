@@ -27,6 +27,7 @@ EQUIPMENT_CHECK = "equipment.check"  # SCRUM-50: check availability for a period
 EQUIPMENT_REQUIREMENTS_VIEW = "equipment.requirements.view"
 EQUIPMENT_REQUIREMENTS_EDIT = "equipment.requirements.edit"
 EQUIPMENT_REQUIREMENTS_REVIEW = "equipment.requirements.review"
+EQUIPMENT_RESERVE = "equipment.reserve"  # SCRUM-51: Technical Support Staff only
 EQUIPMENT_EDIT = "equipment.edit"  # SCRUM-49: change an equipment type's total units
 REGISTRATION_VIEW = "registration.view"
 INTERNAL_NOTES_VIEW = "internal_notes.view"
@@ -49,6 +50,7 @@ ALL_FEATURES = frozenset(
         EQUIPMENT_REQUIREMENTS_VIEW,
         EQUIPMENT_REQUIREMENTS_EDIT,
         EQUIPMENT_REQUIREMENTS_REVIEW,
+        EQUIPMENT_RESERVE,
         EQUIPMENT_EDIT,
         REGISTRATION_VIEW,
         INTERNAL_NOTES_VIEW,
@@ -90,6 +92,7 @@ ROLE_FEATURES = {
         EQUIPMENT_REQUIREMENTS_REVIEW,
         EQUIPMENT_VIEW,
         EQUIPMENT_CHECK,  # SCRUM-50 AC9: check availability for a period
+        EQUIPMENT_RESERVE,
         EQUIPMENT_EDIT,  # SCRUM-49 AC2/AC7: change a type's total units
         NOTIFICATIONS_VIEW,
     },

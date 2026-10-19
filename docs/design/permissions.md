@@ -28,7 +28,8 @@ Kept current by every story that adds an action: the row is added or changed in 
 | View detailed equipment requirements | No | Assigned coordinator | No | Non-Draft events | Approved requirements, events in Safety Check | No |
 | Add requirements, or change/remove Requested requirements while event Approved or Planning | No | Assigned coordinator | No | No | No | No |
 | Review equipment requirements or change arrangement notes while event Approved or Planning | No | No | No | Yes | No | No |
-| Maintain equipment inventory; reserve or release; withdraw from service | No | No | No | Yes | No | No |
+| Reserve or release equipment while event Approved or Planning | No | No | No | Yes | No | No |
+| Maintain equipment inventory; withdraw from service | No | No | No | Yes | No | No |
 | View confirmed events open for registration | No | Yes | No | No | No | Yes |
 | Register or withdraw registration | No | No | No | No | No | Own only |
 | Raise a change request on a confirmed event | Own only | No | No | No | No | No |
@@ -59,6 +60,7 @@ Keys used in `backend/permissions.py` and on API routes / `features` from `/api/
 | equipment.requirements.view | No | Yes | No | Yes | No | No |
 | equipment.requirements.edit | No | Yes | No | No | No | No |
 | equipment.requirements.review | No | No | No | Yes | No | No |
+| equipment.reserve | No | No | No | Yes | No | No |
 | equipment.edit | No | No | No | Yes | No | No |
 | registration.view | No | Yes | No | No | No | Yes |
 | internal_notes.view | No | Yes | No | No | No | No |
@@ -94,5 +96,16 @@ Keys used in `backend/permissions.py` and on API routes / `features` from `/api/
 | 1.21 | 15-10-2026 | "Cancel an approved venue booking" row, assigned coordinator only, on `bookings.edit` (no new feature key; the assigned-only rule is enforced in the service and answers 404 to anyone else, the write rule); an event's booking requests are read on `venues.view`, the existing "View venues, venue booking requests and venue holds" row | Week 7 customer change 3; SCRUM-83 (this story's slice of `target/permissions.md`, which puts cancelling in the same row as raising a booking request) |
 | 1.22 | 16-10-2026 | "View detailed equipment requirements" and "Add requirements, or change/remove Requested requirements while event Approved or Planning" rows; `equipment.requirements.view` (assigned Coordinator; Technical Support Staff, non-Draft events) and `equipment.requirements.edit` (assigned Coordinator only, Approved/Planning only); Rule \* now records that assigned-coordinator ownership is enforced on these rows and folds in the scoped-read and Safety Officer notes | SCRUM-48: structured equipment requirements, scoped reads rather than general Technical Support event access |
 | 1.23 | 18-10-2026 | `equipment.requirements.review`, Technical Support Staff only; decisions require no Reserved reservation for the event/type, notes do not | SCRUM-81 AC2–4; existing scoped reads unchanged |
+| 1.24 | 19-10-2026 | `equipment.reserve`, TSS only, with Approved/Planning reserve/release and scoped history | SCRUM-51 AC1–7 |
 
 SCRUM-81: Technical Support may decide or correct a requirement only while the event is Approved or Planning and no reservation for the same event/type is Reserved. Released history does not block a decision. Arrangement notes remain editable in those event stages even with a Reserved reservation. These mutations grant no general event-request access.
+
+
+## SCRUM-51 reservation access (v1.24, 19-10-2026)
+
+`equipment.reserve` is Technical Support Staff only. Reserve/release require an
+Approved or Planning event; reserving additionally requires an Approved
+requirement and no Reserved reservation for its event/type. Read history uses
+`equipment.requirements.view`: assigned Coordinator, or Technical Support for
+non-Draft events. A different Coordinator's read is 403; missing objects are
+404. No new role or event status is introduced. Multi-role access is a union.

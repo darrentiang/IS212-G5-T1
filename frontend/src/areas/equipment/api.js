@@ -79,3 +79,24 @@ export const decideEquipmentRequirement = (id, requirementId, data) =>
 // 400/401/403/404/409: {message}, no mutation. Neither action changes stock.
 export const updateEquipmentArrangementNote = (id, requirementId, data) =>
   request('PATCH', `/api/requests/${id}/equipment/${requirementId}/note`, data)
+
+
+// SCRUM-51: scoped reservation history; same read access as equipment context.
+// GET /api/requests/:id/equipment/reservations -> Reservation[]; 401/403/404.
+// The equipment context also includes reservations: Reservation[].
+// Reservation = {id,event_request_id,equipment_type_id,equipment_type_name,
+//                quantity,date,start_time,end_time,status:'Reserved'|'Released'}.
+export const listEquipmentReservations = (id) =>
+  request('GET', `/api/requests/${id}/equipment/reservations`)
+
+// POST /api/requests/:id/equipment/:requirementId/reserve; no input quantity.
+// Full Approved requirement quantity; Approved/Planning; no unreleased duplicate;
+// current period availability rechecked transactionally. 201: {reservation,requirement}.
+// POST /api/requests/:id/equipment/reservations/:reservationId/release;
+// Reserved -> Released in Approved/Planning. 200: {reservation,requirement|null}.
+// Both: equipment.reserve (TSS); 401/403/404/409 {message}; refusals change nothing.
+// Decision-lock flag in requirement is recomputed; no stock/review/stage mutation.
+export const reserveEquipment = (id, requirementId) =>
+  request('POST', `/api/requests/${id}/equipment/${requirementId}/reserve`)
+export const releaseEquipment = (id, reservationId) =>
+  request('POST', `/api/requests/${id}/equipment/reservations/${reservationId}/release`)

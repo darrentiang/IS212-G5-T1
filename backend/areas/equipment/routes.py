@@ -1,8 +1,7 @@
 """Equipment and reservations — Jira area(s) 15, 16, 17 (docs/design/frontend.md §2).
 
 SCRUM-49: read the inventory and change a type's total units. There is no
-create, rename, delete or retire endpoint for types (handoff scope), and no
-reservation endpoints — reserve/release workflows are SCRUM-51's.
+create, rename, delete or retire endpoint for types (handoff scope), and reservation endpoints for types. SCRUM-51 adds event-scoped reserve/release.
 Reading is equipment.view (Technical Support Staff and Event Coordinator);
 writing is equipment.edit (Technical Support Staff only) — enforced here by
 the route decorators, independent of any hidden control in the UI
@@ -16,8 +15,8 @@ holds equipment.view and still may not run it).
 
 from flask import Blueprint, g, jsonify, request
 
-from areas.equipment import requirements, review, services
-from permissions import (EQUIPMENT_CHECK, EQUIPMENT_EDIT, EQUIPMENT_VIEW,
+from areas.equipment import requirements, reservations, review, services
+from permissions import (EQUIPMENT_CHECK, EQUIPMENT_EDIT, EQUIPMENT_VIEW, EQUIPMENT_RESERVE,
                          EQUIPMENT_REQUIREMENTS_VIEW, EQUIPMENT_REQUIREMENTS_EDIT,
                          EQUIPMENT_REQUIREMENTS_REVIEW, require)
 
@@ -93,3 +92,22 @@ def decide_requirement(event_id, requirement_id):
 def note_requirement(event_id, requirement_id):
     row = review.update_note(g.account, event_id, requirement_id, request.get_json(silent=True))
     return jsonify(row.to_dict()), 200
+
+
+@bp.get("/requests/<int:event_id>/equipment/reservations")
+@require(EQUIPMENT_REQUIREMENTS_VIEW)
+def list_reservations(event_id):
+    return jsonify(reservations.list_for_event(g.account, event_id))
+
+
+@bp.post("/requests/<int:event_id>/equipment/<int:requirement_id>/reserve")
+@require(EQUIPMENT_RESERVE)
+def reserve_requirement(event_id, requirement_id):
+    # No quantity/period input: authoritative values come from the requirement/event.
+    return jsonify(reservations.reserve(g.account, event_id, requirement_id)), 201
+
+
+@bp.post("/requests/<int:event_id>/equipment/reservations/<int:reservation_id>/release")
+@require(EQUIPMENT_RESERVE)
+def release_reservation(event_id, reservation_id):
+    return jsonify(reservations.release(g.account, event_id, reservation_id)), 200

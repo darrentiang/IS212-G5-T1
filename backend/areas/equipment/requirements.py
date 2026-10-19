@@ -40,10 +40,12 @@ def list_events(account):
 
 
 def detail(account, event_id):
+    from areas.equipment.reservations import list_for_event
     event = _event(account, event_id)
     return {
         "id": event.id, "name": event.name, "status": event.status,
         "date": event.date, "start_time": event.start_time, "end_time": event.end_time,
+        "reservations": list_for_event(account, event_id),
         "requirements": [row.to_dict() for row in sorted(event.equipment_items, key=lambda row: row.id)],
         "approved_venue_bookings": [
             {"id": row.id, "venue_name": row.venue.name,
