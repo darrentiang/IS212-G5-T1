@@ -2,73 +2,75 @@
 
 Kept current by every story that adds an action: the row is added or changed in the same pull request. An account may hold more than one role (customer clarification Q-06); it may do anything any of its roles allows (decision D-09).
 
-| Action | Event Organiser | Event Coordinator | Venue Staff | Technical Support Staff | Safety Officer | Attendee |
-|---|---|---|---|---|---|---|
-| Create, edit (while Draft), delete (while Draft), submit own event request | Own only | No | No | No | No | No |
-| Resubmit own rejected request | Own only | No | No | No | No | No |
-| View event requests | Own only | All except Draft | No | No | Events in Safety Check | No |
-| Edit an event during Planning | No | Assigned coordinator only | No | No | No | No |
-| Approve or reject an event request; request clarification | No | Yes | No | No | No | No |
-| View event request resulting status and any reason | Own only | Yes | No | No | No | No |
-| Reassign an event | No | Assigned coordinator initiates; new coordinator accepts | No | No | No | No |
-| Send for safety check, cancel, mark completed | No | Assigned coordinator | No | No | No | No |
-| View venues, venue booking requests and venue holds | No | Yes | Yes | No | No | No |
-| View a venue's availability calendar | No | Yes | Yes | No | No | No |
-| Search venues free on an Approved or Planning event's dates and large enough for its attendance | No | Yes | No | No | No | No |
-| Maintain venue records and layouts; block a venue | No | No | Yes | No | No | No |
-| Raise a venue booking request | No | Yes* | No | No | No | No |
-| Withdraw a venue booking request before a decision | No | Own only (whoever raised it) | No | No | No | No |
-| Place or release a venue hold | No | Assigned coordinator | No | No | No | No |
-| Cancel an approved venue booking | No | Assigned coordinator | No | No | No | No |
-| See warnings that a venue appears unsuitable for an event, before raising a venue booking request | No | Yes* | No | No | No | No |
-| Approve or reject a venue booking | No | No | Yes | No | No | No |
-| Approve, reject or request changes on a safety check | No | No | No | No | Yes | No |
-| View equipment inventory | No | Yes | No | Yes | No | No |
-| Check equipment availability for a period (SCRUM-50) | No | No | No | Yes | No | No |
-| View detailed equipment requirements | No | Assigned coordinator | No | Non-Draft events | Approved requirements, events in Safety Check | No |
-| Add requirements, or change/remove Requested requirements while event Approved or Planning | No | Assigned coordinator | No | No | No | No |
-| Review equipment requirements or change arrangement notes while event Approved or Planning | No | No | No | Yes | No | No |
-| Reserve or release equipment while event Approved or Planning | No | No | No | Yes | No | No |
-| Maintain equipment inventory; withdraw from service | No | No | No | Yes | No | No |
-| View confirmed events open for registration | No | Yes | No | No | No | Yes |
-| Register or withdraw registration | No | No | No | No | No | Own only |
-| Raise a change request on a confirmed event | Own only | No | No | No | No | No |
-| Decide a change request | No | Assigned coordinator | No | No | No | No |
-| View internal planning information (coordinator notes, booking requests, equipment requirements, decisions, reasons) | No | Yes | Venue-related only | Equipment-related only | Events in Safety Check | Never |
-| View, open and mark own notifications as read | Yes | Yes | Yes | Yes | Yes | Yes |
+| Action | Event Organiser | Event Coordinator | Event Coordinator Lead | Venue Staff | Technical Support Staff | Safety Officer | Attendee |
+|---|---|---|---|---|---|---|---|
+| Create, edit (while Draft), delete (while Draft), submit own event request | Own only | No | No | No | No | No | No |
+| Resubmit own rejected request | Own only | No | No | No | No | No | No |
+| View event requests | Own only | All except Draft | Unassigned queue; requests that have a coordinator, read-only | No | No | Events in Safety Check | No |
+| Assign a coordinator to a request in the unassigned queue | No | No | Yes | No | No | No | No |
+| Edit an event during Planning | No | Assigned coordinator only | No | No | No | No | No |
+| Approve or reject an event request; request clarification | No | Yes | No | No | No | No | No |
+| View event request resulting status and any reason | Own only | Yes | Yes | No | No | No | No |
+| Reassign an event | No | Assigned coordinator initiates; new coordinator accepts | No | No | No | No | No |
+| Send for safety check, cancel, mark completed | No | Assigned coordinator | No | No | No | No | No |
+| View venues, venue booking requests and venue holds | No | Yes | No | Yes | No | No | No |
+| View a venue's availability calendar | No | Yes | No | Yes | No | No | No |
+| Search venues free on an Approved or Planning event's dates and large enough for its attendance | No | Yes | No | No | No | No | No |
+| Maintain venue records and layouts; block a venue | No | No | No | Yes | No | No | No |
+| Raise a venue booking request | No | Yes* | No | No | No | No | No |
+| Withdraw a venue booking request before a decision | No | Own only (whoever raised it) | No | No | No | No | No |
+| Place or release a venue hold | No | Assigned coordinator | No | No | No | No | No |
+| Cancel an approved venue booking | No | Assigned coordinator | No | No | No | No | No |
+| See warnings that a venue appears unsuitable for an event, before raising a venue booking request | No | Yes* | No | No | No | No | No |
+| Approve or reject a venue booking | No | No | No | Yes | No | No | No |
+| Approve, reject or request changes on a safety check | No | No | No | No | No | Yes | No |
+| View equipment inventory | No | Yes | No | No | Yes | No | No |
+| Check equipment availability for a period (SCRUM-50) | No | No | No | No | Yes | No | No |
+| View detailed equipment requirements | No | Assigned coordinator | No | No | Non-Draft events | Approved requirements, events in Safety Check | No |
+| Add requirements, or change/remove Requested requirements while event Approved or Planning | No | Assigned coordinator | No | No | No | No | No |
+| Review equipment requirements or change arrangement notes while event Approved or Planning | No | No | No | No | Yes | No | No |
+| Reserve or release equipment while event Approved or Planning | No | No | No | No | Yes | No | No |
+| Maintain equipment inventory; withdraw from service | No | No | No | No | Yes | No | No |
+| View confirmed events open for registration | No | Yes | No | No | No | No | Yes |
+| Register or withdraw registration | No | No | No | No | No | No | Own only |
+| Raise a change request on a confirmed event | Own only | No | No | No | No | No | No |
+| Decide a change request | No | Assigned coordinator | No | No | No | No | No |
+| View internal planning information (coordinator notes, booking requests, equipment requirements, decisions, reasons) | No | Yes | No | Venue-related only | Equipment-related only | Events in Safety Check | Never |
+| View, open and mark own notifications as read | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
 
 Rule: an action not listed as permitted for any of the account's roles is refused, a message is shown, and no data changes.
 
 Rule: when the refusal is object-level (the role is right but this particular record is not the account's to touch — "own only" and "events in Safety Check" above), a read (GET) answers 403: it may say a record exists that the account cannot open. A write (create, edit, submit, delete) instead answers 404: what another account is allowed to change never confirms that the record exists at all. Established by SCRUM-27 (reads) and SCRUM-28 (writes); kept by every story since. Not to be "corrected" into one status code for both.
 
-Rule: \* "Assigned coordinator" is a real restriction on the equipment requirement rows (SCRUM-48): only the event's assigned Event Coordinator may add, change or remove them, and reads are scoped the same way — Technical Support Staff sees a non-Draft event's timing, Approved venue bookings and the requirements themselves, never the request's private fields, and a Safety Officer sees Approved requirements through the existing Safety Check view. It is not yet a real restriction on the rows marked \*: SCRUM-43 now records the coordinator the system auto-assigns at Approved → Planning (state-model.md), but SCRUM-36 is the first story to need the rule enforced and could not build it without inventing the assignment mechanism itself, so for now any Event Coordinator may raise a venue booking request for any Approved or Planning event (team decision, 07-10-2026), and the suitability warnings row is \* for the same reason. Narrow those back to the assigned coordinator once that story exists. Withdrawing is unaffected either way: SCRUM-77 restricts it to whoever raised that specific booking, not to the event's assigned coordinator, so there is nothing to narrow there later.
+Rule: \* "Assigned coordinator" is a real restriction on the equipment requirement rows (SCRUM-48): only the event's assigned Event Coordinator may add, change or remove them, and reads are scoped the same way — Technical Support Staff sees a non-Draft event's timing, Approved venue bookings and the requirements themselves, never the request's private fields, and a Safety Officer sees Approved requirements through the existing Safety Check view. It is not yet a real restriction on the rows marked \*: SCRUM-86 now records the coordinator the Event Coordinator Lead assigns from the unassigned queue (state-model.md), but SCRUM-36 is the first story to need the rule enforced and could not build it without inventing the assignment mechanism itself, so for now any Event Coordinator may raise a venue booking request for any Approved or Planning event (team decision, 07-10-2026), and the suitability warnings row is \* for the same reason. Narrow those back to the assigned coordinator once that story exists. Withdrawing is unaffected either way: SCRUM-77 restricts it to whoever raised that specific booking, not to the event's assigned coordinator, so there is nothing to narrow there later.
 
 ## Feature keys
 
 Keys used in `backend/permissions.py` and on API routes / `features` from `/api/me`. A pytest asserts this table matches `ROLE_FEATURES` in code (ADR-002). Object rules ("own only", "all except Draft", "events in Safety Check") stay in services, not in this table.
 
-| Key | Event Organiser | Event Coordinator | Venue Staff | Technical Support Staff | Safety Officer | Attendee |
-|---|---|---|---|---|---|---|
-| requests.view | Yes | Yes | No | No | Yes | No |
-| requests.edit | Yes | Yes | No | No | No | No |
-| requests.decide | No | Yes | No | No | No | No |
-| venues.view | No | Yes | Yes | No | No | No |
-| venues.edit | No | No | Yes | No | No | No |
-| venues.search | No | Yes | No | No | No | No |
-| equipment.view | No | Yes | No | Yes | No | No |
-| equipment.check | No | No | No | Yes | No | No |
-| equipment.requirements.view | No | Yes | No | Yes | No | No |
-| equipment.requirements.edit | No | Yes | No | No | No | No |
-| equipment.requirements.review | No | No | No | Yes | No | No |
-| equipment.reserve | No | No | No | Yes | No | No |
-| equipment.edit | No | No | No | Yes | No | No |
-| registration.view | No | Yes | No | No | No | Yes |
-| internal_notes.view | No | Yes | No | No | No | No |
-| notifications.view | Yes | Yes | Yes | Yes | Yes | Yes |
-| bookings.edit | No | Yes | No | No | No | No |
-| bookings.decide | No | No | Yes | No | No | No |
-| safety.send | No | Yes | No | No | No | No |
-| safety.decide | No | No | No | No | Yes | No |
+| Key | Event Organiser | Event Coordinator | Event Coordinator Lead | Venue Staff | Technical Support Staff | Safety Officer | Attendee |
+|---|---|---|---|---|---|---|---|
+| requests.view | Yes | Yes | Yes | No | No | Yes | No |
+| requests.edit | Yes | Yes | No | No | No | No | No |
+| requests.decide | No | Yes | No | No | No | No | No |
+| venues.view | No | Yes | No | Yes | No | No | No |
+| venues.edit | No | No | No | Yes | No | No | No |
+| venues.search | No | Yes | No | No | No | No | No |
+| equipment.view | No | Yes | No | No | Yes | No | No |
+| equipment.check | No | No | No | No | Yes | No | No |
+| equipment.requirements.view | No | Yes | No | No | Yes | No | No |
+| equipment.requirements.edit | No | Yes | No | No | No | No | No |
+| equipment.requirements.review | No | No | No | No | Yes | No | No |
+| equipment.reserve | No | No | No | No | Yes | No | No |
+| equipment.edit | No | No | No | No | Yes | No | No |
+| registration.view | No | Yes | No | No | No | No | Yes |
+| internal_notes.view | No | Yes | No | No | No | No | No |
+| notifications.view | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| bookings.edit | No | Yes | No | No | No | No | No |
+| bookings.decide | No | No | No | Yes | No | No | No |
+| safety.send | No | Yes | No | No | No | No | No |
+| safety.decide | No | No | No | No | No | Yes | No |
+| assignments.manage | No | No | Yes | No | No | No | No |
 
 | Version | Date | Change | Reason |
 |---|---|---|---|
@@ -97,6 +99,7 @@ Keys used in `backend/permissions.py` and on API routes / `features` from `/api/
 | 1.22 | 16-10-2026 | "View detailed equipment requirements" and "Add requirements, or change/remove Requested requirements while event Approved or Planning" rows; `equipment.requirements.view` (assigned Coordinator; Technical Support Staff, non-Draft events) and `equipment.requirements.edit` (assigned Coordinator only, Approved/Planning only); Rule \* now records that assigned-coordinator ownership is enforced on these rows and folds in the scoped-read and Safety Officer notes | SCRUM-48: structured equipment requirements, scoped reads rather than general Technical Support event access |
 | 1.23 | 18-10-2026 | `equipment.requirements.review`, Technical Support Staff only; decisions require no Reserved reservation for the event/type, notes do not | SCRUM-81 AC2–4; existing scoped reads unchanged |
 | 1.24 | 19-10-2026 | `equipment.reserve`, TSS only, with Approved/Planning reserve/release and scoped history | SCRUM-51 AC1–7 |
+| 1.25 | 19-10-2026 | New role Event Coordinator Lead, with the key `assignments.manage`: assign a coordinator to a request in the unassigned queue; read-only view of the queue and of requests that have a coordinator. The Rule \* note now names SCRUM-86's assignment | Week 7 customer change 5; SCRUM-86 (this story's slice of `target/permissions.md` v1.7: the Lead column and its queue row; the Lead's other rows are SCRUM-44, SCRUM-87 and SCRUM-88) |
 
 SCRUM-81: Technical Support may decide or correct a requirement only while the event is Approved or Planning and no reservation for the same event/type is Reserved. Released history does not block a decision. Arrangement notes remain editable in those event stages even with a Reserved reservation. These mutations grant no general event-request access.
 

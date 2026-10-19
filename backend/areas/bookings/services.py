@@ -142,6 +142,9 @@ def raise_booking(account, event_request_id, data):
         raised_at=datetime.now(timezone.utc),
     )
     db.session.add(booking)
+    # SCRUM-86 AC8: the first booking request raised for an Approved event
+    # moves it to Planning, in the same commit (a hold does the same: SCRUM-84).
+    start_planning_if_approved(event_request)
     db.session.commit()
     return booking
 

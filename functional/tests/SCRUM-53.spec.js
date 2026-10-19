@@ -1,13 +1,14 @@
 import { test, expect, request as playwrightRequest } from '@playwright/test'
+import { assignAsLead, startPlanning } from './helpers/assign.js'
 
 // SCRUM-53 Send an Event for Safety Check. TC-SCRUM-53-01 through 12 (test-case
 // sheet), one test per row in the row's order.
 //
 // Every event a row sends it creates itself through the API under its own
-// name, on its own venue and date (AUTOMATION.md): org1 submits it, an Event
-// Coordinator approves it (which assigns the coordinator and moves it to
-// Planning), a coordinator raises a booking and venue1 approves it. "The
-// assigned coordinator" is whoever the approval assigned, read from the event.
+// name, on its own venue and date (AUTOMATION.md): org2 submits it, the Event
+// Coordinator Lead assigns a coordinator (SCRUM-86) who approves it, the
+// coordinator raises a booking (which moves it to Planning) and venue1 approves
+// it. "The assigned coordinator" is whoever the Lead assigned, read from the event.
 //
 // Rows 05, 06 and 07 were pending SCRUM-82 (the Venue unavailable marker) and
 // SCRUM-48/81 (equipment requirements) and run now that those are merged: the
@@ -62,10 +63,13 @@ async function ownVenue(name) {
   return id
 }
 
-// A Planning event, assigned to a coordinator by approval, with one booking
+// A Planning event, assigned to a coordinator by the Lead, with one booking
 // per venue id, each left Requested or approved by venue1.
 async function planningEvent(name, offset, { venues = [], approve = true } = {}) {
-  const organiser = await apiAs('org1')
+  // Submitted by org2, not org1: the Lead's assignment notifies the Organiser
+  // (SCRUM-86 AC6), and SCRUM-58.spec.js, which runs after this file, reads
+  // org1's seeded notifications and expects no others.
+  const organiser = await apiAs('org2')
   const submitted = await organiser.post('/api/requests', {
     data: {
       name,
@@ -80,11 +84,12 @@ async function planningEvent(name, offset, { venues = [], approve = true } = {})
   const { id } = await submitted.json()
   await organiser.dispose()
 
+  await assignAsLead(id)
   const coordinator = await apiAs('coord1')
   const approved = await coordinator.post(`/api/requests/${id}/approve`, { data: { reason: '' } })
   expect(approved.ok()).toBeTruthy()
   const body = await approved.json()
-  expect(body.status).toBe('Planning')
+  expect(body.status).toBe('Approved')
 
   const bookingIds = []
   for (const venueId of venues) {
@@ -212,6 +217,7 @@ test("a sent event appears in the Safety Officer's list with the time it was sen
 // @ac: 2, 3
 test('an event with no Approved venue booking is refused and the missing booking is listed', async ({ page }) => {
   const event = await planningEvent('SCRUM-53 TC-03 Bare Gala', 3)
+  await startPlanning(event.id, event.coordinator)
 
   await sendAs(page, event)
 
@@ -411,7 +417,7 @@ test('an account that is not an Event Coordinator cannot send the event', async 
   const venue = await ownVenue('TC53 Room 12')
   const event = await planningEvent('SCRUM-53 TC-12 Org Gala', 12, { venues: [venue] })
 
-  await login(page, 'org1')
+  await login(page, 'org2')
   await openEvent(page, event.name)
 
   await expect(page.getByTestId('request-detail-status')).toHaveText('Planning')

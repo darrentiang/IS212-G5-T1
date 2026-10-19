@@ -1,4 +1,5 @@
 import { test, expect, request as playwrightRequest } from '@playwright/test'
+import { startPlanning } from './helpers/assign.js'
 
 // SCRUM-33 Search Venues by Date and Capacity. One test per curated row of the
 // Test cases tab, in the row's order; every row can be reached through the
@@ -212,9 +213,9 @@ test('coordinator searches an Approved event with no location and sees every ven
 test("venue search is also available for an event in Planning and searches with that event's values", async ({ page }) => {
   const day = dateAhead(40)
   const eventId = await approvedEvent('SCRUM-33 Planning Event', { date: day })
+  await startPlanning(eventId) // the row's event is in Planning with nothing booked (SCRUM-86 AC8)
   await login(page, 'coord1')
   await openRequest(page, eventId)
-  // Approving assigned an Event Coordinator, which moves the event to Planning (SCRUM-43).
   await expect(page.getByTestId('request-detail-status')).toHaveText('Planning')
 
   await page.getByTestId('request-detail-search-venues-button').click()

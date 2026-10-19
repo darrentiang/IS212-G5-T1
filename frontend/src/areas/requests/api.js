@@ -185,3 +185,24 @@ export const cancelBooking = (venueId, bookingId, reason) =>
 // A thin wrapper of the same call the venues area makes, each area owning its own (frontend.md §1).
 export const withdrawBooking = (venueId, bookingId) =>
   request('POST', `/api/venues/${venueId}/bookings/${bookingId}/withdraw`)
+
+// GET /api/assignments/queue   (SCRUM-86)
+// 200:     [ { id, name, purpose, date, attendance, created_by, submitted_at } ]
+//          every Submitted request with no assigned coordinator, oldest submission first;
+//          submitted_at is ISO UTC (null sorts last); nothing more of the request is sent
+// 403:     { message }   not the Event Coordinator Lead
+export const listAssignmentQueue = () => request('GET', '/api/assignments/queue')
+
+// GET /api/assignments/coordinators   (SCRUM-86)
+// 200:     [ { id, username } ]   every account holding the Event Coordinator role, by username
+// 403:     { message }
+export const listAssignableCoordinators = () => request('GET', '/api/assignments/coordinators')
+
+// POST /api/requests/:id/assign   (SCRUM-86)
+// body:    { coordinator_id }   required
+// 200:     the request, still Submitted, with assigned_coordinator, assigned_by and assigned_at;
+//          the coordinator and the Organiser are told
+// 400/403/404/409: { message }   400 no coordinator chosen, or the account is not an Event
+//          Coordinator; 404 unknown or a Draft; 409 already assigned, or not Submitted
+export const assignRequest = (id, coordinatorId) =>
+  request('POST', `/api/requests/${id}/assign`, { coordinator_id: coordinatorId })

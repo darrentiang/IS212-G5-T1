@@ -156,8 +156,8 @@ def test_resubmitted_request_can_be_decided_again_and_the_new_decision_replaces_
     resp = client.post(f"/api/requests/{request_id}/approve", json={"reason": "Revised plan accepted."})
     assert resp.status_code == 200
     body = resp.get_json()
-    # SCRUM-43: approving assigns an Event Coordinator, which moves the request to Planning.
-    assert body["status"] == "Planning"
+    # SCRUM-86: approving assigns no one; the request stays Approved.
+    assert body["status"] == "Approved"
     assert body["decision"] == "Approved"
     assert body["decision_reason"] == "Revised plan accepted."
     assert body["decided_by"] == "coord2"

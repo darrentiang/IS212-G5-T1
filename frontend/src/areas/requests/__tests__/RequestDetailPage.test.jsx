@@ -1243,61 +1243,66 @@ describe('RequestDetailPage', () => {
     })
   })
 
-  // @story: SCRUM-43
-  // @ac: 6
-  it('shows the assigned coordinator and the assignment date', async () => {
+  // @story: SCRUM-86
+  // @ac: 4, 6
+  it('shows the assigned coordinator, the Lead who assigned and the assignment date', async () => {
     signInWith(['requests.view'], 'org1')
     api.getRequest.mockResolvedValue({
-      ...decided(STATUS.REQUEST.PLANNING),
-      decision: 'Approved',
+      ...SUBMITTED,
       assigned_coordinator: 'coord2',
+      assigned_by: 'lead1',
       assigned_at: '2026-10-09T08:30:00+00:00',
     })
 
     renderDetail()
 
     await waitFor(() => screen.getByTestId('request-detail-assigned-coordinator'))
-    expect(screen.getByTestId('request-detail-status')).toHaveTextContent(STATUS.REQUEST.PLANNING)
+    expect(screen.getByTestId('request-detail-status')).toHaveTextContent(STATUS.REQUEST.SUBMITTED)
     expect(screen.getByTestId('request-detail-assigned-coordinator')).toHaveTextContent('coord2')
+    expect(screen.getByTestId('request-detail-assigned-by')).toHaveTextContent('lead1')
     expect(screen.getByTestId('request-detail-assigned-at')).toHaveTextContent('09 Oct 2026')
-    expect(screen.getByTestId('request-detail-decision')).toHaveTextContent('Approved')
   })
 
-  // @story: SCRUM-43
-  // @ac: 6
+  // @story: SCRUM-86
+  // @ac: 2, 6
   it('shows no assigned coordinator on a request that is not assigned', async () => {
     signInWith(['requests.view'], 'org1')
-    api.getRequest.mockResolvedValue({ ...SUBMITTED, assigned_coordinator: null, assigned_at: null })
+    api.getRequest.mockResolvedValue({ ...SUBMITTED, assigned_coordinator: null, assigned_by: null, assigned_at: null })
 
     renderDetail()
 
     await waitFor(() => screen.getByTestId('request-detail-status'))
     expect(screen.queryByTestId('request-detail-assigned-coordinator')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('request-detail-assigned-by')).not.toBeInTheDocument()
     expect(screen.queryByTestId('request-detail-assigned-at')).not.toBeInTheDocument()
   })
 
-  // @story: SCRUM-43
+  // @story: SCRUM-86
   // @ac: 6
-  it('shows the coordinator without a date when none was recorded', async () => {
+  it('shows the coordinator without the Lead or a date when none was recorded', async () => {
     signInWith(['requests.view'], 'org1')
-    api.getRequest.mockResolvedValue({ ...SUBMITTED, assigned_coordinator: 'coord1', assigned_at: null })
+    api.getRequest.mockResolvedValue({
+      ...SUBMITTED,
+      assigned_coordinator: 'coord1',
+      assigned_by: null,
+      assigned_at: null,
+    })
 
     renderDetail()
 
     await waitFor(() => screen.getByTestId('request-detail-assigned-coordinator'))
+    expect(screen.queryByTestId('request-detail-assigned-by')).not.toBeInTheDocument()
     expect(screen.queryByTestId('request-detail-assigned-at')).not.toBeInTheDocument()
   })
 
-  // @story: SCRUM-43
-  // @ac: 3, 5
-  it('shows Planning and the assignment after approving, with no control to decline', async () => {
+  // @story: SCRUM-86
+  // @ac: 8
+  it('shows the request still Approved, with its coordinator, after approving', async () => {
     signInWith(['requests.view', 'requests.decide'], 'coord1')
-    api.getRequest.mockResolvedValue(SUBMITTED)
+    api.getRequest.mockResolvedValue({ ...SUBMITTED, assigned_coordinator: 'coord1' })
     api.approveRequest.mockResolvedValue({
-      ...decided(STATUS.REQUEST.PLANNING),
-      decision: 'Approved',
-      assigned_coordinator: 'multi1',
-      assigned_at: '2026-10-09T08:30:00+00:00',
+      ...decided(STATUS.REQUEST.APPROVED),
+      assigned_coordinator: 'coord1',
     })
 
     renderDetail()
@@ -1307,11 +1312,9 @@ describe('RequestDetailPage', () => {
     await waitFor(() => {
       expect(screen.getByTestId('request-detail-banner')).toHaveTextContent('Request approved')
     })
-    expect(screen.getByTestId('request-detail-status')).toHaveTextContent(STATUS.REQUEST.PLANNING)
-    expect(screen.getByTestId('request-detail-assigned-coordinator')).toHaveTextContent('multi1')
+    expect(screen.getByTestId('request-detail-status')).toHaveTextContent(STATUS.REQUEST.APPROVED)
+    expect(screen.getByTestId('request-detail-assigned-coordinator')).toHaveTextContent('coord1')
     expect(screen.getByTestId('request-detail-decided-by')).toHaveTextContent('coord1')
-    expect(screen.queryByTestId('request-detail-approve-button')).not.toBeInTheDocument()
-    expect(screen.queryByTestId('request-detail-reject-button')).not.toBeInTheDocument()
     expect(screen.queryByTestId('request-detail-decline-button')).not.toBeInTheDocument()
   })
 })

@@ -2,6 +2,7 @@
   "roles": [
     "Event Organiser",
     "Event Coordinator",
+    "Event Coordinator Lead",
     "Venue Staff",
     "Technical Support Staff",
     "Safety Officer",
@@ -62,6 +63,23 @@
       "organisation": null,
       "roles": [
         "Safety Officer"
+      ]
+    },
+    {
+      "username": "lead1",
+      "password": "Passw0rd!",
+      "organisation": null,
+      "roles": [
+        "Event Coordinator Lead"
+      ]
+    },
+    {
+      "username": "leadcoord1",
+      "password": "Passw0rd!",
+      "organisation": null,
+      "roles": [
+        "Event Coordinator Lead",
+        "Event Coordinator"
       ]
     },
     {

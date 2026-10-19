@@ -24,6 +24,7 @@ Every acceptance criterion that changes a status uses a value from these tables.
 | 1.16 | 16-10-2026 | Equipment requirements: Requested creation/correction/removal, unique per event/type, scoped reads; existing safety checks use stored review states | SCRUM-48; review decisions remain SCRUM-81 |
 | 1.18 | 19-10-2026 | Venue hold: Held → Expired when its expiry date and time is reached (System); an Expired hold holds nothing and offers no Release | SCRUM-85 (copied from `target/state-model.md` v1.3, this story's slice) |
 | 1.19 | 19-10-2026 | Full-quantity equipment reserve/release workflow, current availability and scoped history; no schema or status change | SCRUM-51 AC1–7 |
+| 1.20 | 19-10-2026 | Event request: assignment moves to submission (an unassigned queue the Event Coordinator Lead assigns from; not a status); Approved → Planning when the first booking request or hold is raised, replacing auto-assignment at approval; a rejected request keeps its coordinator when resubmitted | Week 7 customer change 5; SCRUM-86 (copied from `target/state-model.md` v1.3, this story's slice; the hold half was SCRUM-84's) |
 
 The front end holds these words in `frontend/src/app/format.js` (`STATUS`); a change here changes that file in the same pull request. v1.12 adds Held and Released (`STATUS.HOLD`); v1.18 adds Expired (`STATUS.HOLD.EXPIRED`); v1.14 adds Cancelled to a venue booking request's words (`STATUS.BOOKING.CANCELLED`); v1.15's Venue unavailable is a flag, held there as `VENUE_UNAVAILABLE`.
 
@@ -36,9 +37,8 @@ The front end holds these words in `frontend/src/app/format.js` (`STATUS`); a ch
 | — | Submitted | Submit a new request directly | Event Organiser |
 | Submitted | Approved | Approve | Event Coordinator |
 | Submitted | Rejected | Reject (reason required) | Event Coordinator |
-| Rejected | Submitted | Revise and resubmit | Event Organiser |
-| Approved | Planning | Coordinator auto-assigned by the system | System |
-| Approved | Planning | First hold placed for the event | System, on the assigned coordinator's action |
+| Rejected | Submitted | Revise and resubmit (keeps its assigned coordinator) | Event Organiser |
+| Approved | Planning | First venue booking request or hold raised for the event | System, on the assigned coordinator's action |
 | Planning | Safety Check | Send for safety check (every recorded arrangement approved) | Assigned Event Coordinator |
 | Safety Check | Confirmed | Approve the safety check | Safety Officer |
 | Safety Check | Planning | Reject the safety check (reason required) | Safety Officer |
@@ -47,6 +47,8 @@ The front end holds these words in `frontend/src/app/format.js` (`STATUS`); a ch
 | Confirmed | Planning | Significant change accepted via change request | Event Coordinator |
 | Confirmed | Completed | Mark completed after the event | Event Coordinator |
 | Planning / Confirmed | Cancelled | Cancel | Authorised user (SCRUM-65 defines who) |
+
+Assignment is not a status. A Submitted request with no assigned coordinator is in the **unassigned queue**; the Event Coordinator Lead assigns it, and the status stays Submitted (SCRUM-86). A request resubmitted after rejection keeps the coordinator it had and does not return to the queue. Approving a request assigns no one. Reassignment never changes the status (SCRUM-44).
 
 Flags on a Submitted request, not statuses: **clarification requested** (set by the Event Coordinator, cleared when the Event Organiser responds). Cancelled has no outgoing transition; a new request is submitted instead.
 
@@ -58,8 +60,7 @@ stateDiagram-v2
     Submitted --> Approved: Approve
     Submitted --> Rejected: Reject (reason required)
     Rejected --> Submitted: Revise and resubmit
-    Approved --> Planning: Coordinator auto-assigned
-    Approved --> Planning: First hold placed
+    Approved --> Planning: First booking request or hold
     Planning --> SafetyCheck: Send for safety check
     SafetyCheck --> Confirmed: Safety check approved
     SafetyCheck --> Planning: Safety check rejected (reason required)

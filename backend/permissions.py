@@ -1,4 +1,4 @@
-"""Role → feature matrix — SCRUM-27, SCRUM-31, SCRUM-29, SCRUM-36, SCRUM-33, SCRUM-37, SCRUM-49, SCRUM-89, SCRUM-53, SCRUM-50 (ADR-002).
+"""Role → feature matrix — SCRUM-27, SCRUM-31, SCRUM-29, SCRUM-36, SCRUM-33, SCRUM-37, SCRUM-49, SCRUM-89, SCRUM-53, SCRUM-50, SCRUM-86 (ADR-002).
 
 Direct transcription of docs/design/permissions.md. An account may hold
 several roles (Q-06, D-09); it may do anything any of its roles allows.
@@ -32,6 +32,7 @@ EQUIPMENT_EDIT = "equipment.edit"  # SCRUM-49: change an equipment type's total 
 REGISTRATION_VIEW = "registration.view"
 INTERNAL_NOTES_VIEW = "internal_notes.view"
 NOTIFICATIONS_VIEW = "notifications.view"
+ASSIGNMENTS_MANAGE = "assignments.manage"  # SCRUM-86: view the unassigned queue and assign from it (Event Coordinator Lead)
 
 ALL_FEATURES = frozenset(
     {
@@ -55,6 +56,7 @@ ALL_FEATURES = frozenset(
         REGISTRATION_VIEW,
         INTERNAL_NOTES_VIEW,
         NOTIFICATIONS_VIEW,
+        ASSIGNMENTS_MANAGE,
     }
 )
 
@@ -79,6 +81,13 @@ ROLE_FEATURES = {
         REGISTRATION_VIEW,
         INTERNAL_NOTES_VIEW,
         NOTIFICATIONS_VIEW,
+    },
+    "Event Coordinator Lead": {
+        REQUESTS_VIEW,  # read-only; the queue and requests that have a coordinator (service filter)
+        ASSIGNMENTS_MANAGE,
+        NOTIFICATIONS_VIEW,
+        # Cannot decide, edit or plan an event; acts as a coordinator only
+        # through an Event Coordinator role of its own (SCRUM-87).
     },
     "Venue Staff": {
         VENUES_VIEW,

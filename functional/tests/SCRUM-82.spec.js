@@ -1,4 +1,5 @@
 import { test, expect, request as playwrightRequest } from '@playwright/test'
+import { assignAsLead } from './helpers/assign.js'
 import { pinClock, clearClock } from './helpers/clock.js'
 
 // SCRUM-82 Replace a Venue That Became Unavailable. TC-SCRUM-82-01 to 08
@@ -8,9 +9,9 @@ import { pinClock, clearClock } from './helpers/clock.js'
 // data a test changes it creates itself). The rows' Seminar Room 1 is a venue
 // of the row's own with 30 minutes of setup and of turnaround, and their
 // Auditorium one with none, each at a location of the row's own so the search
-// can be narrowed to them. Approval assigns the coordinator by workload, so
-// "coord1" in the rows is whoever approval assigned to the event, read from
-// the event. Each row's event falls on a Saturday of its own (the rows'
+// can be narrowed to them. The Event Coordinator Lead assigns the coordinator
+// (SCRUM-86), so "coord1" in the rows is whoever the event was assigned to,
+// read from the event. Each row's event falls on a Saturday of its own (the rows'
 // "5 Dec 2026" and "12 Dec 2026"), 10:00–12:00, so it occupies the Seminar
 // Room 09:30–12:30 and the Auditorium 10:00–12:00. Dates are relative to today
 // because an event cannot be submitted for a date already past. Notifications
@@ -99,8 +100,8 @@ async function auditorium(name, location) {
   })
 }
 
-// A Planning event with its assigned coordinator: org1 submits it and an
-// Event Coordinator approves it, which assigns one and moves it to Planning.
+// An event with its assigned coordinator: org1 submits it, the Lead assigns
+// coord1 and coord1 approves it. It reaches Planning with its first booking.
 async function planningEvent(name, date) {
   const id = await as('org1', async (organiser) => {
     const submitted = await organiser.post('/api/requests', {
@@ -109,12 +110,13 @@ async function planningEvent(name, date) {
     expect(submitted.status()).toBe(201)
     return (await submitted.json()).id
   })
+  await assignAsLead(id)
   const body = await as('coord1', async (coordinator) => {
     const approved = await coordinator.post(`/api/requests/${id}/approve`, { data: { reason: '' } })
     expect(approved.ok()).toBeTruthy()
     return approved.json()
   })
-  expect(body.status).toBe('Planning')
+  expect(body.status).toBe('Approved')
   return { id, name, date, coordinator: body.assigned_coordinator }
 }
 

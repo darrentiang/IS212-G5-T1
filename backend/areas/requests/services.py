@@ -3,7 +3,8 @@
 and delete a Draft).
 SCRUM-42: the optional required layout, facilities and accessibility features,
 which replace the free-text venue requirements and accessibility needs.
-SCRUM-43: approving a request assigns the Event Coordinator with the fewest open events.
+SCRUM-86: the Event Coordinator Lead assigns a Submitted request to an Event Coordinator from the
+unassigned queue; approving assigns no one (replaces SCRUM-43's auto-assignment).
 SCRUM-72: revise and resubmit a Rejected request.
 SCRUM-89: the Safety Officer lists, opens, approves and rejects events in Safety Check.
 SCRUM-53: the assigned Event Coordinator sends a Planning event for safety check.
@@ -36,6 +37,7 @@ from permissions import INTERNAL_NOTES_VIEW, can
 ORGANISER_ROLE = "Event Organiser"
 COORDINATOR_ROLE = "Event Coordinator"
 SAFETY_OFFICER_ROLE = "Safety Officer"
+LEAD_ROLE = "Event Coordinator Lead"
 
 SAFETY_CHECK = "Safety Check"
 
@@ -109,6 +111,8 @@ def get_visible_request(account, request_id):
     if account.has_role(ORGANISER_ROLE) and event_request.created_by_id == account.id:
         return event_request
     if account.has_role(SAFETY_OFFICER_ROLE) and event_request.status == SAFETY_CHECK:
+        return event_request
+    if account.has_role(LEAD_ROLE) and _lead_may_read(event_request):
         return event_request
     raise ApiRefusal(403, "You do not have permission to perform this action.")
 
@@ -451,60 +455,114 @@ def _get_decidable_request(account, request_id):
     return event_request
 
 
-# An open event is one in Planning or Confirmed status assigned to a
-# Coordinator (SCRUM-43, PO working rule 28-09-2026).
-OPEN_EVENT_STATUSES = ("Planning", "Confirmed")
-
-
 def _event_coordinators():
     """Every account holding the Event Coordinator role, including one that
-    also holds another role (Q-06, D-09) and the one approving."""
+    also holds another role (Q-06, D-09), such as a Lead who is also a
+    coordinator (SCRUM-86 AC4)."""
     return (
         db.session.query(Account)
         .join(Account.roles)
         .filter(Role.name == COORDINATOR_ROLE)
+        .order_by(Account.username)
         .all()
     )
 
 
-def _open_event_count(coordinator):
+def _lead_may_read(event_request):
+    """What the Lead may open, read-only (SCRUM-86): a request in the queue or
+    one that has a coordinator, never a Draft. SCRUM-88 builds the wider view."""
+    return event_request.status != "Draft" and (
+        _in_queue(event_request) or event_request.assigned_coordinator_id is not None
+    )
+
+
+def _in_queue(event_request):
+    """In the unassigned queue: Submitted, and nobody assigned (SCRUM-86 AC2, AC5)."""
+    return event_request.status == "Submitted" and event_request.assigned_coordinator_id is None
+
+
+def unassigned_queue():
+    """The unassigned queue, oldest submission first (SCRUM-86 AC3).
+
+    The one with no recorded submission time sorts last, then by id so two
+    submitted at the same moment keep a fixed order.
+    """
     return (
         db.session.query(EventRequest)
-        .filter(
-            EventRequest.assigned_coordinator_id == coordinator.id,
-            EventRequest.status.in_(OPEN_EVENT_STATUSES),
-        )
-        .count()
+        .filter(EventRequest.status == "Submitted", EventRequest.assigned_coordinator_id.is_(None))
+        .order_by(EventRequest.submitted_at.is_(None), EventRequest.submitted_at, EventRequest.id)
+        .all()
     )
 
 
-def _next_coordinator():
-    """The Event Coordinator with the fewest open events (SCRUM-43 AC1); a
-    tie goes to the username that comes first alphabetically (AC2), so the
-    same situation always gives the same result. None when no Event
-    Coordinator exists (AC7)."""
-    coordinators = _event_coordinators()
-    if not coordinators:
-        return None
-    return min(
-        coordinators,
-        key=lambda coordinator: (_open_event_count(coordinator), coordinator.username.casefold()),
-    )
+def queue_row_to_dict(event_request):
+    """What the Lead sees of a queued request, and no more (SCRUM-86 AC3)."""
+    return {
+        "id": event_request.id,
+        "name": event_request.name,
+        "purpose": event_request.purpose,
+        "date": event_request.date,
+        "attendance": event_request.attendance,
+        "created_by": event_request.created_by.username,
+        "submitted_at": event_request.submitted_at.isoformat() if event_request.submitted_at else None,
+    }
 
 
-def _assign_coordinator(event_request):
-    """Approved -> Planning with the chosen Coordinator and the date (AC3).
+def assignable_coordinators():
+    """The accounts a request can be assigned to, by username (SCRUM-86 AC4)."""
+    return [{"id": row.id, "username": row.username} for row in _event_coordinators()]
 
-    A Coordinator cannot decline (AC5): nothing here, or in the routes, can
-    undo an assignment. With no Event Coordinator the request stays Approved,
-    and no error is raised (AC7).
+
+def _chosen_coordinator(data):
+    """The Event Coordinator the Lead chose, else refuse 400 (SCRUM-86 AC4)."""
+    raw = (data or {}).get("coordinator_id")
+    if raw is None or str(raw).strip() == "":
+        raise ApiRefusal(400, "Choose an Event Coordinator.")
+    try:
+        coordinator_id = int(raw)
+    except (TypeError, ValueError):
+        coordinator_id = None
+    coordinator = db.session.get(Account, coordinator_id) if coordinator_id is not None else None
+    if coordinator is None or not coordinator.has_role(COORDINATOR_ROLE):
+        raise ApiRefusal(400, "The chosen account is not an Event Coordinator.")
+    return coordinator
+
+
+def assign_coordinator(account, request_id, data):
+    """Assign a queued request to an Event Coordinator (SCRUM-86 AC4, AC5, AC6).
+
+    Only a Submitted request with no coordinator can be assigned this way; a
+    Draft answers 404 like any request the Lead may not read, and anything
+    else is refused with its current state, nothing changed. The request stays
+    Submitted. The coordinator, the Lead and the moment are recorded, and the
+    coordinator and the Organiser are told, in one commit with the assignment.
+    The route's require(ASSIGNMENTS_MANAGE) has already refused anyone who is
+    not a Lead (AC9). Changing an assignment is SCRUM-44.
     """
-    coordinator = _next_coordinator()
-    if coordinator is None:
-        return
-    event_request.status = "Planning"
+    event_request = db.session.get(EventRequest, request_id)
+    if event_request is None or event_request.status == "Draft":
+        raise ApiRefusal(404, "Event request not found.")
+    if event_request.assigned_coordinator is not None:
+        raise ApiRefusal(
+            409, f"This request is already assigned to {event_request.assigned_coordinator.username}."
+        )
+    if event_request.status != "Submitted":
+        raise ApiRefusal(409, "Only a Submitted request with no coordinator can be assigned.")
+
+    coordinator = _chosen_coordinator(data)
     event_request.assigned_coordinator_id = coordinator.id
+    event_request.assigned_by_id = account.id
     event_request.assigned_at = datetime.now(timezone.utc)
+
+    name = event_request.name
+    create_notification(coordinator, f'You have been assigned the event "{name}".', event_request)
+    create_notification(
+        event_request.created_by,
+        f'{coordinator.username} has been assigned to your event "{name}".',
+        event_request,
+    )
+    db.session.commit()
+    return event_request
 
 
 def start_planning_if_approved(event_request):
@@ -512,7 +570,7 @@ def start_planning_if_approved(event_request):
     for the event (state-model.md); any other status is left as it is.
 
     Nothing is committed: the caller commits it with the hold (SCRUM-84 AC8)
-    or, from SCRUM-86, with the booking request that started planning.
+    or with the booking request that started planning (SCRUM-86 AC8).
     """
     if event_request.status == "Approved":
         event_request.status = "Planning"
@@ -524,9 +582,6 @@ def _record_decision(event_request, account, decision, reason):
     event_request.decision_reason = reason
     event_request.decided_at = datetime.now(timezone.utc)
     event_request.decided_by_id = account.id
-    if decision == "Approved":
-        # The decision stays recorded as Approved; the status moves on.
-        _assign_coordinator(event_request)
 
     db.session.commit()
     return event_request
@@ -564,8 +619,9 @@ def save_new_draft(account, data):
 def approve_request(account, request_id, data):
     """Submitted -> Approved (state-model.md). Reason is optional.
 
-    SCRUM-43: approving also assigns an Event Coordinator, which moves the
-    request on to Planning in the same commit.
+    SCRUM-86 AC8: approving assigns no one and does not start planning: the
+    request stays Approved, with whatever coordinator it already has, until its
+    first booking request or hold is raised.
     """
     event_request = _get_decidable_request(account, request_id)
     return _record_decision(event_request, account, "Approved", _optional_reason(data))

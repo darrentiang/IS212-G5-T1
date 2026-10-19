@@ -46,7 +46,8 @@ from db import db
 # SCRUM-48 adds structured equipment requirements, so 21.
 # SCRUM-81 adds requirement review metadata and arrangement notes.
 # SCRUM-85 adds a venue hold's expired_at and warning_sent_at, so 23.
-SCHEMA_VERSION = 23
+# SCRUM-86 adds who assigned an event request's coordinator (assigned_by_id), so 24.
+SCHEMA_VERSION = 24
 
 
 account_roles = db.Table(
@@ -166,10 +167,12 @@ class EventRequest(db.Model):
     decided_at = db.Column(db.DateTime, nullable=True)
     decided_by_id = db.Column(db.Integer, db.ForeignKey("accounts.id"), nullable=True)
 
-    # SCRUM-43: at most one assigned Event Coordinator, set when the request is
-    # approved and moves to Planning (state-model.md). One column, so a second
-    # coordinator cannot be recorded; reassignment is SCRUM-44.
+    # SCRUM-86: at most one assigned Event Coordinator, set by the Event
+    # Coordinator Lead from the unassigned queue while the request is Submitted
+    # (state-model.md), with the Lead who did it and when (UTC). One column, so
+    # a second coordinator cannot be recorded; reassignment is SCRUM-44.
     assigned_coordinator_id = db.Column(db.Integer, db.ForeignKey("accounts.id"), nullable=True)
+    assigned_by_id = db.Column(db.Integer, db.ForeignKey("accounts.id"), nullable=True)
     assigned_at = db.Column(db.DateTime, nullable=True)
 
     # SCRUM-89: when the event was sent for its safety check (UTC). SCRUM-53
@@ -185,6 +188,7 @@ class EventRequest(db.Model):
     created_by = db.relationship("Account", foreign_keys=[created_by_id], backref="event_requests")
     decided_by = db.relationship("Account", foreign_keys=[decided_by_id])
     assigned_coordinator = db.relationship("Account", foreign_keys=[assigned_coordinator_id])
+    assigned_by = db.relationship("Account", foreign_keys=[assigned_by_id])
     layout = db.relationship("RoomLayout")
     safety_decisions = db.relationship(
         "SafetyDecision",
@@ -223,6 +227,7 @@ class EventRequest(db.Model):
             "assigned_coordinator": (
                 self.assigned_coordinator.username if self.assigned_coordinator else None
             ),
+            "assigned_by": self.assigned_by.username if self.assigned_by else None,
             "assigned_at": self.assigned_at.isoformat() if self.assigned_at else None,
             "safety_check_at": self.safety_check_at.isoformat() if self.safety_check_at else None,
             "layout": self.layout.name if self.layout else None,
