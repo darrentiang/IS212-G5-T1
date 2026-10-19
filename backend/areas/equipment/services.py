@@ -6,7 +6,7 @@ only) — docs/design/permissions.md v1.14. An edit changes only
 total_units: the name and every other attribute are untouched, and no
 workflow creates, renames, deletes or retires a type (handoff scope).
 
-Validation runs entirely before the write, so an invalid input, a reduction
+Validation runs before changing stock, so an invalid input, a reduction
 below the reservation minimum or an unauthorised attempt leaves stock and
 every requirement and reservation unchanged (AC4-AC7). The numeric rules
 follow SCRUM-80's Decimal-based whole-number validator with two deliberate
@@ -18,6 +18,8 @@ sends the field as a string — the exact wire path (docs in the plan §4).
 
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
+
+from sqlalchemy import update
 
 import clock
 from areas.equipment.commitments import peak_units
@@ -76,7 +78,7 @@ def update_total_units(equipment_id, body):
     """Change one type's total units (AC2-AC7), or refuse without writing.
 
     Order: body shape, then value, then the reservation minimum — so every
-    refusal happens before any column is touched.
+    refusal happens before any inventory value is changed.
     """
     equipment = get_equipment(equipment_id)
     if not isinstance(body, dict):
@@ -86,8 +88,14 @@ def update_total_units(equipment_id, body):
 
     total = _parse_total_units(body.get("total_units"))
 
+    # SCRUM-51 now creates commitments concurrently: acquire the same type
+    # write lock before checking the minimum, not after reading stale stock.
+    db.session.execute(update(EquipmentType).where(EquipmentType.id == equipment.id)
+                       .values(id=EquipmentType.id))
+    db.session.refresh(equipment)
     minimum = peak_units(equipment.id, clock.now_local(), None)
     if total < minimum:
+        db.session.rollback()
         raise ApiRefusal(
             400,
             f"Total units cannot be reduced below {minimum} units: "

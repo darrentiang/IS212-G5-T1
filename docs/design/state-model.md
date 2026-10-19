@@ -23,6 +23,7 @@ Every acceptance criterion that changes a status uses a value from these tables.
 | 1.17 | 18-10-2026 | Equipment review/correction and arrangement notes; review metadata; schema 22 | SCRUM-81 AC1–7 |
 | 1.16 | 16-10-2026 | Equipment requirements: Requested creation/correction/removal, unique per event/type, scoped reads; existing safety checks use stored review states | SCRUM-48; review decisions remain SCRUM-81 |
 | 1.18 | 19-10-2026 | Venue hold: Held → Expired when its expiry date and time is reached (System); an Expired hold holds nothing and offers no Release | SCRUM-85 (copied from `target/state-model.md` v1.3, this story's slice) |
+| 1.19 | 19-10-2026 | Full-quantity equipment reserve/release workflow, current availability and scoped history; no schema or status change | SCRUM-51 AC1–7 |
 
 The front end holds these words in `frontend/src/app/format.js` (`STATUS`); a change here changes that file in the same pull request. v1.12 adds Held and Released (`STATUS.HOLD`); v1.18 adds Expired (`STATUS.HOLD.EXPIRED`); v1.14 adds Cancelled to a venue booking request's words (`STATUS.BOOKING.CANCELLED`); v1.15's Venue unavailable is a flag, held there as `VENUE_UNAVAILABLE`.
 
@@ -126,8 +127,8 @@ stateDiagram-v2
 
 | From | To | Action | Who |
 |---|---|---|---|
-| — | Reserved | Reserve units for the event period | Technical Support Staff |
-| Reserved | Released | Release | Technical Support Staff |
+| — | Reserved | Reserve the full Approved requirement for the event period; event Approved or Planning, sufficient availability, no unreleased reservation | Technical Support Staff |
+| Reserved | Released | Release while the event is Approved or Planning | Technical Support Staff |
 
 A reservation always belongs to an event: the link is required, and it survives release. Its period (date, start time, end time) is a **snapshot** of the event's period taken when the reservation is made — the same convention as a venue booking request, which is copied from its event at the moment of raising and is not moved by a later change to the event (models.VenueBookingRequest). Every reservation therefore carries a complete, valid period: a real date, `HH:MM` times, start strictly before end. Event date and times cannot change once an event leaves Draft under today's rules, so a snapshot cannot drift now; **the future story that first makes event timing mutable after a reservation exists owns deciding whether linked reservation periods move with it.** That reconciliation is not part of SCRUM-49.
 
@@ -225,3 +226,30 @@ not stored. Back up local data before the existing destructive development reset
 `python backend/seed.py --reset`. No production migration is claimed. SCRUM-51 must
 recheck Approved status and the authoritative event stage in its reserve transaction
 and use the same event/type identity; this story adds no reservation endpoint.
+
+
+## SCRUM-51 — equipment commitments
+
+Only Technical Support Staff reserves/releases, in Approved or Planning. A
+reservation takes the Approved requirement's full quantity, type, and event
+period snapshot. One Reserved row per event/type (the unique requirement
+identity); Released history remains, and a new reservation can be made after
+release. Reserve uses the shared SCRUM-50 availability calculation inside the
+write transaction, including SCRUM-52's out-of-service provider when built.
+Total stock and requirements/review decisions never change. There is no partial
+quantity editor and no auto-reservation on review approval. Release removes only
+that commitment; it is not physical deletion or an event-stage transition.
+Ordinary reserve/release is locked outside Approved/Planning, including Safety
+Check and Confirmed. Returning to Planning does not automatically release units.
+
+Write lock order: event, equipment type, requirement (reserve only). No-op updates
+obtain real write locks on SQLite before authoritative reads. Event stage, review
+state, duplicate commitment and current stock are checked while locked; all
+refusals roll back. Released rows remain associated with their event/type even
+if an old requirement was removed. No schema change: SCHEMA_VERSION remains 23.
+
+Integration obligations, NOT implemented here: SCRUM-52 currently supplies zero
+out-of-service units; its real quantity must feed the shared provider. SCRUM-53
+currently requires review approval, not reservations, before Safety Check. Its
+owner must agree/update that readiness rule if committed equipment is required;
+SCRUM-51 does not silently change safety submission or add a notification flow.

@@ -43,10 +43,11 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | 1.34 | 15-10-2026 | §7 equipment inventory displays seeded descriptions and storage locations; stock remains the only editable field | SCRUM-49 AC1 refinement closes the equipment-catalogue information gap in the Week 1 customer brief |
 | 1.35 | 15-10-2026 | §7 the request page's Venues section: Search venues, Place hold and Request venue booking grouped at its top (moved there, same rules), the event's Venue bookings list with Cancel booking and its inline form, Withdraw, the Cancelled row's reason, and the Venue holds list inside it, with their test ids, messages and banners; §12 a Cancelled booking reuses the Cancelled colour | SCRUM-83 lets the assigned Event Coordinator see and manage each venue booked for an event separately, and cancel one Approved booking without touching the others |
 | 1.36 | 16-10-2026 | §7 the request page's Venue bookings row carries a Venue unavailable marker (`request-detail-booking-unavailable-<id>`); the venue-search page's Action column with Request booking and Place hold on each result (`venue-search-request-booking-button-<id>`, `venue-search-place-hold-button-<id>`); `?venue=<id>` on the booking-new page and `?hold=<id>` on the request page choose a venue; §6 a button-styled link in a cell keeps the button's colours; §12 the Venue unavailable flag's Danger badge | SCRUM-82 tells the assigned Event Coordinator a booked venue became unavailable and lets them request a replacement or place a hold from the search results |
+| 1.37 | 16-10-2026 | §1 the Equipment requests list (`/equipment-requirements`) and the per-event requirements page (`/requests/:id/equipment`); §7 their forms, status badges, ids and permission gates | Record Coordinator equipment needs, preserve stock and reservations |
 | 1.38 | 18-10-2026 | Equipment requirement decisions, corrections, notes, decision metadata and per-row test ids | SCRUM-81; approval never reserves |
 | 1.39 | 19-10-2026 | §7 the per-event requirements page gains a Check availability button on each requirement for an account with `equipment.check`, and a result card (brought into view, §13) with the verdict covered or short by N | SCRUM-50 AC2, AC6 and AC7: the check can be opened from a recorded requirement; the event's own reservation is left out |
-| 1.37 | 16-10-2026 | §1 the Equipment requests list (`/equipment-requirements`) and the per-event requirements page (`/requests/:id/equipment`); §7 their forms, status badges, ids and permission gates | Record Coordinator equipment needs, preserve stock and reservations |
-| 1.39 | 19-10-2026 | §7 the request page's Venue holds rows show Expired with no Release, the hold-expiry warning and expiry notice texts on the Notifications page, and the venue-availability page leaves Expired holds out; §12 Expired badge colour (Danger) | SCRUM-85 lets a Held hold expire on its own, warning the assigned Event Coordinator 24 hours before and telling them when the venue was released |
+| 1.40 | 19-10-2026 | §7 the request page's Venue holds rows show Expired with no Release, the hold-expiry warning and expiry notice texts on the Notifications page, and the venue-availability page leaves Expired holds out; §12 Expired badge colour (Danger) | SCRUM-85 lets a Held hold expire on its own, warning the assigned Event Coordinator 24 hours before and telling them when the venue was released |
+| 1.41 | 19-10-2026 | Equipment reserve/release confirmations and scoped reservation history | SCRUM-51 AC1–7 |
 
 ## 1. Pages
 
@@ -608,8 +609,8 @@ formatDateTime, or `Not yet reviewed`. Technical Support (`equipment.requirement
 sees Approve/Decline for Requested, Decline for Approved, Approve for Declined,
 only in Approved/Planning and with no unreleased reservation. Reserved rows show
 `Review decision locked while equipment is reserved.` Notes can be changed in
-Approved/Planning regardless of requirement status or reservation. No Reserve
-button is added. Assigned Coordinators see the same recorded outcomes, not the
+Approved/Planning regardless of requirement status or reservation. SCRUM-81 itself adds no Reserve
+button; SCRUM-51 adds the reservation actions described below. Assigned Coordinators see the same recorded outcomes, not the
 Technical Support controls. Existing scoped event visibility remains unchanged.
 
 One inline form at a time across Coordinator and Technical Support actions.
@@ -636,3 +637,39 @@ All ids below start `equipment-requirements-`:
 | Decline reason / arrangement note input | `review-reason-input`, `review-note-input` |
 | Required reason error | `review-reason-error` |
 | Confirm / Cancel | `review-save-button`, `review-cancel-button` |
+
+
+## SCRUM-51 — equipment reservations on the requirements page
+
+The existing `/requests/:id/equipment` page shows an Equipment reservations
+section below Recorded requirements. Context reads include `reservations` in id
+order. Both scoped readers see type, quantity, `formatPeriod` timing and Reserved
+or Released status. Empty wording: `No equipment reservations.` This section is
+part of the authoritative context load; a failed load never invents an empty list.
+
+With `equipment.reserve`, only in Approved/Planning, an Approved unreserved
+requirement offers Reserve. A Reserved history row offers Release. Both open a
+single inline confirmation beside the trigger; Cancel is focused by useReveal.
+There is no quantity or period input. Opening any action replaces the page's
+other inline form. All action buttons are disabled while a mutation is pending.
+On success, apply the returned reservation and derived requirement lock flag,
+close the form, invalidate pending availability replies and clear the earlier result, and announce `Equipment
+reserved` or `Equipment reservation released`. No follow-up read is required to
+acknowledge the committed write. Refusals stay in the existing banner and keep
+the confirmation open. Discard replies after leaving the route. Losing reserve
+permission hides an open reservation confirmation. Server access checks remain
+authoritative. Reloading reads persisted history. No new page/nav item.
+
+All ids below start `equipment-requirements-`:
+
+| Element | Suffix |
+|---|---|
+| Reserve on requirement | `reserve-<requirementId>` |
+| Reservation row | `reservation-<reservationId>` |
+| Reservation period | `reservation-period-<reservationId>` |
+| Reservation status | `reservation-status-<reservationId>` |
+| Release on reservation | `release-<reservationId>` |
+| Empty history | `reservations-empty` |
+| Inline confirmation | `reservation-form` |
+| Confirm action | `reservation-save-button` |
+| Cancel | `reservation-cancel-button` |

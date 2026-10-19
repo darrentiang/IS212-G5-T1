@@ -528,8 +528,8 @@ class EquipmentType(db.Model):
 class Reservation(db.Model):
     """Units of an equipment type committed for an event period (SCRUM-49 storage).
 
-    SCRUM-49 adds the record only: no endpoint creates, releases or lists
-    reservations — those workflows belong to SCRUM-51. The event link is
+    SCRUM-49 added storage; SCRUM-51 now creates, releases and lists
+    these records through event-scoped equipment services. The event link is
     required and survives release. The period is a snapshot of the event's
     period taken when the reservation is created: a real date, HH:MM times,
     start strictly before end (state-model.md, "Equipment reservation",
