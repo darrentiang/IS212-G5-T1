@@ -6,7 +6,8 @@ SCRUM-29: approve or reject a Submitted request.
 SCRUM-30: save, edit and delete a Draft.
 SCRUM-42: the fixed lists a request's required layout, facilities and
 accessibility features are chosen from.
-SCRUM-43: approving a request assigns an Event Coordinator (no route of its own).
+SCRUM-86: the Event Coordinator Lead lists the unassigned queue and assigns a request from it;
+approving a request assigns no one.
 SCRUM-72: revise and resubmit a Rejected request.
 SCRUM-89: the Safety Officer approves or rejects an event in Safety Check.
 SCRUM-90: the Safety Officer returns it to Planning with the changes it needs.
@@ -17,6 +18,7 @@ from flask import Blueprint, g, jsonify, request as flask_request
 
 from areas.requests import services
 from permissions import (
+    ASSIGNMENTS_MANAGE,
     REQUESTS_DECIDE,
     REQUESTS_EDIT,
     REQUESTS_VIEW,
@@ -41,6 +43,30 @@ def list_requests():
 def request_options():
     """SCRUM-42: the same lists as /api/venue-options, for Event Organisers."""
     return jsonify(services.request_options())
+
+
+@bp.get("/assignments/queue")
+@require(ASSIGNMENTS_MANAGE)
+def assignment_queue():
+    """SCRUM-86: Submitted requests with no coordinator, oldest first."""
+    return jsonify([services.queue_row_to_dict(row) for row in services.unassigned_queue()])
+
+
+@bp.get("/assignments/coordinators")
+@require(ASSIGNMENTS_MANAGE)
+def assignable_coordinators():
+    """SCRUM-86: the accounts a queued request can be assigned to."""
+    return jsonify(services.assignable_coordinators())
+
+
+@bp.post("/requests/<int:request_id>/assign")
+@require(ASSIGNMENTS_MANAGE)
+def assign_request(request_id):
+    """SCRUM-86: assign a queued request to an Event Coordinator; it stays Submitted."""
+    account = g.account
+    data = flask_request.get_json(silent=True) or {}
+    updated = services.assign_coordinator(account, request_id, data)
+    return jsonify(services.request_detail_dict(updated, account)), 200
 
 
 @bp.get("/requests/<int:request_id>")
@@ -75,9 +101,9 @@ def submit_draft_request(request_id):
 def approve_request(request_id):
     """SCRUM-29: Submitted -> Approved; reason optional.
 
-    SCRUM-43: the system also assigns an Event Coordinator, so the reply is
-    normally the request in Planning with assigned_coordinator and assigned_at
-    set; with no Event Coordinator it stays Approved, with both null.
+    SCRUM-86: approving assigns no one: the reply is the request in Approved, with
+    the coordinator the Lead assigned (if any) unchanged. It moves to Planning when
+    its first booking request or hold is raised.
     """
     account = g.account
     data = flask_request.get_json(silent=True) or {}

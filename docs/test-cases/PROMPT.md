@@ -8,6 +8,7 @@ Use this to draft functional test cases for ONE story, before any code for that 
 | 1.1 | 16-09-2026 | `ui-guidelines.md` and neighbouring stories as inputs; story-boundary rule; one Happy row per path, not per role; expected result capped at three clauses | First real run (SCRUM-26) drafted six near-identical Happy rows asserting another story's behaviour, with paragraph-long expected results |
 | 1.2 | 22-09-2026 | Seeded venues and the facility and accessibility lists added to the seeded-data sections | SCRUM-31 seeds venues; rows for a venue story must name the seeded records and the fixed list values rather than invent them |
 | 1.3 | 05-10-2026 | Stories come from the workbook Backlog, not Jira; `backend/seed/data.json` is the authority for seeded data; curation moved to `CURATION.md` | The backlog moved from Jira to the team scrum workbook (S1 Retro action S1-A3); curation was the weakest step and needed its own checklist |
+| 1.4 | 19-10-2026 | Seeded accounts: `lead1` and `leadcoord1`, the Event Coordinator Lead role | SCRUM-86 adds the Lead role and its two seeded accounts; rows for the queue and assignment must name them |
 
 ## Inputs (stop and ask if any is missing)
 1. The story from the Backlog tab of the team scrum workbook (SharePoint): key (SCRUM-nn), title, user story sentence, numbered acceptance criteria, and its Links and notes. Use the text verbatim; never paraphrase or invent criteria.
@@ -21,7 +22,7 @@ Do not invent statuses, roles, fields, limits, messages or timings that are not 
 ## Seeded accounts (use these names in preconditions and test data)
 The lists in this and the next two sections were current when written. `backend/seed/data.json` is the authority: if it holds accounts or records not listed here, use them by their seeded names.
 
-`org1`, `org2` (Event Organisers, different client organisations) · `coord1`, `coord2` (Event Coordinators) · `venue1` (Venue Staff) · `tech1` (Technical Support Staff) · `att1` (Attendee) · `multi1` (Event Coordinator and Venue Staff, the one two-role account). Password for all: `Passw0rd!`.
+`org1`, `org2` (Event Organisers, different client organisations) · `coord1`, `coord2` (Event Coordinators) · `venue1` (Venue Staff) · `tech1` (Technical Support Staff) · `att1` (Attendee) · `multi1` (Event Coordinator and Venue Staff) · `lead1` (Event Coordinator Lead) · `leadcoord1` (Event Coordinator Lead and Event Coordinator; with `multi1`, one of the two two-role accounts). Password for all: `Passw0rd!`.
 
 ## Seeded event requests (SCRUM-27 access data; loaded from `backend/seed/data.json`)
 - **Annual Dinner** — created by `org1`, status **Submitted**

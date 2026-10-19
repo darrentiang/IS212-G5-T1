@@ -48,6 +48,7 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | 1.39 | 19-10-2026 | §7 the per-event requirements page gains a Check availability button on each requirement for an account with `equipment.check`, and a result card (brought into view, §13) with the verdict covered or short by N | SCRUM-50 AC2, AC6 and AC7: the check can be opened from a recorded requirement; the event's own reservation is left out |
 | 1.40 | 19-10-2026 | §7 the request page's Venue holds rows show Expired with no Release, the hold-expiry warning and expiry notice texts on the Notifications page, and the venue-availability page leaves Expired holds out; §12 Expired badge colour (Danger) | SCRUM-85 lets a Held hold expire on its own, warning the assigned Event Coordinator 24 hours before and telling them when the venue was released |
 | 1.41 | 19-10-2026 | Equipment reserve/release confirmations and scoped reservation history | SCRUM-51 AC1–7 |
+| 1.42 | 19-10-2026 | §1 the Unassigned queue page (`/assignments/queue`, `assignment-queue`) and its test ids in §6; §7 the Assigned coordinator is now set by the Lead from the queue (not by approving), and the request page also shows who assigned it (`request-detail-assigned-by`) | Week 7 customer change 5; SCRUM-86 replaces SCRUM-43's auto-assignment with an unassigned queue the Event Coordinator Lead assigns from |
 
 ## 1. Pages
 
@@ -57,6 +58,7 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | `/requests` | `requests` | Logged in; the API returns only what the account may see |
 | `/requests/new` | `request-new` | Feature per `permissions.md` |
 | `/requests/:id` | `request-detail` | Feature and object rule per `permissions.md` |
+| `/assignments/queue` | `assignment-queue` | Feature per `permissions.md` (`assignments.manage`, the Event Coordinator Lead) |
 | `/venues` | `venues` | Feature per `permissions.md` |
 | `/venues/new` | `venue-new` | Feature per `permissions.md` |
 | `/venues/:id` | `venue-detail` | Feature per `permissions.md` |
@@ -154,12 +156,21 @@ While the page is waiting for the API it renders the title row and nothing below
 | Flag beside a status | `<page>-<flag>-flag-<id>` | `requests-clarification-flag-12` |
 | Empty message | `<page>-empty` | `requests-empty` |
 
+**The unassigned queue (SCRUM-86).** The Event Coordinator Lead's page (`/assignments/queue`, test id prefix `assignment-queue`, nav label Unassigned queue, first in the nav so the Lead lands on it) lists every Submitted request that has no assigned coordinator, oldest submission first, as a table (§6): the event name (a link to the request page, which the Lead may open read-only), purpose, date, expected attendance, Event Organiser and the submission date and time (§9), and nothing more. Each row has a select of the Event Coordinators (first option "Choose a coordinator") and an Assign button. Assigning with no one chosen shows a message under the select and sends nothing (§5); every other refusal (already assigned, no longer Submitted) shows in the banner and reloads the queue. A success removes the row and says `<event> assigned to <coordinator>`. No requests waiting shows one sentence, no table.
+
+| Element | `data-testid` |
+|---|---|
+| Title, banner, empty message | `assignment-queue-title`, `assignment-queue-banner`, `assignment-queue-empty` |
+| Row | `assignment-queue-row-<id>` |
+| Event name (holds the link), purpose, date, attendance, Event Organiser, submitted | `assignment-queue-name-<id>`, `assignment-queue-purpose-<id>`, `assignment-queue-date-<id>`, `assignment-queue-attendance-<id>`, `assignment-queue-organiser-<id>`, `assignment-queue-submitted-<id>` |
+| Coordinator select, message under an empty choice, Assign button | `assignment-queue-coordinator-input-<id>`, `assignment-queue-coordinator-error-<id>`, `assignment-queue-assign-button-<id>` |
+
 ## 7. Detail pages
 
 - Fields as label/value pairs, in the order the form uses.
 - Status as text; a flag as its own text beside it.
 - Actions (approve, reject, …) are buttons per §5, in one row under the fields, shown only when the account's features allow them.
-- **Assigned coordinator (SCRUM-43).** Approving a request makes the system assign one Event Coordinator and moves it to Planning, so the request page shows an Assigned coordinator (their username) and an Assigned on date, below the decision, to everyone who can open the request. The page offers no way to decline or change the assignment; reassignment is SCRUM-44.
+- **Assigned coordinator (SCRUM-86).** Once the Event Coordinator Lead has assigned a request from the unassigned queue (§6), the request page shows an Assigned coordinator (their username), Assigned by (the Lead) and an Assigned on date, below the decision, to everyone who can open the request. Approving a request assigns no one. The page offers no way to decline or change the assignment; reassignment is SCRUM-44.
 - **An action that needs a reason or a confirmation opens an inline form** directly below the action row, on the same page, brought into view with focus in it (§13): its fields per §5, a Confirm button (labelled with the action, e.g. Reject) and a Cancel button that closes it. No modal, no overlay, no browser `confirm()`. Only one inline form is open at a time; opening another closes the first. Its test ids use the action as `<field>`: `request-detail-reject-reason-input`, `request-detail-reject-confirm-button`, `request-detail-reject-cancel-button`.
 - **Revise and resubmit (SCRUM-72).** On a Rejected request the Event Organiser who created it sees the request's fields in a form already open below the details (the decision and its reason stay above it), prefilled and laid out as the Draft edit form is, with one primary Resubmit button and no Cancel. The same required-field check as submitting runs first: a message under each empty required field, nothing sent. Test ids use `resubmit` as the action: `request-detail-resubmit-<field>-input`, `request-detail-resubmit-<field>-error`, a choice's checkbox `request-detail-resubmit-<list>-<option>-input` as in §5, and `request-detail-resubmit-button`. Once the request is Submitted the form is gone. Anyone else sees the details only.
 
@@ -168,8 +179,9 @@ While the page is waiting for the API it renders the title row and nothing below
 | Field value | `<page>-<field>` | `request-detail-attendance` |
 | Status | `<page>-status` | `request-detail-status` |
 | Flag | `<page>-<flag>-flag` | `request-detail-clarification-flag` |
-| Assigned coordinator (SCRUM-43; shown once assigned) | `<page>-assigned-coordinator` | `request-detail-assigned-coordinator` |
-| Assignment date (SCRUM-43; shown with the coordinator, `03 Oct 2026`) | `<page>-assigned-at` | `request-detail-assigned-at` |
+| Assigned coordinator (SCRUM-86; shown once assigned) | `<page>-assigned-coordinator` | `request-detail-assigned-coordinator` |
+| Assigned by, the Lead (SCRUM-86; shown with the coordinator) | `<page>-assigned-by` | `request-detail-assigned-by` |
+| Assignment date (SCRUM-86; shown with the coordinator, `03 Oct 2026`) | `<page>-assigned-at` | `request-detail-assigned-at` |
 
 **Where the request page's forms open (§13).** Approve and Reject (SCRUM-29) sit in the request card's action row, under the fields, like the Draft's Delete, Edit and Submit. The forms those rows open (Edit draft, the Delete draft confirmation, and the Approve or Reject reason form) open directly below the card, above Venue holds and the safety sections, so they appear next to the button that opened them.
 

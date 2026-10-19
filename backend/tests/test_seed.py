@@ -17,6 +17,7 @@ from seed import AlreadySeededError, seed_database
 ROLE_NAMES = {
     "Event Organiser",
     "Event Coordinator",
+    "Event Coordinator Lead",
     "Venue Staff",
     "Technical Support Staff",
     "Safety Officer",
@@ -33,27 +34,32 @@ ACCOUNT_USERNAMES = {
     "safety1",
     "att1",
     "multi1",
+    "lead1",
+    "leadcoord1",
 }
 
 
 # @story: setup
 # @ac: sqlite-seed
-def test_seeding_creates_the_six_roles(app):
+def test_seeding_creates_the_seven_roles(app):
     roles = db.session.query(Role).all()
-    assert len(roles) == 6
+    assert len(roles) == 7
     assert {role.name for role in roles} == ROLE_NAMES
 
 
 # @story: setup
 # @ac: sqlite-seed
-def test_seeding_creates_the_nine_accounts_with_their_roles(app):
+def test_seeding_creates_the_eleven_accounts_with_their_roles(app):
     accounts = db.session.query(Account).all()
     assert {account.username for account in accounts} == ACCOUNT_USERNAMES
 
     by_username = {account.username: account for account in accounts}
     assert by_username["multi1"].role_names == ["Event Coordinator", "Venue Staff"]
+    # SCRUM-86 AC1: one Lead-only account and one holding both Lead and Event Coordinator.
+    assert by_username["lead1"].role_names == ["Event Coordinator Lead"]
+    assert set(by_username["leadcoord1"].role_names) == {"Event Coordinator Lead", "Event Coordinator"}
     for username, account in by_username.items():
-        if username != "multi1":
+        if username not in ("multi1", "leadcoord1"):
             assert len(account.role_names) == 1, username
 
     assert by_username["org1"].organisation != by_username["org2"].organisation

@@ -386,8 +386,7 @@ test('an event organiser cannot raise a booking request even for their own Appro
   await login(page, 'org1')
 
   await openRequest(page, eventId)
-  // SCRUM-43: an approved event is assigned a Coordinator, so it shows Planning.
-  await expect(page.getByTestId('request-detail-status')).toHaveText('Planning')
+  await expect(page.getByTestId('request-detail-status')).toHaveText('Approved')
   await expect(page.getByTestId('request-detail-raise-booking-button')).toHaveCount(0)
 
   // The form's route is guarded (bookings.edit): opened directly, it shows

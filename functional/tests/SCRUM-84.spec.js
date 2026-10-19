@@ -1,22 +1,22 @@
 import { test, expect, request as playwrightRequest } from '@playwright/test'
+import { assignAsLead, startPlanning } from './helpers/assign.js'
 import { pinClock, clearClock } from './helpers/clock.js'
 
 // SCRUM-84 Place a Tentative Venue Hold. TC-SCRUM-84-01 and 03 to 10 (test-case
 // sheet), one test per row in the row's order.
 //
 // TC-SCRUM-84-02 (placing the first hold on an Approved event moves it to
-// Planning) has no test here: approving a request still moves it straight to
-// Planning (SCRUM-43) until SCRUM-86 lands, so no Approved event with an
-// assigned coordinator can be built through the app. The row's Preconditions
-// say so; it is proved by backend/tests/test_venue_holds.py
-// (test_the_first_hold_on_an_approved_event_moves_it_to_planning).
+// Planning) has no test here and is proved by backend/tests/test_venue_holds.py
+// (test_the_first_hold_on_an_approved_event_moves_it_to_planning). SCRUM-86 now
+// lets an Approved event with an assigned coordinator be built through the app
+// (approvedEvent below), so a Playwright test for the row is possible.
 //
 // Every row builds its own venue, with 30 minutes of setup and of turnaround as
 // the curated preconditions give Seminar Room 1, and its own events through the
 // API (AUTOMATION.md: data a test changes it creates itself; changing Seminar
-// Room 1's times would change every other spec's venue). Approval assigns the
-// coordinator by workload, so "coord1" and "coord2" in the rows are whoever
-// approval assigned to each event, read from the event. Each event falls on a
+// Room 1's times would change every other spec's venue). The Event
+// Coordinator Lead assigns the coordinator (SCRUM-86), so "coord1" and "coord2"
+// in the rows are coord1 for every event here, read from the event. Each event falls on a
 // Saturday of its own, like 5 Dec 2026 in the rows, 10:00–12:00, so it occupies
 // its venue 09:30–12:30; the app clock is pinned to the Tuesday before, 09:00,
 // as the rows pin 2026-12-01 09:00 against 2026-12-05. Dates are relative to
@@ -100,9 +100,9 @@ async function ownVenue(name) {
   })
 }
 
-// A Planning event with its assigned coordinator: org1 submits it and an
-// Event Coordinator approves it, which assigns one and moves it to Planning.
-async function planningEvent(name, date, start = '10:00', end = '12:00') {
+// An Approved event with its assigned coordinator: org1 submits it, the Lead
+// assigns coord1 and coord1 approves it. Approving leaves it Approved.
+async function approvedEvent(name, date, start = '10:00', end = '12:00') {
   const id = await as('org1', async (organiser) => {
     const submitted = await organiser.post('/api/requests', {
       data: { name, ...TEXT_FIELDS, date, start_time: start, end_time: end, attendance: 40 },
@@ -110,13 +110,22 @@ async function planningEvent(name, date, start = '10:00', end = '12:00') {
     expect(submitted.status()).toBe(201)
     return (await submitted.json()).id
   })
+  await assignAsLead(id)
   const body = await as('coord1', async (coordinator) => {
     const approved = await coordinator.post(`/api/requests/${id}/approve`, { data: { reason: '' } })
     expect(approved.ok()).toBeTruthy()
     return approved.json()
   })
-  expect(body.status).toBe('Planning')
+  expect(body.status).toBe('Approved')
   return { id, name, coordinator: body.assigned_coordinator }
+}
+
+// The rows' "Planning event": the same, started on its way to Planning with the
+// first booking request (SCRUM-86 AC8), which is withdrawn so nothing is booked.
+async function planningEvent(name, date, start, end) {
+  const event = await approvedEvent(name, date, start, end)
+  await startPlanning(event.id, event.coordinator)
+  return event
 }
 
 async function raiseBooking(event, venueId) {

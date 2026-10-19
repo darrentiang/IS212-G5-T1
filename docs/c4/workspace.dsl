@@ -6,6 +6,7 @@ workspace "ConnectSphere" "Event Planning and Venue Booking System — release 1
         attendee = person "Attendee" "External participant who registers for confirmed events open for registration." "External"
 
         coordinator = person "Event Coordinator" "Internal liaison who reviews, approves and plans events." "Internal"
+        coordinatorLead = person "Event Coordinator Lead" "Internal supervisor who reviews newly submitted event requests in the unassigned queue and assigns each to an Event Coordinator." "Internal"
         venueStaff = person "Venue Staff" "Internal staff who maintain venues and decide venue booking requests." "Internal"
         techStaff = person "Technical Support Staff" "Internal staff who maintain equipment and reservations." "Internal"
         safetyOfficer = person "Safety Officer" "Internal staff who review the operational safety of an event in Safety Check and approve or reject it." "Internal"
@@ -26,6 +27,7 @@ workspace "ConnectSphere" "Event Planning and Venue Booking System — release 1
         organiser -> webApp "Submits and manages event requests using" "HTTPS"
         attendee -> webApp "Registers for confirmed events using" "HTTPS"
         coordinator -> webApp "Reviews requests and plans events using" "HTTPS"
+        coordinatorLead -> webApp "Assigns submitted requests to coordinators using" "HTTPS"
         venueStaff -> webApp "Maintains venues and decides bookings using" "HTTPS"
         techStaff -> webApp "Maintains equipment and reservations using" "HTTPS"
         safetyOfficer -> webApp "Reviews and decides safety checks using" "HTTPS"
