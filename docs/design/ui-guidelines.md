@@ -49,6 +49,7 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | 1.40 | 19-10-2026 | §7 the request page's Venue holds rows show Expired with no Release, the hold-expiry warning and expiry notice texts on the Notifications page, and the venue-availability page leaves Expired holds out; §12 Expired badge colour (Danger) | SCRUM-85 lets a Held hold expire on its own, warning the assigned Event Coordinator 24 hours before and telling them when the venue was released |
 | 1.41 | 19-10-2026 | Equipment reserve/release confirmations and scoped reservation history | SCRUM-51 AC1–7 |
 | 1.42 | 19-10-2026 | §1 the Unassigned queue page (`/assignments/queue`, `assignment-queue`) and its test ids in §6; §7 the Assigned coordinator is now set by the Lead from the queue (not by approving), and the request page also shows who assigned it (`request-detail-assigned-by`) | Week 7 customer change 5; SCRUM-86 replaces SCRUM-43's auto-assignment with an unassigned queue the Event Coordinator Lead assigns from |
+| 1.43 | 19-10-2026 | The Notifications page texts for venue booking decisions, equipment decisions and equipment reservations; no new page, element or test id | SCRUM-63 tells the event's assigned Event Coordinator when Venue Staff or Technical Support Staff decide or change something for their event |
 
 ## 1. Pages
 
@@ -685,3 +686,25 @@ All ids below start `equipment-requirements-`:
 | Inline confirmation | `reservation-form` |
 | Confirm action | `reservation-save-button` |
 | Cancel | `reservation-cancel-button` |
+
+## SCRUM-63 — decision notices on the Notifications page
+
+The event's assigned Event Coordinator at the moment of the decision is told
+on the Notifications page (§7, SCRUM-58), with the event named, once per
+decision. No new page, element or test id: each notice is a
+`notifications-row-<id>` whose `notifications-message-<id>` is the API's text,
+word for word. Periods are a booking's or a reservation's own (`formatPeriod`,
+§9), never the occupied period widened by setup and turnaround.
+
+| Decision | Message |
+|---|---|
+| Booking approved | `Venue booking approved for Annual Gala: Venue A, 15 Dec 2026, 10:00–12:00.` |
+| Booking rejected | `Venue booking rejected for Annual Gala: Venue A, 15 Dec 2026, 10:00–12:00.` then, for whichever was suggested (SCRUM-78), ` Suggested venue: Venue B.` and ` Suggested period: 15 Dec 2026, 13:00–15:00.`, then ` Reason: <reason>` |
+| Equipment approved | `Equipment decision for Annual Gala: Projector × 2 Approved.` |
+| Equipment declined | `Equipment decision for Annual Gala: Projector × 2 Declined. Reason: <reason>` |
+| Equipment reserved | `Equipment reserved for Annual Gala: Projector × 2, 15 Dec 2026, 10:00–12:00.` |
+| Equipment released | `Equipment released for Annual Gala: Projector × 2, 15 Dec 2026, 10:00–12:00.` |
+
+A correction of an equipment decision (SCRUM-81) is a new decision and sends a
+new notice. An event with no assigned coordinator tells nobody; a refused
+decision, a withdrawal (SCRUM-77) and an arrangement note tell nobody.
