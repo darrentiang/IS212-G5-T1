@@ -116,6 +116,8 @@
       "equipment_requirements": "Sound system and stage lighting",
       "registration_needs": "No registration; the client supplies the guest list",
       "submitted_at": "2026-09-01T10:00:00+00:00",
+      "assigned_coordinator": "coord1",
+      "assigned_at": "2026-09-02T09:00:00+00:00",
       "layout": "Banquet",
       "facilities": [
         "Stage lighting",
@@ -160,6 +162,8 @@
       "equipment_requirements": "Projector, sound system and two microphones",
       "registration_needs": "No public registration; the client supplies the attendee list",
       "submitted_at": "2026-09-02T09:00:00+00:00",
+      "assigned_coordinator": "coord2",
+      "assigned_at": "2026-09-03T09:00:00+00:00",
       "layout": "Theatre",
       "facilities": [
         "Projector",

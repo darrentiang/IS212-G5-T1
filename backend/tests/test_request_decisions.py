@@ -28,6 +28,8 @@ def login_as(client, app, username):
 
 def make_request(app, status="Submitted", owner="org1", **extra):
     owner_id = db.session.query(Account).filter_by(username=owner).one().id
+    # SCRUM-87: only the assigned coordinator decides, so a request is coord1's unless a test says otherwise.
+    extra.setdefault("assigned_coordinator_id", db.session.query(Account).filter_by(username="coord1").one().id)
     event_request = EventRequest(
         created_by_id=owner_id,
         status=status,
@@ -190,7 +192,7 @@ def test_logged_out_cannot_decide(client, app):
 # @ac: 1
 def test_multi_role_coordinator_may_decide(client, app):
     login_as(client, app, "multi1")
-    request_id = make_request(app)
+    request_id = make_request(app, assigned_coordinator_id=db.session.query(Account).filter_by(username="multi1").one().id)
     resp = client.post(f"/api/requests/{request_id}/approve")
     assert resp.status_code == 200
     assert resp.get_json()["decided_by"] == "multi1"
@@ -226,10 +228,12 @@ def test_second_decision_after_a_live_decision_is_refused(client, app):
     login_as(client, app, "coord1")
     request_id = make_request(app)
     client.post(f"/api/requests/{request_id}/reject", json={"reason": "Venue capacity cannot be met."})
-    login_as(client, app, "coord2")
     resp = client.post(f"/api/requests/{request_id}/approve")
     assert resp.status_code == 409
     assert resp.get_json()["message"].startswith("This request has already been decided (Rejected on ")
+    # SCRUM-87 AC3: another coordinator is simply not the one to decide it.
+    login_as(client, app, "coord2")
+    assert client.post(f"/api/requests/{request_id}/approve").status_code == 403
     saved = stored(app, request_id)
     assert saved.status == "Rejected"
     assert saved.decided_by.username == "coord1"

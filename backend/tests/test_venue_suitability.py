@@ -73,7 +73,8 @@ def venue(name="Seminar Room 1"):
 
 def make_event(status="Approved", layout=None, facilities=(), features=(), **overrides):
     owner = db.session.query(Account).filter_by(username="org1").one()
-    fields = {**REQUEST_FIELDS, **overrides}
+    # SCRUM-87: a coordinator acts only on an event assigned to them, so every event here is coord1's.
+    fields = {"assigned_coordinator": db.session.query(Account).filter_by(username="coord1").one(), **REQUEST_FIELDS, **overrides}
     event = EventRequest(
         created_by=owner,
         status=status,
@@ -462,14 +463,32 @@ def warnings_url(event_id, venue_id):
 # @story: SCRUM-42
 # @ac: 2, 3
 @pytest.mark.parametrize("username", ["coord1", "multi1"])
-def test_whoever_may_raise_a_booking_reads_the_warnings(client, username):
-    event = make_event(attendance=100, start_time="10:00", end_time="12:00")
+def test_the_assigned_coordinator_reads_the_warnings(client, username):
+    event = make_event(
+        attendance=100,
+        start_time="10:00",
+        end_time="12:00",
+        assigned_coordinator=db.session.query(Account).filter_by(username=username).one(),
+    )
     login(client, username)
 
     resp = client.get(warnings_url(event.id, venue().id))
 
     assert resp.status_code == 200
     assert resp.get_json() == [{"type": "capacity", "attendance": 100, "max_capacity": 60}]
+
+
+# @story: SCRUM-87
+# @ac: 4
+@pytest.mark.parametrize("username", ["coord2", "multi1"])
+def test_a_coordinator_the_event_is_not_assigned_to_is_refused_the_warnings(client, username):
+    # SCRUM-42 let whoever may raise read them; SCRUM-87 narrows that to the assigned coordinator.
+    event = make_event(attendance=100, start_time="10:00", end_time="12:00")
+    login(client, username)
+
+    resp = client.get(warnings_url(event.id, venue().id))
+
+    assert resp.status_code == 403
 
 
 # @story: SCRUM-42
@@ -520,7 +539,7 @@ def test_an_unknown_event_or_venue_is_not_found(client):
 # @story: SCRUM-42
 # @ac: 2
 def test_a_draft_is_not_checked(client):
-    event = make_event(status="Draft")
+    event = make_event(status="Draft", assigned_coordinator=None)
     login(client, "coord1")
 
     resp = client.get(warnings_url(event.id, venue().id))

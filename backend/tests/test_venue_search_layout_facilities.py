@@ -71,7 +71,9 @@ def rows(model, names):
 
 def make_event(status="Approved", layout=None, facilities=(), **overrides):
     owner = db.session.query(Account).filter_by(username="org1").one()
+    # SCRUM-87: a coordinator acts only on an event assigned to them, so every event here is coord1's.
     fields = dict(EVENT_DEFAULTS)
+    fields.setdefault("assigned_coordinator", db.session.query(Account).filter_by(username="coord1").one())
     fields.update(overrides)
     event = EventRequest(
         created_by=owner,

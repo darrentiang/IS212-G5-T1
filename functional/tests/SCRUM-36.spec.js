@@ -1,4 +1,5 @@
 import { test, expect, request as playwrightRequest } from '@playwright/test'
+import { assignAsLead } from './helpers/assign.js'
 
 // SCRUM-36 Request Venue Booking. Every test maps to one curated row of the
 // test sheet, TC-SCRUM-36-01 to -10, in row order. Seeded Seminar Room 1 (/venues/1) and Auditorium (/venues/2) are
@@ -76,6 +77,8 @@ async function approvedEvent(name, overrides = {}) {
   expect(submitted.status()).toBe(201)
   const { id } = await submitted.json()
   await organiser.dispose()
+
+  await assignAsLead(id) // SCRUM-87: only the assigned coordinator decides
 
   const coordinator = await apiAs('coord1')
   const approved = await coordinator.post(`/api/requests/${id}/approve`, { data: { reason: '' } })
@@ -190,6 +193,7 @@ test('coordinator raises a booking request for an Approved event, carrying its o
 // @ac: 2
 test('the Request venue booking action is not offered for a Submitted event', async ({ page }) => {
   const eventId = await submittedEvent('SCRUM-36 Submitted Event')
+  await assignAsLead(eventId) // SCRUM-87: coord1 opens only an assigned event
   await login(page, 'coord1')
   await openRequest(page, eventId)
 
@@ -205,6 +209,7 @@ test('raising directly against a Submitted event is refused', async ({ page }) =
   // The button is hidden (previous test), but the API still refuses a direct
   // attempt (ui-guidelines.md: "the page still shows a refusal if the API says no").
   const eventId = await submittedEvent('SCRUM-36 Direct Attempt Event')
+  await assignAsLead(eventId) // SCRUM-87: coord1 acts only on an assigned event
   await login(page, 'coord1')
   await page.goto(`/requests/${eventId}/bookings/new`)
 

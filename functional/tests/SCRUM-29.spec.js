@@ -1,9 +1,10 @@
 import { test, expect, request as playwrightRequest } from '@playwright/test'
+import { assignAsLead } from './helpers/assign.js'
 
 // Curated rows: team test sheet — SCRUM-29 Approve or Reject Event Request.
 // SCRUM-86: approving assigns no one, so an approved request stays Approved.
-// Seeded Annual Dinner (/requests/1, Submitted) and Open House (/requests/4,
-// Confirmed) are only read here, never decided. Every request a test decides
+// Seeded Annual Dinner (/requests/1, Submitted, coord1's) and Open House
+// (/requests/4, Confirmed, coord2's) are only read here, never decided. Every request a test decides
 // it creates itself through the API as org1, under its own name.
 
 const BASE_URL = 'http://localhost:5173'
@@ -50,6 +51,7 @@ async function submitAsOrg1(name) {
   expect(resp.status()).toBe(201)
   const { id } = await resp.json()
   await api.dispose()
+  await assignAsLead(id) // SCRUM-87: only the assigned coordinator decides
   return id
 }
 
@@ -201,7 +203,7 @@ test('rejecting without a reason is refused and the request stays Submitted', as
 // @story: SCRUM-29
 // @ac: 1
 test('coordinator cannot decide a request that is not Submitted', async ({ page }) => {
-  await login(page, 'coord1')
+  await login(page, 'coord2') // Open House is assigned to coord2 (SCRUM-87)
   await openFromRequestsPage(page, 4)
 
   await expect(page.getByTestId('request-detail-name')).toHaveText('Open House')

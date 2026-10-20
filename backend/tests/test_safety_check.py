@@ -200,10 +200,12 @@ def test_list_is_empty_when_nothing_is_in_safety_check(client, app):
 
 # @story: SCRUM-89
 # @ac: 2
-def test_coordinator_list_still_shows_every_status_but_draft(client, app):
+def test_coordinator_list_still_shows_every_status_of_their_own_events(client, app):
+    # SCRUM-87: only the events assigned to coord1, whatever their status, and never a Draft.
     login_as(client, app, "coord1")
     names = {row["name"] for row in client.get("/api/requests").get_json()}
-    assert {"Harbour Gala", "Annual Dinner", "Open House"} <= names
+    assert {"Harbour Gala", "Annual Dinner"} <= names
+    assert "Open House" not in names  # coord2's
     assert "Design Workshop" not in names
 
 

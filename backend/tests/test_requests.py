@@ -30,6 +30,11 @@ def login_as(client, app, username):
     return account_id
 
 
+def coordinator_id(app, username):
+    with app.app_context():
+        return db.session.query(Account).filter_by(username=username).one().id
+
+
 def make_draft(app, username, status="Draft", **overrides):
     with app.app_context():
         organiser_id = db.session.query(Account).filter_by(username=username).one().id
@@ -264,7 +269,8 @@ def test_logged_out_cannot_submit_a_request(client, app):
 
 
 def test_coordinator_sees_submitted_request(client, app):
-    draft_id = make_draft(app, "org1", status="Submitted")
+    # SCRUM-87: a coordinator sees a request only once it is assigned to them.
+    draft_id = make_draft(app, "org1", status="Submitted", assigned_coordinator_id=coordinator_id(app, "coord1"))
     login_as(client, app, "coord1")
     resp = client.get("/api/requests")
     assert resp.status_code == 200
@@ -326,7 +332,7 @@ def test_stale_session_account_is_treated_as_logged_out(client, app):
 
 
 def test_coordinator_can_view_a_submitted_requests_detail(client, app):
-    draft_id = make_draft(app, "org1", status="Submitted")
+    draft_id = make_draft(app, "org1", status="Submitted", assigned_coordinator_id=coordinator_id(app, "coord1"))
     login_as(client, app, "coord1")
     resp = client.get(f"/api/requests/{draft_id}")
     assert resp.status_code == 200

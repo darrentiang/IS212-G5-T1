@@ -3,6 +3,7 @@
 and delete a Draft).
 SCRUM-42: the optional required layout, facilities and accessibility features,
 which replace the free-text venue requirements and accessibility needs.
+SCRUM-87: an Event Coordinator sees and acts on only the events assigned to them.
 SCRUM-86: the Event Coordinator Lead assigns a Submitted request to an Event Coordinator from the
 unassigned queue; approving assigns no one (replaces SCRUM-43's auto-assignment).
 SCRUM-72: revise and resubmit a Rejected request.
@@ -71,14 +72,21 @@ NOT_IN_SAFETY_CHECK = "No event in Safety Check was found with that number."
 def visible_requests(account):
     """Event requests this account may see in a list.
 
-    Event Coordinator (including multi-role coordinators): all except Draft.
+    Event Coordinator (including multi-role coordinators): only the requests
+    assigned to them (SCRUM-87 AC1).
     Event Organiser only: own requests, any status.
     Safety Officer: events in Safety Check, the one that has been there
     longest first (SCRUM-89 AC2); one with no recorded time sorts last.
     """
     query = db.session.query(EventRequest)
     if account.has_role(COORDINATOR_ROLE):
-        return query.filter(EventRequest.status != "Draft").order_by(EventRequest.id).all()
+        return (
+            query.filter(
+                EventRequest.assigned_coordinator_id == account.id, EventRequest.status != "Draft"
+            )
+            .order_by(EventRequest.id)
+            .all()
+        )
     own = EventRequest.created_by_id == account.id
     if account.has_role(SAFETY_OFFICER_ROLE):
         return (
@@ -106,7 +114,13 @@ def get_visible_request(account, request_id):
     if event_request is None:
         raise ApiRefusal(404, "Event request not found.")
 
-    if account.has_role(COORDINATOR_ROLE) and event_request.status != "Draft":
+    # SCRUM-87 AC2: a coordinator opens only an event assigned to them; one that
+    # is unassigned, or assigned to someone else, is refused below.
+    if (
+        account.has_role(COORDINATOR_ROLE)
+        and event_request.assigned_coordinator_id == account.id
+        and event_request.status != "Draft"
+    ):
         return event_request
     if account.has_role(ORGANISER_ROLE) and event_request.created_by_id == account.id:
         return event_request
@@ -445,9 +459,15 @@ def _get_decidable_request(account, request_id):
 
     AC1: only Submitted. AC7: an already decided request is refused with the
     existing decision and its date. The route's require(REQUESTS_DECIDE) has
-    already refused anyone who is not an Event Coordinator.
+    already refused anyone who is not an Event Coordinator; SCRUM-87 AC3 then
+    requires them to be the one assigned.
     """
     event_request = get_visible_request(account, request_id)
+    # SCRUM-87 AC3: only the assigned coordinator decides. A request still in the
+    # unassigned queue has no one to decide it, and an account that can read it
+    # for another role (the Lead's read-only view) does not become its coordinator.
+    if event_request.assigned_coordinator_id != account.id:
+        raise ApiRefusal(403, "You do not have permission to perform this action.")
     if event_request.status != "Submitted":
         if event_request.decision:
             raise ApiRefusal(409, _already_decided_message(event_request))

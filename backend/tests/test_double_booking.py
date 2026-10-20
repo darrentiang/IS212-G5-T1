@@ -52,6 +52,8 @@ def venue(name=SEMINAR_ROOM_1):
 def make_event(name, start, end, date=DATE):
     event = EventRequest(
         created_by=account("org1"),
+        # SCRUM-87: a coordinator acts only on an event assigned to them.
+        assigned_coordinator=account("coord1"),
         status="Approved",
         name=name,
         date=date,

@@ -41,7 +41,14 @@ def venue_id(name):
 
 def make_event(name="Tech Fair 2026", **overrides):
     owner = db.session.query(Account).filter_by(username="org1").one()
-    event = EventRequest(created_by=owner, status="Approved", **{**EVENT, "name": name, **overrides})
+    # SCRUM-87: a coordinator acts only on an event assigned to them, so every event here is coord1's.
+    coordinator = db.session.query(Account).filter_by(username="coord1").one()
+    event = EventRequest(
+        created_by=owner,
+        status="Approved",
+        assigned_coordinator=coordinator,
+        **{**EVENT, "name": name, **overrides},
+    )
     db.session.add(event)
     db.session.commit()
     return event.id

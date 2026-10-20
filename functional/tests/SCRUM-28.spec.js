@@ -95,11 +95,12 @@ test('a submitted request becomes visible to Event Coordinators for review', asy
   await page.getByTestId('request-new-submit-button').click()
   await expect(page.getByTestId('request-detail-status')).toHaveText('Submitted')
 
+  // SCRUM-87: a coordinator sees it only once assigned, so it waits in the Lead's unassigned queue.
   await page.getByTestId('layout-logout-button').click()
-  await login(page, 'coord1')
-  await page.getByTestId('layout-nav-requests').click()
+  await login(page, 'lead1')
+  await page.getByTestId('layout-nav-queue').click()
 
-  await expect(page.getByText('Coordinator Review Event')).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Coordinator Review Event' })).toBeVisible()
 })
 
 // @tc: TC-SCRUM-28-04

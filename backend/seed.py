@@ -403,6 +403,8 @@ def apply_extra(db, data_path):
                 purpose=entry.get("purpose"),
                 description=entry.get("description"),
                 equipment_requirements=entry.get("equipment_requirements"),
+                # SCRUM-87: only the assigned coordinator reads an event.
+                assigned_coordinator=accounts.get(entry.get("assigned_coordinator")),
             )
             db.session.add(row)
             events[name] = row

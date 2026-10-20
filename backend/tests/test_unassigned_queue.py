@@ -206,12 +206,14 @@ def test_each_queued_request_shows_the_details_and_nothing_more(client):
 
 # @story: SCRUM-86
 # @ac: 3
-def test_the_seeded_submitted_requests_are_in_the_queue(client):
+def test_a_seeded_submitted_request_that_has_a_coordinator_is_not_in_the_queue(client):
+    # SCRUM-87: the seed gives Annual Dinner to coord1 and Client B Conference to coord2.
     login(client, "lead1")
 
     names = queue_names(client)
 
-    assert {"Annual Dinner", "Client B Conference"} <= set(names)
+    assert "Annual Dinner" not in names
+    assert "Client B Conference" not in names
 
 
 # --- AC4: assign to any Event Coordinator; who and when are recorded ---
@@ -467,18 +469,19 @@ def test_approving_leaves_the_request_approved_with_its_coordinator(client):
     assert body["decision"] == "Approved"
 
 
-# @story: SCRUM-86
-# @ac: 2, 8
-def test_approving_a_queued_request_assigns_no_one(client):
-    request_id = make_request("Approve Stays Unassigned")
+# @story: SCRUM-87
+# @ac: 3
+def test_a_request_still_in_the_queue_cannot_be_approved_or_rejected(client):
+    # SCRUM-86 AC8 said approving assigns no one; SCRUM-87 AC3 goes further: no coordinator can decide a queued request.
+    request_id = make_request("Approve Refused Unassigned")
     login(client, "coord1")
 
-    body = client.post(f"/api/requests/{request_id}/approve", json={}).get_json()
+    assert client.post(f"/api/requests/{request_id}/approve", json={}).status_code == 403
+    assert client.post(f"/api/requests/{request_id}/reject", json={"reason": "No."}).status_code == 403
 
-    assert body["status"] == "Approved"
-    assert body["assigned_coordinator"] is None
-    assert body["assigned_at"] is None
-    assert stored(request_id).assigned_coordinator_id is None
+    saved = stored(request_id)
+    assert saved.status == "Submitted"
+    assert saved.assigned_coordinator_id is None
 
 
 def raise_booking(client, request_id, venue="Seminar Room 1"):

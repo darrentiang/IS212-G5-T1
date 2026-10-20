@@ -1,4 +1,5 @@
 import { test, expect, request as playwrightRequest } from '@playwright/test'
+import { assignAsLead } from './helpers/assign.js'
 
 // Curated rows: team test sheet — SCRUM-72 Resubmit a Rejected Request.
 // Seeded Annual Dinner (/requests/1, Submitted) is only read here. Every
@@ -52,6 +53,7 @@ async function rejectedRequest(name) {
   const { id } = await created.json()
   await org.dispose()
 
+  await assignAsLead(id) // SCRUM-87: only the assigned coordinator decides
   const coord = await apiAs('coord1')
   const rejected = await coord.post(`/api/requests/${id}/reject`, { data: { reason: REASON } })
   expect(rejected.ok()).toBeTruthy()

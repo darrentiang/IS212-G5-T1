@@ -349,7 +349,7 @@ test('for another event, search leaves out the held venue and choosing it warns 
   pinClock(`${days.now}T09:00`)
   const hold = await placeHoldFor(holder, venue, days.dayBefore)
 
-  await login(page, 'coord2')
+  await login(page, rival.coordinator)
   await page.goto(`/requests/${rival.id}`)
   await page.getByTestId('request-detail-search-venues-button').click()
 
@@ -415,7 +415,7 @@ test('the assigned coordinator releases a hold; it shows Released and the venue 
   await expect(page.getByTestId(`request-detail-hold-status-${hold}`)).toHaveText('Released')
 
   await logout(page)
-  await login(page, 'coord2')
+  await login(page, rival.coordinator)
   await page.goto(`/requests/${rival.id}`)
   await page.getByTestId('request-detail-search-venues-button').click()
   await expect(page.getByTestId(`venue-search-row-${venue}`)).toBeVisible()

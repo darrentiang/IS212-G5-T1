@@ -536,12 +536,13 @@ def test_the_search_reply_carries_the_event_status_and_assigned_coordinator(clie
 # @story: SCRUM-82
 # @ac: 6
 def test_the_search_reply_names_no_coordinator_when_none_is_assigned(client, app):
+    # No coordinator can search an unassigned event any more (SCRUM-87 AC4), so this
+    # asks the reply builder directly: an unassigned event names nobody.
+    from areas.venues.services import search_to_dict
+
     row = event(status="Approved", coordinator=None)
-    login_as(client, "coord1")
 
-    reply = client.get("/api/venues/search", query_string={"event_request_id": row.id})
-
-    assert reply.get_json()["event"]["assigned_coordinator"] is None
+    assert search_to_dict(row, [])["event"]["assigned_coordinator"] is None
 
 
 # @story: SCRUM-82

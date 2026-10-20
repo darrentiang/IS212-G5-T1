@@ -203,17 +203,20 @@ def test_org1_list_shows_only_own_requests(client):
     assert "Open House" in names
 
 
-# @story: SCRUM-27
-# @ac: 3
-def test_coord_list_excludes_drafts(client):
+# @story: SCRUM-87
+# @ac: 1
+def test_coord_list_shows_only_the_requests_assigned_to_them(client):
+    # SCRUM-27 let a coordinator see every non-Draft request; SCRUM-87 narrows it.
     client.post("/api/login", json={"username": "coord1", "password": "Passw0rd!"})
     rows = client.get("/api/requests").get_json()
     names = {row["name"] for row in rows}
     statuses = {row["status"] for row in rows}
     assert "Annual Dinner" in names
-    assert "Client B Conference" in names
+    assert "Client B Conference" not in names  # coord2's
+    assert "Open House" not in names  # coord2's
     assert "Design Workshop" not in names
     assert "Draft" not in statuses
+    assert {row["assigned_coordinator"] for row in rows} == {"coord1"}
 
 
 # @story: SCRUM-27
@@ -293,7 +296,7 @@ def test_attendee_cannot_open_request_detail(client):
 # @story: SCRUM-27
 # @ac: 1, 6
 def test_coord_detail_includes_notes_attendee_payload_does_not(client):
-    client.post("/api/login", json={"username": "coord1", "password": "Passw0rd!"})
+    client.post("/api/login", json={"username": "coord2", "password": "Passw0rd!"})  # Open House is coord2's
     rows = client.get("/api/requests").get_json()
     open_house = next(row for row in rows if row["name"] == "Open House")
     detail = client.get(f"/api/requests/{open_house['id']}").get_json()

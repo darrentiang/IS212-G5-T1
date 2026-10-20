@@ -3,6 +3,8 @@
 SCRUM-27: read-only list and detail with role rules.
 SCRUM-28: create a request and submit it (direct or from Draft).
 SCRUM-29: approve or reject a Submitted request.
+SCRUM-87: an Event Coordinator lists, opens and decides only the requests assigned to them;
+only an Event Organiser creates or submits one.
 SCRUM-30: save, edit and delete a Draft.
 SCRUM-42: the fixed lists a request's required layout, facilities and
 accessibility features are chosen from.

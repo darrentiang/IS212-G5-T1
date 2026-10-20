@@ -39,6 +39,7 @@ def venue_options():
 @require(VENUES_SEARCH)
 def search_venues():
     event, venues = services.search_venues(
+        g.account,
         request.args.get("event_request_id", type=int),
         request.args.get("location", ""),
         request.args.getlist("accessibility_features"),

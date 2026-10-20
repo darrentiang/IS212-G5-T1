@@ -32,6 +32,8 @@ def login_as(client, app, username):
 def make_rejected(app, status="Rejected", owner="org1", **extra):
     owner_id = db.session.query(Account).filter_by(username=owner).one().id
     coordinator_id = db.session.query(Account).filter_by(username="coord1").one().id
+    # SCRUM-87: a request is its coordinator's to see and decide; coord1's unless a test says otherwise.
+    extra.setdefault("assigned_coordinator_id", coordinator_id)
     event_request = EventRequest(
         created_by_id=owner_id,
         status=status,
@@ -148,7 +150,9 @@ def test_earlier_decision_reason_date_and_decider_stay_after_resubmission(client
 # @story: SCRUM-72
 # @ac: 4
 def test_resubmitted_request_can_be_decided_again_and_the_new_decision_replaces_the_old(client, app):
-    request_id = make_rejected(app)
+    request_id = make_rejected(
+        app, assigned_coordinator_id=db.session.query(Account).filter_by(username="coord2").one().id
+    )
     login_as(client, app, "org1")
     client.post(f"/api/requests/{request_id}/resubmit")
 
@@ -267,7 +271,8 @@ def test_event_coordinator_cannot_resubmit(client, app):
     login_as(client, app, "coord1")
     resp = client.post(f"/api/requests/{request_id}/resubmit")
     assert resp.status_code == 403
-    assert resp.get_json()["message"] == "Only an Event Organiser may do this."
+    # SCRUM-87 AC7: the coordinator no longer holds requests.edit at all.
+    assert resp.get_json()["message"] == "You do not have permission to perform this action."
     assert stored(request_id).status == "Rejected"
 
 

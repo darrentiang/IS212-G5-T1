@@ -477,7 +477,7 @@ def block_to_dict(block):
     }
 
 
-def search_venues(event_request_id, location, accessibility_features=(), layout="", facilities=()):
+def search_venues(account, event_request_id, location, accessibility_features=(), layout="", facilities=()):
     """Venues that are free for an event and large enough for it (SCRUM-33),
     narrowed by the accessibility features (SCRUM-34) and the room layout and
     facilities (SCRUM-35) the coordinator selected.
@@ -528,6 +528,10 @@ def search_venues(event_request_id, location, accessibility_features=(), layout=
     event = db.session.get(EventRequest, event_request_id)
     if event is None:
         raise ApiRefusal(404, "Event request not found.")
+    # SCRUM-87 AC4: searching reads the event, so one that is not the account's
+    # to manage is refused 403 (a read), like opening its page.
+    if event.assigned_coordinator_id != account.id:
+        raise ApiRefusal(403, "You do not have permission to perform this action.")
     if event.status not in SEARCHABLE_STATUSES:
         raise ApiRefusal(400, "Venue search is available only for an Approved or Planning event.")
 

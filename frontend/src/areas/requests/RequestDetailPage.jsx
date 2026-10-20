@@ -255,7 +255,11 @@ const openDecision = (action) => {
     }
   }
 
-  const canDecide = Boolean(can?.('requests.decide')) && row?.status === STATUS.REQUEST.SUBMITTED
+  // SCRUM-87 AC3: only the assigned coordinator decides; the API refuses anyone else.
+  const canDecide =
+    Boolean(can?.('requests.decide')) &&
+    row?.status === STATUS.REQUEST.SUBMITTED &&
+    row?.assigned_coordinator === account?.username
 
   // Every form an action opens is brought into view with its first field
   // focused, and a failed required-field check focuses the field it names
@@ -364,11 +368,9 @@ const openDecision = (action) => {
   // SCRUM-83 AC3: offered on an Approved booking to the assigned coordinator
   // while the event is Approved or Planning; the API refuses anything else.
   const canCancelBooking = (booking) => canPlaceHold && booking.status === STATUS.BOOKING.APPROVED
-  // SCRUM-77: whoever raised a Requested booking may withdraw it.
+  // SCRUM-87 AC4: the assigned coordinator may withdraw a Requested booking, whoever raised it.
   const canWithdrawBooking = (booking) =>
-    Boolean(can?.('bookings.edit')) &&
-    booking.status === STATUS.BOOKING.REQUESTED &&
-    booking.raised_by === account?.username
+    isAssignedCoordinator && booking.status === STATUS.BOOKING.REQUESTED
 
   const openCancel = (bookingId) => {
     setOpenAction('cancel')
@@ -515,12 +517,13 @@ const openDecision = (action) => {
     }
   }
 
+  // SCRUM-87 AC4: raising a booking and searching venues are the assigned coordinator's.
   const canRaiseBooking =
-    Boolean(can?.('bookings.edit')) &&
-    [STATUS.REQUEST.APPROVED, STATUS.REQUEST.PLANNING].includes(row?.status)
+    isAssignedCoordinator && [STATUS.REQUEST.APPROVED, STATUS.REQUEST.PLANNING].includes(row?.status)
   // SCRUM-33: venue search is offered for the same two statuses.
   const canSearchVenues =
     Boolean(can?.('venues.search')) &&
+    row?.assigned_coordinator === account?.username &&
     [STATUS.REQUEST.APPROVED, STATUS.REQUEST.PLANNING].includes(row?.status)
 
   // SCRUM-72: the form is offered to the Organiser who created the request; the
@@ -1067,7 +1070,7 @@ const openDecision = (action) => {
               bookings={bookings}
               canCancel={canCancelBooking}
               canWithdraw={canWithdrawBooking}
-              hasActions={Boolean(can?.('bookings.edit'))}
+              hasActions={isAssignedCoordinator}
               cancellingId={openAction === 'cancel' ? cancellingId : null}
               reason={cancelReason}
               reasonError={cancelError}

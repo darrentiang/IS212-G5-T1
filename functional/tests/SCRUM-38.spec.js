@@ -1,4 +1,5 @@
 import { test, expect, request as playwrightRequest } from '@playwright/test'
+import { assignAsLead } from './helpers/assign.js'
 
 // SCRUM-38 Prevent Double-Booking of a Venue. Curated rows: team test sheet,
 // TC-SCRUM-38-01 to 13. Every row creates its own venue through the API as
@@ -56,6 +57,8 @@ async function approvedEvent(name, startTime, endTime, date = DATE) {
   expect(submitted.status()).toBe(201)
   const { id } = await submitted.json()
   await organiser.dispose()
+
+  await assignAsLead(id) // SCRUM-87: only the assigned coordinator decides
 
   const coordinator = await apiAs('coord1')
   const approved = await coordinator.post(`/api/requests/${id}/approve`, { data: { reason: '' } })

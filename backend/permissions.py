@@ -1,4 +1,4 @@
-"""Role → feature matrix — SCRUM-27, SCRUM-31, SCRUM-29, SCRUM-36, SCRUM-33, SCRUM-37, SCRUM-49, SCRUM-89, SCRUM-53, SCRUM-50, SCRUM-86 (ADR-002).
+"""Role → feature matrix — SCRUM-27, SCRUM-31, SCRUM-29, SCRUM-36, SCRUM-33, SCRUM-37, SCRUM-49, SCRUM-89, SCRUM-53, SCRUM-50, SCRUM-86, SCRUM-87 (ADR-002).
 
 Direct transcription of docs/design/permissions.md. An account may hold
 several roles (Q-06, D-09); it may do anything any of its roles allows.
@@ -68,9 +68,9 @@ ROLE_FEATURES = {
         NOTIFICATIONS_VIEW,
     },
     "Event Coordinator": {
-        REQUESTS_VIEW,  # all except Draft (service filter)
-        REQUESTS_EDIT,
-        REQUESTS_DECIDE,
+        REQUESTS_VIEW,  # only the events assigned to them (service filter, SCRUM-87)
+        # No requests.edit: only an Event Organiser creates or submits a request (SCRUM-87 AC7).
+        REQUESTS_DECIDE,  # and only on an event assigned to them (service rule, SCRUM-87 AC3)
         VENUES_VIEW,
         VENUES_SEARCH,
         BOOKINGS_EDIT,

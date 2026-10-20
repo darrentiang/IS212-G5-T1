@@ -49,6 +49,7 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | 1.40 | 19-10-2026 | §7 the request page's Venue holds rows show Expired with no Release, the hold-expiry warning and expiry notice texts on the Notifications page, and the venue-availability page leaves Expired holds out; §12 Expired badge colour (Danger) | SCRUM-85 lets a Held hold expire on its own, warning the assigned Event Coordinator 24 hours before and telling them when the venue was released |
 | 1.41 | 19-10-2026 | Equipment reserve/release confirmations and scoped reservation history | SCRUM-51 AC1–7 |
 | 1.42 | 19-10-2026 | §1 the Unassigned queue page (`/assignments/queue`, `assignment-queue`) and its test ids in §6; §7 the Assigned coordinator is now set by the Lead from the queue (not by approving), and the request page also shows who assigned it (`request-detail-assigned-by`) | Week 7 customer change 5; SCRUM-86 replaces SCRUM-43's auto-assignment with an unassigned queue the Event Coordinator Lead assigns from |
+| 1.43 | 20-10-2026 | §7 an Event Coordinator is offered Approve/Reject, Request venue booking, Search venues, Place hold, Cancel booking and Withdraw only on an event assigned to them (Withdraw whoever raised the request, on the venue page and on the request page); New request is offered only to an Event Organiser | SCRUM-87: a coordinator manages only their assigned events, and only an Organiser creates or submits a request |
 | 1.43 | 19-10-2026 | The Notifications page texts for venue booking decisions, equipment decisions and equipment reservations; no new page, element or test id | SCRUM-63 tells the event's assigned Event Coordinator when Venue Staff or Technical Support Staff decide or change something for their event |
 
 ## 1. Pages
@@ -167,6 +168,8 @@ While the page is waiting for the API it renders the title row and nothing below
 | Coordinator select, message under an empty choice, Assign button | `assignment-queue-coordinator-input-<id>`, `assignment-queue-coordinator-error-<id>`, `assignment-queue-assign-button-<id>` |
 
 ## 7. Detail pages
+
+- **Who is offered what (SCRUM-87).** An Event Coordinator sees only the requests assigned to them, so the Requests page lists no other and another's request opens as a refusal in the banner with none of its fields (§4). On a request they may open, Approve and Reject, Request venue booking, Search venues, Place hold, Cancel booking and Withdraw (any Requested booking of the event, whoever raised it) are shown only to the event's assigned Coordinator; the New request button and page are offered only to an Event Organiser, so a Coordinator, a Lead or any other role finds neither.
 
 - Fields as label/value pairs, in the order the form uses.
 - Status as text; a flag as its own text beside it.
@@ -317,9 +320,9 @@ A duration save and the refresh it triggers are two separate outcomes. **Save** 
 | No booking requests | `venue-detail-bookings-empty` |
 | Approve button (Requested row, only with `bookings.decide`) | `venue-detail-booking-approve-button-<id>` |
 | Reject button (Requested row, only with `bookings.decide`) | `venue-detail-booking-reject-button-<id>` |
-| Withdraw button (Requested row, only with `bookings.edit`, only the Coordinator who raised it) | `venue-detail-booking-withdraw-button-<id>` |
+| Withdraw button (Requested row, only with `bookings.edit`, only the event's assigned Coordinator, whoever raised it) | `venue-detail-booking-withdraw-button-<id>` |
 
-SCRUM-77 adds Withdraw to a Requested row's action cell, for the Coordinator who raised that specific booking only (not every Coordinator, even though `bookings.edit` is a role-level key) — the same own-record pattern as a Draft's Edit/Delete. It acts at once, no inline form: the criteria ask for no confirmation, the same as a block's Remove.
+SCRUM-77 adds Withdraw to a Requested row's action cell, for the Coordinator who raised that specific booking only (not every Coordinator, even though `bookings.edit` is a role-level key) — the same own-record pattern as a Draft's Edit/Delete. It acts at once, no inline form: the criteria ask for no confirmation, the same as a block's Remove. SCRUM-87 changes whose it is: the event's assigned Coordinator, whoever raised the request, so after a reassignment the previous Coordinator no longer sees it and the new one does.
 
 **Deciding a booking request** opens its inline form as its own row directly below the booking's, inside the table, the same per-row pattern as End block early above (not below the whole Booking requests table): only one of Update venue, Edit times, Block venue, End early and this is open at a time. Reason is required to reject, optional to approve (the same rule as deciding an event request, `ui-guidelines.md` existing request-detail reject/approve pattern). Its test ids use the action as `<field>`, the same convention as request-detail's decide form. An approval refused because an approved booking or a block already holds the venue over an overlapping occupied period (SCRUM-38, widened by SCRUM-41) shows the API's message in `venue-detail-banner`, naming each holder (`This venue is already committed for an overlapping period: TC38 Holder, 10 Dec 2026, 14:00–17:00.`; a block as `blocked 10 Dec 2026, 13:00 to 10 Dec 2026, 15:00 (Projector replacement)`; several joined with `; `); the booking stays Requested and its decision cell stays blank. SCRUM-84: another event's Held hold refuses it the same way, named like a booking by its event and published period, after the bookings and before the blocks; the event's own hold never refuses its own approval, and approving releases it.
 
@@ -351,7 +354,7 @@ SCRUM-77 adds Withdraw to a Requested row's action cell, for the Coordinator who
 | Venue, occupied period, status | `request-detail-booking-venue-<id>`, `request-detail-booking-period-<id>`, `request-detail-booking-status-<id>` |
 | Cancel reason (Cancelled row) | `request-detail-booking-cancel-reason-<id>` |
 | Cancel booking button (Approved row, assigned coordinator, event Approved or Planning) | `request-detail-booking-cancel-button-<id>` |
-| Withdraw button (Requested row, the Coordinator who raised it) | `request-detail-booking-withdraw-button-<id>` |
+| Withdraw button (Requested row, the event's assigned Coordinator, whoever raised it) | `request-detail-booking-withdraw-button-<id>` |
 | Venue unavailable marker (Approved row a block overlaps, SCRUM-82) | `request-detail-booking-unavailable-<id>` |
 | Cancel booking form | `request-detail-booking-cancel-form` |
 | Reason, and the message under it | `request-detail-booking-cancel-reason-input`, `request-detail-booking-cancel-reason-error` |

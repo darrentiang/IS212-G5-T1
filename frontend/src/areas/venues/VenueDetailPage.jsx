@@ -205,9 +205,9 @@ export default function VenueDetailPage() {
 
   const canBlock = can('venues.edit')
   const canDecideBookings = can('bookings.decide')
-  // SCRUM-77: bookings.edit (Event Coordinator) gates the role; whether this
-  // account raised the specific row is checked per-row below, the API's
-  // own ownership rule mirrored here for usability (ADR-002).
+  // SCRUM-77: bookings.edit (Event Coordinator) gates the role; SCRUM-87: whether
+  // this account is the assigned coordinator of the row's event is checked
+  // per-row below, the API's own rule mirrored here for usability (ADR-002).
   const canWithdraw = can('bookings.edit')
   // SCRUM-41: an event's name links to its request only when the account may
   // open requests; anyone else sees the name as plain text.
@@ -1469,7 +1469,7 @@ export default function VenueDetailPage() {
                                         </button>
                                       </>
                                     )}
-                                    {canWithdraw && booking.raised_by === account?.username && (
+                                    {canWithdraw && booking.assigned_coordinator === account?.username && (
                                       <button
                                         type="button"
                                         disabled={submitting}

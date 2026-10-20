@@ -1,4 +1,5 @@
 import { test, expect, request as playwrightRequest } from '@playwright/test'
+import { assignAsLead } from './helpers/assign.js'
 
 // SCRUM-35 Filter Venues by Layout and Facilities. One test per curated row of
 // the Test cases tab, in the row's order; every row can be reached through the
@@ -65,6 +66,8 @@ async function approvedEvent(name, offset, overrides = {}) {
   expect(resp.status()).toBe(201)
   const { id } = await resp.json()
   await organiser.dispose()
+
+  await assignAsLead(id) // SCRUM-87: only the assigned coordinator decides
 
   const coordinator = await apiAs('coord1')
   const approved = await coordinator.post(`/api/requests/${id}/approve`, { data: { reason: '' } })

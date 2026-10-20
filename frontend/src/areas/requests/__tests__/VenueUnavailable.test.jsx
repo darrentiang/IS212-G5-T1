@@ -178,7 +178,9 @@ describe('Place hold opened from venue search', () => {
     signInWith(COORDINATOR, 'coord2')
     renderDetail('/requests/7?hold=2')
 
-    expect(await screen.findByTestId('request-detail-raise-booking-button')).toBeInTheDocument()
+    expect(await screen.findByTestId('request-detail-status')).toBeInTheDocument()
+    // SCRUM-87: not the assigned coordinator, so no booking or hold control is offered at all.
+    expect(screen.queryByTestId('request-detail-raise-booking-button')).not.toBeInTheDocument()
     expect(screen.queryByTestId('request-detail-hold-form')).not.toBeInTheDocument()
     expect(api.listVenues).not.toHaveBeenCalled()
   })

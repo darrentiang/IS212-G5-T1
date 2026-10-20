@@ -1,4 +1,5 @@
 import { test, expect, request as playwrightRequest } from '@playwright/test'
+import { assignAsLead } from './helpers/assign.js'
 
 // SCRUM-37 Approve or Reject a Venue Booking Request. Curated rows: team test
 // sheet, TC-SCRUM-37-01 to 08. Seeded Seminar Room 1 (/venues/1) is read and
@@ -67,6 +68,8 @@ async function requestedBookings(name, venueIds, eventFields = {}) {
   expect(submitted.status()).toBe(201)
   const { id: eventId } = await submitted.json()
   await organiser.dispose()
+
+  await assignAsLead(eventId) // SCRUM-87: only the assigned coordinator decides
 
   const coordinator = await apiAs('coord1')
   const approved = await coordinator.post(`/api/requests/${eventId}/approve`, { data: { reason: '' } })

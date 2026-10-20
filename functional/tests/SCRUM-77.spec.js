@@ -1,4 +1,5 @@
 import { test, expect, request as playwrightRequest } from '@playwright/test'
+import { assignAsLead } from './helpers/assign.js'
 
 // SCRUM-77 Withdraw a Venue Booking Request. TC-SCRUM-77-01 through 05
 // (test-case sheet). Seeded Seminar Room 1 (/venues/1) and Auditorium
@@ -56,6 +57,8 @@ async function requestedBooking(name, venueId, raisedBy = 'coord1') {
   expect(submitted.status()).toBe(201)
   const { id: eventId } = await submitted.json()
   await organiser.dispose()
+
+  await assignAsLead(eventId) // SCRUM-87: only the assigned coordinator decides
 
   const coordinator = await apiAs('coord1')
   const approved = await coordinator.post(`/api/requests/${eventId}/approve`, { data: { reason: '' } })
@@ -173,6 +176,8 @@ test("withdrawing one booking request leaves the event's other booking requests 
   expect(submitted.status()).toBe(201)
   const { id: eventId } = await submitted.json()
   await organiser.dispose()
+
+  await assignAsLead(eventId) // SCRUM-87: only the assigned coordinator decides
 
   const coordinator = await apiAs('coord1')
   const approved = await coordinator.post(`/api/requests/${eventId}/approve`, { data: { reason: '' } })

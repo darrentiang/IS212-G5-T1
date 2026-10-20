@@ -102,12 +102,11 @@ def raise_booking(account, event_request_id, data):
     request does not block. Every check runs before anything is written, so
     a refusal records nothing.
 
-    Who may call this is the route's own @require(BOOKINGS_EDIT): the
-    feature key is held by Event Coordinator alone (permissions.py), so
-    there is no broader role to narrow here, unlike requests.edit (shared
-    with Event Organiser) needing _require_organiser downstream.
+    Who may call this is the route's own @require(BOOKINGS_EDIT), held by Event
+    Coordinator alone, and only on an event assigned to them (SCRUM-87 AC4:
+    a write answers 404 when the event is not theirs, permissions.md).
     """
-    event_request = _get_event_request(event_request_id)
+    event_request = _get_assigned_event(account, event_request_id)
     if event_request.status not in RAISABLE_STATUSES:
         raise ApiRefusal(
             400, "A venue booking can be requested only for an Approved or Planning event."
@@ -402,11 +401,14 @@ def reject_booking(venue_id, booking_id, account, data):
 
 
 def withdraw_booking(venue_id, booking_id, account):
-    """Requested -> Withdrawn (state-model.md): the raising Coordinator pulls
-    back a request before Venue Staff decide it.
+    """Requested -> Withdrawn (state-model.md): the event's assigned Coordinator
+    pulls back a request before Venue Staff decide it.
 
-    AC4: refused for anyone other than the Coordinator who raised it,
-    answered as 404 — the same "a write does not reveal existence" rule as
+    SCRUM-87 AC4: it belongs to the event's assigned Coordinator, whoever raised
+    the request (SCRUM-77 let only the raiser; after a reassignment the
+    previous coordinator no longer may, and the new one can).
+
+    AC4: refused for anyone other than that Coordinator, answered as 404 — the same "a write does not reveal existence" rule as
     an own Draft (permissions.md's 403-vs-404 Rule), checked before AC3's
     status check so a non-raiser learns nothing about the booking's status
     either. AC3: only a Requested booking can be withdrawn; already decided
@@ -416,7 +418,7 @@ def withdraw_booking(venue_id, booking_id, account):
     refuses anything not Requested, and this only ever touches the one row.
     """
     booking = _get_booking(venue_id, booking_id)
-    if booking.raised_by_id != account.id:
+    if booking.event_request.assigned_coordinator_id != account.id:
         raise ApiRefusal(404, "Booking request not found.")
     if booking.status != AWAITING_DECISION:
         raise ApiRefusal(409, _already_decided_message(booking))
@@ -509,6 +511,12 @@ def booking_to_dict(booking):
         "layout": booking.event_request.layout.name if booking.event_request.layout else None,
         "facilities": [row.name for row in booking.event_request.facilities],
         "raised_by": booking.raised_by.username,
+        # SCRUM-87 AC4: Withdraw belongs to the event's assigned coordinator, so the page needs to know who that is.
+        "assigned_coordinator": (
+            booking.event_request.assigned_coordinator.username
+            if booking.event_request.assigned_coordinator
+            else None
+        ),
         "raised_at": booking.raised_at.isoformat(),
         "decision": booking.decision,
         "decision_reason": booking.decision_reason,
@@ -593,7 +601,10 @@ def check_venue(account, event_request_id, venue_id):
     """
     event_request = _get_event_request(event_request_id)
     venue = _get_venue(venue_id)
-    if event_request.status == "Draft":
+    # SCRUM-87 AC4: the warnings read the event, so an event that is not the
+    # account's to manage (unassigned, assigned to someone else, or a Draft) is
+    # refused 403, the same read rule as GET /api/requests/:id.
+    if event_request.assigned_coordinator_id != account.id:
         raise ApiRefusal(403, "You do not have permission to perform this action.")
     return venue_warnings(event_request, venue)
 
