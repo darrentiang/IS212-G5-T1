@@ -9,6 +9,7 @@ SCRUM-88: the Event Coordinator Lead lists every active event and each coordinat
 SCRUM-30: save, edit and delete a Draft.
 SCRUM-42: the fixed lists a request's required layout, facilities and
 accessibility features are chosen from.
+SCRUM-44: the Lead moves an assigned active event to another Event Coordinator.
 SCRUM-86: the Event Coordinator Lead lists the unassigned queue and assigns a request from it;
 approving a request assigns no one.
 SCRUM-72: revise and resubmit a Rejected request.
@@ -87,6 +88,16 @@ def assign_request(request_id):
     account = g.account
     data = flask_request.get_json(silent=True) or {}
     updated = services.assign_coordinator(account, request_id, data)
+    return jsonify(services.request_detail_dict(updated, account)), 200
+
+
+@bp.post("/requests/<int:request_id>/reassign")
+@require(ASSIGNMENTS_MANAGE)
+def reassign_request(request_id):
+    """SCRUM-44: move an assigned active event to another Event Coordinator; the status is unchanged."""
+    account = g.account
+    data = flask_request.get_json(silent=True) or {}
+    updated = services.reassign_coordinator(account, request_id, data)
     return jsonify(services.request_detail_dict(updated, account)), 200
 
 

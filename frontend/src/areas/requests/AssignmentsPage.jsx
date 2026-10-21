@@ -2,12 +2,13 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import Banner from '../../app/Banner'
 import { STATUS, formatDate, statusBadgeClass } from '../../app/format'
-import { listAssignments } from './api'
+import { listAssignments, reassignRequest } from './api'
 
-// SCRUM-88: the Event Coordinator Lead's read-only view of every active event and who
-// holds it, filtered by coordinator and by status, with each coordinator's count of
-// active events. Opening an event shows its request page, where the Lead is offered
-// no action.
+// SCRUM-88: the Event Coordinator Lead's view of every active event and who holds it,
+// filtered by coordinator and by status, with each coordinator's count of active events.
+// Opening an event shows its request page, where the Lead is offered no action.
+// SCRUM-44: each assigned row also has a coordinator to choose and a Reassign button;
+// an event nobody holds is assigned from the Unassigned queue, so its row has neither.
 const ACTIVE = [
   STATUS.REQUEST.SUBMITTED,
   STATUS.REQUEST.APPROVED,
@@ -22,7 +23,15 @@ export default function AssignmentsPage() {
   const [coordinator, setCoordinator] = useState('')
   const [status, setStatus] = useState('')
   const [loading, setLoading] = useState(true)
+  // A list that cannot be read (hides the list), and the outcome of a Reassign (does not).
   const [banner, setBanner] = useState(null)
+  const [actionError, setActionError] = useState(null)
+  const [success, setSuccess] = useState(null)
+  const [reloadKey, setReloadKey] = useState(0)
+  // The coordinator picked for each row, and the message under an empty pick.
+  const [chosen, setChosen] = useState({})
+  const [errors, setErrors] = useState({})
+  const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -43,7 +52,37 @@ export default function AssignmentsPage() {
     return () => {
       active = false
     }
-  }, [coordinator, status])
+  }, [coordinator, status, reloadKey])
+
+  const choose = (id, value) => {
+    setChosen((current) => ({ ...current, [id]: value }))
+    setErrors((current) => ({ ...current, [id]: null }))
+  }
+
+  const handleReassign = async (row) => {
+    setActionError(null)
+    setSuccess(null)
+    // The page checks only that a coordinator is picked; every other rule is the
+    // API's and shows in the banner (ui-guidelines.md §5).
+    const picked = chosen[row.id] ?? ''
+    if (picked === '') {
+      setErrors((current) => ({ ...current, [row.id]: 'Choose an Event Coordinator.' }))
+      return
+    }
+
+    setSubmitting(true)
+    try {
+      const updated = await reassignRequest(row.id, Number(picked))
+      choose(row.id, '')
+      setSuccess(`${row.name} reassigned to ${updated.assigned_coordinator}.`)
+    } catch (error) {
+      setActionError(error.message)
+    } finally {
+      setSubmitting(false)
+      // Whatever the outcome, show the list and the counts as they now stand.
+      setReloadKey((key) => key + 1)
+    }
+  }
 
   return (
     <div className="space-y-8">
@@ -53,7 +92,16 @@ export default function AssignmentsPage() {
         </h1>
       </div>
 
-      <Banner page="assignments" error={banner} onDismiss={() => setBanner(null)} />
+      <Banner
+        page="assignments"
+        error={banner || actionError}
+        success={success}
+        onDismiss={() => {
+          setBanner(null)
+          setActionError(null)
+          setSuccess(null)
+        }}
+      />
 
       <section className="card" data-testid="assignments-workloads" aria-labelledby="assignments-workloads-heading">
         <h2 id="assignments-workloads-heading" className="section-title">
@@ -125,6 +173,7 @@ export default function AssignmentsPage() {
                   <th>Date</th>
                   <th>Status</th>
                   <th>Assigned coordinator</th>
+                  <th>Reassign to</th>
                 </tr>
               </thead>
               <tbody>
@@ -141,6 +190,45 @@ export default function AssignmentsPage() {
                     </td>
                     <td data-testid={`assignments-coordinator-${row.id}`}>
                       {row.assigned_coordinator ?? 'Unassigned'}
+                    </td>
+                    <td>
+                      {row.assigned_coordinator && (
+                        <div className="flex flex-wrap items-start gap-2">
+                          <div>
+                            <label htmlFor={`assignments-reassign-input-${row.id}`} className="sr-only">
+                              New Event Coordinator for {row.name}
+                            </label>
+                            <select
+                              id={`assignments-reassign-input-${row.id}`}
+                              className="input"
+                              value={chosen[row.id] ?? ''}
+                              onChange={(event) => choose(row.id, event.target.value)}
+                              data-testid={`assignments-reassign-input-${row.id}`}
+                            >
+                              <option value="">Choose a coordinator</option>
+                              {coordinators.map((account) => (
+                                <option key={account.id} value={account.id}>
+                                  {account.username}
+                                </option>
+                              ))}
+                            </select>
+                            {errors[row.id] && (
+                              <p className="field-error" data-testid={`assignments-reassign-error-${row.id}`}>
+                                {errors[row.id]}
+                              </p>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            disabled={submitting}
+                            onClick={() => handleReassign(row)}
+                            className="btn btn-primary"
+                            data-testid={`assignments-reassign-button-${row.id}`}
+                          >
+                            Reassign
+                          </button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))}
