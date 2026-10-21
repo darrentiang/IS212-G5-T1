@@ -14,7 +14,8 @@ SCRUM-53: the assigned Event Coordinator sends a Planning event for safety check
 SCRUM-84: an Approved event moves to Planning when its first hold is placed.
 SCRUM-82: a booking marked Venue unavailable stops the event being sent.
 SCRUM-62: the creating Event Organiser is told when their request is received,
-approved or rejected (the assignment notice is SCRUM-86's, below).
+approved or rejected (the assignment and reassignment notices it also relies on
+are SCRUM-86's and SCRUM-44's, below).
 
 Object rules from permissions.md / ADR-002 live here next to the query.
 """

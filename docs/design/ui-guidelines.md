@@ -53,7 +53,7 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | 1.44 | 21-10-2026 | §1 the All assignments page (`/assignments`, `assignments`) and §6 its elements and test ids; §7 the Lead's read-only view of an active event | SCRUM-88 AC1–6 |
 | 1.43 | 19-10-2026 | The Notifications page texts for venue booking decisions, equipment decisions and equipment reservations; no new page, element or test id | SCRUM-63 tells the event's assigned Event Coordinator when Venue Staff or Technical Support Staff decide or change something for their event |
 | 1.45 | 22-10-2026 | §1/§6 the All assignments page gains a coordinator select and a Reassign button on each assigned row, with their test ids, messages and the three Notifications page texts; §7 the request page shows the new coordinator and the reassigning Lead after a reassignment | SCRUM-44 AC1–6: the Event Coordinator Lead moves an assigned active event to another Event Coordinator |
-| 1.46 | 22-10-2026 | The Notifications page texts for an event request received, approved and rejected; no new page, element or test id | SCRUM-62 tells the Event Organiser who created a request when it is received, assigned a coordinator, approved or rejected |
+| 1.46 | 22-10-2026 | The Notifications page texts for an event request received, approved and rejected, beside the assignment (SCRUM-86) and reassignment (SCRUM-44) notices they sit with; no new page, element or test id | SCRUM-62 tells the Event Organiser who created a request when it is received, assigned a coordinator, approved or rejected |
 
 ## 1. Pages
 
@@ -741,8 +741,9 @@ uses the new one.
 |---|---|
 | Submitted, a Draft submitted, or resubmitted (SCRUM-28, SCRUM-72) | `Your request "Annual Gala" was received.` |
 | Coordinator assigned (SCRUM-86's notice) | `coord1 has been assigned to your event "Annual Gala".` |
+| Coordinator reassigned (SCRUM-44's notice, naming the new coordinator) | `coord2 has been assigned to your event "Annual Gala".` |
 | Approved | `Your request "Annual Gala" was approved.` then, when a reason was given, ` Reason: <reason>` |
 | Rejected | `Your request "Annual Gala" was rejected. Reason: <reason>` |
 
-Saving or editing a Draft and any refused action tell nobody. Reassignment
-(SCRUM-44) and clarification (SCRUM-45) notices are those stories'.
+Saving or editing a Draft and any refused action tell nobody. Clarification
+notices are SCRUM-45's.

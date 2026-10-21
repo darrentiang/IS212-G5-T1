@@ -1,7 +1,7 @@
 import { test, expect, request as playwrightRequest } from '@playwright/test'
 import { assignAsLead } from './helpers/assign.js'
 
-// SCRUM-62 Notify on Event Request Decisions. TC-SCRUM-62-01 to 12 (test-case
+// SCRUM-62 Notify on Event Request Decisions. TC-SCRUM-62-01 to 13 (test-case
 // sheet), one test per row in the row's order.
 //
 // Every request a row needs it creates itself under the row's own name
@@ -442,4 +442,31 @@ test('repeating an approval refused because the request is already approved adds
   expect(approvals.map((row) => row.message)).toEqual([approved(name, 'Fits the calendar.')])
   await page.goto(`/requests/${id}`)
   await expect(page.getByTestId('request-detail-status')).toHaveText('Approved')
+})
+
+// @tc: TC-SCRUM-62-13
+// @test: reassigning a coordinator notifies the organiser naming the new coordinator
+// @story: SCRUM-62
+// @ac: 2, 8
+test('reassigning a coordinator notifies the organiser naming the new coordinator', async ({ page }) => {
+  const name = 'SCRUM-62 TC13 Event'
+  const id = await submitAs('org1', name)
+  await assignAsLead(id, 'coord1')
+  await login(page, 'lead1')
+  await page.getByTestId('layout-nav-assignments').click()
+  await expect(page.getByTestId(`assignments-row-${id}`)).toBeVisible()
+
+  await page.getByTestId(`assignments-reassign-input-${id}`).selectOption('coord2')
+  await page.getByTestId(`assignments-reassign-button-${id}`).click()
+  await expect(page.getByTestId('assignments-banner')).toHaveText(`${name} reassigned to coord2.`)
+  await logout(page)
+  await login(page, 'org1')
+  await openNotifications(page)
+
+  const notices = (await noticesAbout(page, id)).filter((row) => row.message.includes('has been assigned'))
+  expect(notices.map((row) => row.message)).toEqual([assigned(name, 'coord1'), assigned(name, 'coord2')])
+  await expectNoticeShown(page, notices[1], assigned(name, 'coord2'), name)
+  await page.goto(`/requests/${id}`)
+  await expect(page.getByTestId('request-detail-status')).toHaveText('Submitted')
+  await expect(page.getByTestId('request-detail-assigned-coordinator')).toHaveText('coord2')
 })

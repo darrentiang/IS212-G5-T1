@@ -4,7 +4,8 @@ the Event Organiser who created it once, naming the event, in the same commit
 as the action; a saved Draft and a refused action tell nobody.
 
 Every test builds its own requests with tests/factories.py or through the API.
-The assignment notice itself is SCRUM-86's; it is checked here only as AC2.
+The assignment and reassignment notices themselves are SCRUM-86's and
+SCRUM-44's; they are checked here only as AC2.
 """
 
 from datetime import date, timedelta
@@ -136,6 +137,32 @@ def test_assigning_a_coordinator_tells_the_organiser_once_naming_the_coordinator
     assert resp.status_code == 200
     to_organiser = [message for who, message in notifications_about(gala.id) if who == "org1"]
     assert to_organiser == ['coord1 has been assigned to your event "Annual Gala".']
+
+
+# @story: SCRUM-62
+# @ac: 2
+def test_reassigning_tells_the_organiser_once_naming_the_new_coordinator(app, client):
+    gala = event(status="Planning", coordinator="coord1")
+    login_as(client, "lead1")
+
+    resp = client.post(f"/api/requests/{gala.id}/reassign", json={"coordinator_id": account("coord2").id})
+
+    assert resp.status_code == 200
+    to_organiser = [message for who, message in notifications_about(gala.id) if who == "org1"]
+    assert to_organiser == ['coord2 has been assigned to your event "Annual Gala".']
+
+
+# @story: SCRUM-62
+# @ac: 6
+def test_a_refused_reassignment_tells_the_organiser_nothing(app, client):
+    gala = event(status="Planning", coordinator="coord1")
+    login_as(client, "lead1")
+
+    # The coordinator it already has: SCRUM-44 refuses the move.
+    resp = client.post(f"/api/requests/{gala.id}/reassign", json={"coordinator_id": account("coord1").id})
+
+    assert resp.status_code == 409
+    assert notifications_about(gala.id) == []
 
 
 # @story: SCRUM-62
