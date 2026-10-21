@@ -569,7 +569,8 @@ def test_the_lead_reads_a_queued_or_assigned_request_but_cannot_decide_it(client
     assert client.get(f"/api/requests/{queued}").status_code == 200
     body = client.get(f"/api/requests/{assigned}").get_json()
     assert body["assigned_coordinator"] == "coord1"
-    assert "coordinator_notes" not in body
+    # SCRUM-88: the Lead's read-only view includes the planning information.
+    assert "coordinator_notes" in body
     assert client.get(f"/api/requests/{draft}").status_code == 403
     assert client.post(f"/api/requests/{queued}/approve", json={}).status_code == 403
     assert client.post(f"/api/requests/{queued}/reject", json={"reason": "No."}).status_code == 403
@@ -578,8 +579,8 @@ def test_the_lead_reads_a_queued_or_assigned_request_but_cannot_decide_it(client
 
 # @story: SCRUM-86
 # @ac: 9
-def test_the_lead_cannot_open_a_request_that_is_neither_queued_nor_assigned(client):
-    approved = make_request("Approved Without Coordinator", status="Approved")
+def test_the_lead_cannot_open_a_request_that_is_neither_queued_nor_assigned_nor_active(client):
+    rejected = make_request("Rejected Without Coordinator", status="Rejected")
     login(client, "lead1")
 
-    assert client.get(f"/api/requests/{approved}").status_code == 403
+    assert client.get(f"/api/requests/{rejected}").status_code == 403

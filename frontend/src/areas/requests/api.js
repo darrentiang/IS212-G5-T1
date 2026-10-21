@@ -193,6 +193,22 @@ export const withdrawBooking = (venueId, bookingId) =>
 // 403:     { message }   not the Event Coordinator Lead
 export const listAssignmentQueue = () => request('GET', '/api/assignments/queue')
 
+// GET /api/assignments?coordinator=<username>&status=<active status>   (SCRUM-88)
+// 200:     { events: [ { id, name, date, status, assigned_coordinator } ],
+//            coordinators: [ { username, active_events } ] }
+//          every Submitted, Approved, Planning, Safety Check or Confirmed request, by id;
+//          assigned_coordinator is a username or null (shown as "Unassigned"); both
+//          filters are optional; the counts ignore them and list every Event Coordinator
+// 400:     { message }   a coordinator that is not an Event Coordinator, or a status that is not active
+// 403:     { message }   not the Event Coordinator Lead
+export const listAssignments = ({ coordinator = '', status = '' } = {}) => {
+  const params = new URLSearchParams()
+  if (coordinator) params.set('coordinator', coordinator)
+  if (status) params.set('status', status)
+  const query = params.toString()
+  return request('GET', `/api/assignments${query ? `?${query}` : ''}`)
+}
+
 // GET /api/assignments/coordinators   (SCRUM-86)
 // 200:     [ { id, username } ]   every account holding the Event Coordinator role, by username
 // 403:     { message }

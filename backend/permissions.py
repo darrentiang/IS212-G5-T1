@@ -33,6 +33,7 @@ REGISTRATION_VIEW = "registration.view"
 INTERNAL_NOTES_VIEW = "internal_notes.view"
 NOTIFICATIONS_VIEW = "notifications.view"
 ASSIGNMENTS_MANAGE = "assignments.manage"  # SCRUM-86: view the unassigned queue and assign from it (Event Coordinator Lead)
+ASSIGNMENTS_VIEW = "assignments.view"  # SCRUM-88: view every assignment and active event (Event Coordinator Lead)
 
 ALL_FEATURES = frozenset(
     {
@@ -57,6 +58,7 @@ ALL_FEATURES = frozenset(
         INTERNAL_NOTES_VIEW,
         NOTIFICATIONS_VIEW,
         ASSIGNMENTS_MANAGE,
+        ASSIGNMENTS_VIEW,
     }
 )
 
@@ -83,8 +85,11 @@ ROLE_FEATURES = {
         NOTIFICATIONS_VIEW,
     },
     "Event Coordinator Lead": {
-        REQUESTS_VIEW,  # read-only; the queue and requests that have a coordinator (service filter)
+        REQUESTS_VIEW,  # read-only; the queue and the active events (service filter)
         ASSIGNMENTS_MANAGE,
+        ASSIGNMENTS_VIEW,  # SCRUM-88: every active event and who holds it
+        VENUES_VIEW,  # SCRUM-88: read-only, so a listed event's bookings and holds can be seen
+        INTERNAL_NOTES_VIEW,  # SCRUM-88: read-only planning information
         NOTIFICATIONS_VIEW,
         # Cannot decide, edit or plan an event; acts as a coordinator only
         # through an Event Coordinator role of its own (SCRUM-87).

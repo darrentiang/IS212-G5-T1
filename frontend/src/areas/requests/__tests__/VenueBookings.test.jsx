@@ -238,6 +238,27 @@ describe('the actions on a booking row', () => {
   })
 })
 
+describe('the Event Coordinator Lead', () => {
+  // @story: SCRUM-88
+  // @ac: 5
+  it('sees the bookings and holds of an event but is offered no action on them', async () => {
+    renderDetail(EVENT, [SEMINAR, AUDITORIUM], ['requests.view', 'venues.view', 'internal_notes.view'], 'lead1')
+
+    expect(await screen.findByTestId('request-detail-booking-row-1')).toBeInTheDocument()
+    expect(screen.getByTestId('request-detail-booking-row-2')).toBeInTheDocument()
+    expect(screen.getByTestId('request-detail-holds')).toBeInTheDocument()
+    expect(screen.queryByTestId('request-detail-booking-cancel-button-1')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('request-detail-booking-withdraw-button-2')).not.toBeInTheDocument()
+    for (const testId of [
+      'request-detail-search-venues-button',
+      'request-detail-raise-booking-button',
+      'request-detail-place-hold-button',
+    ]) {
+      expect(screen.queryByTestId(testId)).not.toBeInTheDocument()
+    }
+  })
+})
+
 describe('Cancel booking', () => {
   // @story: SCRUM-83
   // @ac: 3

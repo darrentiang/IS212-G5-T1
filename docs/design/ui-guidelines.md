@@ -50,6 +50,7 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | 1.41 | 19-10-2026 | Equipment reserve/release confirmations and scoped reservation history | SCRUM-51 AC1–7 |
 | 1.42 | 19-10-2026 | §1 the Unassigned queue page (`/assignments/queue`, `assignment-queue`) and its test ids in §6; §7 the Assigned coordinator is now set by the Lead from the queue (not by approving), and the request page also shows who assigned it (`request-detail-assigned-by`) | Week 7 customer change 5; SCRUM-86 replaces SCRUM-43's auto-assignment with an unassigned queue the Event Coordinator Lead assigns from |
 | 1.43 | 20-10-2026 | §7 an Event Coordinator is offered Approve/Reject, Request venue booking, Search venues, Place hold, Cancel booking and Withdraw only on an event assigned to them (Withdraw whoever raised the request, on the venue page and on the request page); New request is offered only to an Event Organiser | SCRUM-87: a coordinator manages only their assigned events, and only an Organiser creates or submits a request |
+| 1.44 | 21-10-2026 | §1 the All assignments page (`/assignments`, `assignments`) and §6 its elements and test ids; §7 the Lead's read-only view of an active event | SCRUM-88 AC1–6 |
 | 1.43 | 19-10-2026 | The Notifications page texts for venue booking decisions, equipment decisions and equipment reservations; no new page, element or test id | SCRUM-63 tells the event's assigned Event Coordinator when Venue Staff or Technical Support Staff decide or change something for their event |
 
 ## 1. Pages
@@ -61,6 +62,7 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | `/requests/new` | `request-new` | Feature per `permissions.md` |
 | `/requests/:id` | `request-detail` | Feature and object rule per `permissions.md` |
 | `/assignments/queue` | `assignment-queue` | Feature per `permissions.md` (`assignments.manage`, the Event Coordinator Lead) |
+| `/assignments` | `assignments` | Feature per `permissions.md` (`assignments.view`, the Event Coordinator Lead) |
 | `/venues` | `venues` | Feature per `permissions.md` |
 | `/venues/new` | `venue-new` | Feature per `permissions.md` |
 | `/venues/:id` | `venue-detail` | Feature per `permissions.md` |
@@ -167,8 +169,19 @@ While the page is waiting for the API it renders the title row and nothing below
 | Event name (holds the link), purpose, date, attendance, Event Organiser, submitted | `assignment-queue-name-<id>`, `assignment-queue-purpose-<id>`, `assignment-queue-date-<id>`, `assignment-queue-attendance-<id>`, `assignment-queue-organiser-<id>`, `assignment-queue-submitted-<id>` |
 | Coordinator select, message under an empty choice, Assign button | `assignment-queue-coordinator-input-<id>`, `assignment-queue-coordinator-error-<id>`, `assignment-queue-assign-button-<id>` |
 
+**All assignments (SCRUM-88).** The Event Coordinator Lead's read-only page (`/assignments`, test id prefix `assignments`, nav label All assignments, second in the nav after the Unassigned queue) lists every Submitted, Approved, Planning, Safety Check or Confirmed request as a table: the event name (a link to the request page, which the Lead opens read-only), the date (§9), the status (a badge, §12) and the assigned coordinator, or "Unassigned". Above it, each Event Coordinator and how many active events they hold (a coordinator with none shows 0; the counts ignore the filters), and two selects: Coordinator (first option "All coordinators") and Status (first option "All statuses", then the five active statuses). Choosing either reloads the list; a refusal shows in the banner and the list is not shown. With nothing to list the page says "No active events match.". The page offers no action on any event.
+
+| Element | `data-testid` |
+|---|---|
+| Title, banner, empty message | `assignments-title`, `assignments-banner`, `assignments-empty` |
+| Coordinator select, Status select | `assignments-coordinator-filter`, `assignments-status-filter` |
+| A coordinator's count of active events | `assignments-workload-<username>` |
+| Row | `assignments-row-<id>` |
+| Event name (holds the link), date, status, assigned coordinator | `assignments-name-<id>`, `assignments-date-<id>`, `assignments-status-<id>`, `assignments-coordinator-<id>` |
+
 ## 7. Detail pages
 
+- **The Lead's read-only view (SCRUM-88).** The Event Coordinator Lead opens any active event from All assignments and sees its fields, its bookings and its holds, and the coordinator notes; no Approve, Reject, Request venue booking, Search venues, Place hold, Cancel booking, Withdraw or Send for safety check control is offered, because none is offered to an account that is not the event's assigned Coordinator.
 - **Who is offered what (SCRUM-87).** An Event Coordinator sees only the requests assigned to them, so the Requests page lists no other and another's request opens as a refusal in the banner with none of its fields (§4). On a request they may open, Approve and Reject, Request venue booking, Search venues, Place hold, Cancel booking and Withdraw (any Requested booking of the event, whoever raised it) are shown only to the event's assigned Coordinator; the New request button and page are offered only to an Event Organiser, so a Coordinator, a Lead or any other role finds neither.
 
 - Fields as label/value pairs, in the order the form uses.
