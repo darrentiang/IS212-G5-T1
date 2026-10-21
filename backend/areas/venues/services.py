@@ -4,7 +4,8 @@ SCRUM-79 (End or Remove a Venue Block), SCRUM-33 (Search Venues by Date and
 Capacity), SCRUM-34 (Filter Venue Results by Accessibility Requirements),
 SCRUM-35 (Filter Venues by Layout and Facilities),
 SCRUM-80 (Record Setup and Turnaround Time),
-SCRUM-82 (Replace a Venue That Became Unavailable).
+SCRUM-82 (Replace a Venue That Became Unavailable),
+SCRUM-91 (Refuse Operating Hours That Close Before They Open).
 
 Every rule the acceptance criteria state lives here, next to the query, and
 refuses by raising ApiRefusal; the route never decides (ADR-002). Retiring a
@@ -82,13 +83,13 @@ def create_venue(body):
 
     Name, location and maximum capacity are required; the maximum capacity is a
     positive whole number; facilities and accessibility features come from the
-    seeded lists. The operating hours are optional.
+    seeded lists. The operating hours are optional, but are both given or both
+    blank, and close after they open (SCRUM-91).
     """
     name = _required_text(body, "name", "Name")
     location = _required_text(body, "location", "Location")
     max_capacity = _positive_whole_number(body.get("max_capacity"))
-    opening_time = _optional_time(body.get("opening_time"), "Opening time")
-    closing_time = _optional_time(body.get("closing_time"), "Closing time")
+    opening_time, closing_time = _operating_hours(body)
     facilities = _chosen(body.get("facilities"), Facility, "facility")
     accessibility_features = _chosen(
         body.get("accessibility_features"), AccessibilityFeature, "accessibility feature"
@@ -117,15 +118,16 @@ def update_venue(venue_id, body):
     Name and location cannot be blank or contain only whitespace; maximum
     capacity must be a positive whole number; times must be valid 24-hour times;
     facilities and accessibility features must use recognised options (AC3).
-    If any check fails, it is refused and nothing changes (AC4).
+    The hours follow the same SCRUM-91 rule as adding a venue, so a venue
+    already stored with bad hours cannot be updated until they are corrected
+    or both cleared. If any check fails, it is refused and nothing changes (AC4).
     """
     venue = get_venue(venue_id)
 
     name = _required_text(body, "name", "Name")
     location = _required_text(body, "location", "Location")
     max_capacity = _positive_whole_number(body.get("max_capacity"))
-    opening_time = _optional_time(body.get("opening_time"), "Opening time")
-    closing_time = _optional_time(body.get("closing_time"), "Closing time")
+    opening_time, closing_time = _operating_hours(body)
     facilities = _chosen(body.get("facilities"), Facility, "facility")
     accessibility_features = _chosen(
         body.get("accessibility_features"), AccessibilityFeature, "accessibility feature"
@@ -243,6 +245,21 @@ def _positive_whole_number(value):
     if number < 1:
         raise ApiRefusal(400, "Maximum capacity must be a positive whole number.")
     return number
+
+
+def _operating_hours(body):
+    """The opening and closing time, both or neither, closing after opening (SCRUM-91).
+
+    Venues and events do not cross midnight (SCRUM-42 decision), so a closing
+    time at or before the opening time is refused rather than read as overnight.
+    """
+    opening_time = _optional_time(body.get("opening_time"), "Opening time")
+    closing_time = _optional_time(body.get("closing_time"), "Closing time")
+    if (opening_time is None) != (closing_time is None):
+        raise ApiRefusal(400, "Enter both opening and closing time, or leave both blank.")
+    if opening_time is not None and closing_time <= opening_time:
+        raise ApiRefusal(400, "Closing time must be after opening time.")
+    return opening_time, closing_time
 
 
 def _optional_time(value, label):
