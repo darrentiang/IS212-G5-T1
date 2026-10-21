@@ -5,6 +5,7 @@ SCRUM-28: create a request and submit it (direct or from Draft).
 SCRUM-29: approve or reject a Submitted request.
 SCRUM-87: an Event Coordinator lists, opens and decides only the requests assigned to them;
 only an Event Organiser creates or submits one.
+SCRUM-88: the Event Coordinator Lead lists every active event and each coordinator's workload.
 SCRUM-30: save, edit and delete a Draft.
 SCRUM-42: the fixed lists a request's required layout, facilities and
 accessibility features are chosen from.
@@ -21,6 +22,7 @@ from flask import Blueprint, g, jsonify, request as flask_request
 from areas.requests import services
 from permissions import (
     ASSIGNMENTS_MANAGE,
+    ASSIGNMENTS_VIEW,
     REQUESTS_DECIDE,
     REQUESTS_EDIT,
     REQUESTS_VIEW,
@@ -52,6 +54,23 @@ def request_options():
 def assignment_queue():
     """SCRUM-86: Submitted requests with no coordinator, oldest first."""
     return jsonify([services.queue_row_to_dict(row) for row in services.unassigned_queue()])
+
+
+@bp.get("/assignments")
+@require(ASSIGNMENTS_VIEW)
+def assignments_overview():
+    """SCRUM-88: every active event with its coordinator, optionally filtered by
+    ?coordinator=<username> and ?status=<active status>, and each coordinator's
+    count of active events. Read-only."""
+    rows = services.active_events(
+        flask_request.args.get("coordinator") or None, flask_request.args.get("status") or None
+    )
+    return jsonify(
+        {
+            "events": [services.active_event_row_to_dict(row) for row in rows],
+            "coordinators": services.coordinator_workloads(),
+        }
+    )
 
 
 @bp.get("/assignments/coordinators")

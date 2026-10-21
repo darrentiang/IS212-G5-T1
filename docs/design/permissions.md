@@ -6,15 +6,16 @@ Kept current by every story that adds an action: the row is added or changed in 
 |---|---|---|---|---|---|---|---|
 | Create, edit (while Draft), delete (while Draft), submit own event request | Own only | No | No | No | No | No | No |
 | Resubmit own rejected request | Own only | No | No | No | No | No | No |
-| View event requests | Own only | Assigned only | Unassigned queue; requests that have a coordinator, read-only | No | No | Events in Safety Check | No |
+| View event requests | Own only | Assigned only | Unassigned queue; all active events, read-only | No | No | Events in Safety Check | No |
 | Assign a coordinator to a request in the unassigned queue | No | No | Yes | No | No | No | No |
+| View all assignments and active events | No | No | Yes | No | No | No | No |
 | Edit an event during Planning | No | Assigned coordinator only | No | No | No | No | No |
 | Approve or reject an event request; request clarification | No | Assigned only | No | No | No | No | No |
 | View event request resulting status and any reason | Own only | Assigned only | Yes | No | No | No | No |
 | Reassign an event | No | Assigned coordinator initiates; new coordinator accepts | No | No | No | No | No |
 | Send for safety check, cancel, mark completed | No | Assigned coordinator | No | No | No | No | No |
-| View venues, venue booking requests and venue holds | No | Yes | No | Yes | No | No | No |
-| View a venue's availability calendar | No | Yes | No | Yes | No | No | No |
+| View venues, venue booking requests and venue holds | No | Yes | Yes, read-only | Yes | No | No | No |
+| View a venue's availability calendar | No | Yes | Yes, read-only | Yes | No | No | No |
 | Search venues free on an Approved or Planning event's dates and large enough for its attendance | No | Assigned only | No | No | No | No | No |
 | Maintain venue records and layouts; block a venue | No | No | No | Yes | No | No | No |
 | Raise a venue booking request | No | Assigned only | No | No | No | No | No |
@@ -35,14 +36,14 @@ Kept current by every story that adds an action: the row is added or changed in 
 | Register or withdraw registration | No | No | No | No | No | No | Own only |
 | Raise a change request on a confirmed event | Own only | No | No | No | No | No | No |
 | Decide a change request | No | Assigned coordinator | No | No | No | No | No |
-| View internal planning information (coordinator notes, booking requests, equipment requirements, decisions, reasons) | No | Assigned only | No | Venue-related only | Equipment-related only | Events in Safety Check | Never |
+| View internal planning information (coordinator notes, booking requests, equipment requirements, decisions, reasons) | No | Assigned only | Yes, read-only | Venue-related only | Equipment-related only | Events in Safety Check | Never |
 | View, open and mark own notifications as read | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
 
 Rule: an action not listed as permitted for any of the account's roles is refused, a message is shown, and no data changes.
 
 Rule: when the refusal is object-level (the role is right but this particular record is not the account's to touch — "own only" and "events in Safety Check" above), a read (GET) answers 403: it may say a record exists that the account cannot open. A write (create, edit, submit, delete) instead answers 404: what another account is allowed to change never confirms that the record exists at all. Established by SCRUM-27 (reads) and SCRUM-28 (writes); kept by every story since. Not to be "corrected" into one status code for both.
 
-Rule: "Assigned coordinator" and "Assigned only" mean the Event Coordinator the Event Coordinator Lead assigned to that event (SCRUM-86), and every row so marked is enforced next to the query (SCRUM-87). A coordinator's list holds only their events. Opening an event, deciding it, raising or withdrawing a venue booking request for it (withdrawing belongs to the assigned coordinator, whoever raised the request), placing or releasing a hold, cancelling a booking, searching venues or reading the suitability warnings for it, sending it for safety check, and recording its equipment requirements are refused for anyone else, and a request still in the unassigned queue cannot be decided by anyone. Equipment reads are scoped the same way (SCRUM-48): Technical Support Staff sees a non-Draft event's timing, Approved venue bookings and the requirements themselves, never the request's private fields, and a Safety Officer sees Approved requirements through the existing Safety Check view. A role never lends its rights to another: an account holding Event Coordinator Lead and Event Coordinator may view the queue and assign, but acts as a coordinator only on events assigned to them, and the Lead's read-only view does not let it decide. Only an Event Organiser creates, edits, deletes, submits or resubmits a request: the Event Coordinator does not hold `requests.edit`.
+Rule: "Assigned coordinator" and "Assigned only" mean the Event Coordinator the Event Coordinator Lead assigned to that event (SCRUM-86), and every row so marked is enforced next to the query (SCRUM-87). A coordinator's list holds only their events. Opening an event, deciding it, raising or withdrawing a venue booking request for it (withdrawing belongs to the assigned coordinator, whoever raised the request), placing or releasing a hold, cancelling a booking, searching venues or reading the suitability warnings for it, sending it for safety check, and recording its equipment requirements are refused for anyone else, and a request still in the unassigned queue cannot be decided by anyone. Equipment reads are scoped the same way (SCRUM-48): Technical Support Staff sees a non-Draft event's timing, Approved venue bookings and the requirements themselves, never the request's private fields, and a Safety Officer sees Approved requirements through the existing Safety Check view. A role never lends its rights to another: an account holding Event Coordinator Lead and Event Coordinator may view the queue and assign, but acts as a coordinator only on events assigned to them, and the Lead's read-only view (SCRUM-88: every active event, its details, its bookings and holds) does not let it decide, edit or act on an arrangement. Only an Event Organiser creates, edits, deletes, submits or resubmits a request: the Event Coordinator does not hold `requests.edit`.
 
 ## Feature keys
 
@@ -53,7 +54,7 @@ Keys used in `backend/permissions.py` and on API routes / `features` from `/api/
 | requests.view | Yes | Yes | Yes | No | No | Yes | No |
 | requests.edit | Yes | No | No | No | No | No | No |
 | requests.decide | No | Yes | No | No | No | No | No |
-| venues.view | No | Yes | No | Yes | No | No | No |
+| venues.view | No | Yes | Yes | Yes | No | No | No |
 | venues.edit | No | No | No | Yes | No | No | No |
 | venues.search | No | Yes | No | No | No | No | No |
 | equipment.view | No | Yes | No | No | Yes | No | No |
@@ -64,13 +65,14 @@ Keys used in `backend/permissions.py` and on API routes / `features` from `/api/
 | equipment.reserve | No | No | No | No | Yes | No | No |
 | equipment.edit | No | No | No | No | Yes | No | No |
 | registration.view | No | Yes | No | No | No | No | Yes |
-| internal_notes.view | No | Yes | No | No | No | No | No |
+| internal_notes.view | No | Yes | Yes | No | No | No | No |
 | notifications.view | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
 | bookings.edit | No | Yes | No | No | No | No | No |
 | bookings.decide | No | No | No | Yes | No | No | No |
 | safety.send | No | Yes | No | No | No | No | No |
 | safety.decide | No | No | No | No | No | Yes | No |
 | assignments.manage | No | No | Yes | No | No | No | No |
+| assignments.view | No | No | Yes | No | No | No | No |
 
 | Version | Date | Change | Reason |
 |---|---|---|---|
@@ -101,6 +103,7 @@ Keys used in `backend/permissions.py` and on API routes / `features` from `/api/
 | 1.24 | 19-10-2026 | `equipment.reserve`, TSS only, with Approved/Planning reserve/release and scoped history | SCRUM-51 AC1–7 |
 | 1.25 | 19-10-2026 | New role Event Coordinator Lead, with the key `assignments.manage`: assign a coordinator to a request in the unassigned queue; read-only view of the queue and of requests that have a coordinator. The Rule \* note now names SCRUM-86's assignment | Week 7 customer change 5; SCRUM-86 (this story's slice of `target/permissions.md` v1.7: the Lead column and its queue row; the Lead's other rows are SCRUM-44, SCRUM-87 and SCRUM-88) |
 | 1.26 | 20-10-2026 | Event Coordinator column: "All except Draft" and the unenforced "Yes*" rows become "Assigned only" (view, decide, search venues, raise, warnings, internal planning information), and withdrawing a booking becomes the assigned coordinator's whoever raised it; `requests.edit` is withdrawn from Event Coordinators (the Event Organiser alone creates or submits); the Rule \* note rewritten, since every such row is now enforced | SCRUM-87 (copied from `target/permissions.md` v1.7, this story's slice; SCRUM-44 adds reassignment and SCRUM-88 the Lead's wider view) |
+| 1.27 | 21-10-2026 | New row "View all assignments and active events" and key `assignments.view` for the Event Coordinator Lead; the Lead's "View event requests" cell becomes "all active events, read-only"; the Lead gains read-only "View venues, venue booking requests and venue holds", "View a venue's availability calendar" and "View internal planning information" (`venues.view`, `internal_notes.view`) so a listed event's arrangements can be seen | SCRUM-88 AC1–6 |
 
 SCRUM-81: Technical Support may decide or correct a requirement only while the event is Approved or Planning and no reservation for the same event/type is Reserved. Released history does not block a decision. Arrangement notes remain editable in those event stages even with a Reserved reservation. These mutations grant no general event-request access.
 

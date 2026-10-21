@@ -4,6 +4,8 @@ and delete a Draft).
 SCRUM-42: the optional required layout, facilities and accessibility features,
 which replace the free-text venue requirements and accessibility needs.
 SCRUM-87: an Event Coordinator sees and acts on only the events assigned to them.
+SCRUM-88: the Event Coordinator Lead lists every active event with who holds it, filtered, with
+each coordinator's count of active events.
 SCRUM-86: the Event Coordinator Lead assigns a Submitted request to an Event Coordinator from the
 unassigned queue; approving assigns no one (replaces SCRUM-43's auto-assignment).
 SCRUM-72: revise and resubmit a Rejected request.
@@ -17,7 +19,7 @@ Object rules from permissions.md / ADR-002 live here next to the query.
 
 from datetime import date, datetime, timezone
 
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 
 import occupancy
 from db import db
@@ -41,6 +43,10 @@ SAFETY_OFFICER_ROLE = "Safety Officer"
 LEAD_ROLE = "Event Coordinator Lead"
 
 SAFETY_CHECK = "Safety Check"
+
+# SCRUM-88 AC1: the statuses an event is still active in; Draft, Rejected,
+# Completed and Cancelled are not.
+ACTIVE_STATUSES = ("Submitted", "Approved", "Planning", SAFETY_CHECK, "Confirmed")
 
 # The areas the Safety Officer may leave a note against (SCRUM-89 AC4); the keys
 # are what the API takes and returns.
@@ -489,16 +495,11 @@ def _event_coordinators():
 
 
 def _lead_may_read(event_request):
-    """What the Lead may open, read-only (SCRUM-86): a request in the queue or
-    one that has a coordinator, never a Draft. SCRUM-88 builds the wider view."""
+    """What the Lead may open, read-only: a request in the queue (SCRUM-86), one
+    that has a coordinator, or any active event (SCRUM-88 AC5), never a Draft."""
     return event_request.status != "Draft" and (
-        _in_queue(event_request) or event_request.assigned_coordinator_id is not None
+        event_request.status in ACTIVE_STATUSES or event_request.assigned_coordinator_id is not None
     )
-
-
-def _in_queue(event_request):
-    """In the unassigned queue: Submitted, and nobody assigned (SCRUM-86 AC2, AC5)."""
-    return event_request.status == "Submitted" and event_request.assigned_coordinator_id is None
 
 
 def unassigned_queue():
@@ -513,6 +514,61 @@ def unassigned_queue():
         .order_by(EventRequest.submitted_at.is_(None), EventRequest.submitted_at, EventRequest.id)
         .all()
     )
+
+
+def active_events(coordinator=None, status=None):
+    """Every active event with who holds it, oldest request first (SCRUM-88 AC1-AC3).
+
+    `coordinator` (a username) and `status` narrow the list; either one that is
+    not a coordinator or not an active status is refused 400, nothing is shown.
+    """
+    if status is not None and status not in ACTIVE_STATUSES:
+        raise ApiRefusal(400, "Choose one of the active statuses.")
+    chosen = None
+    if coordinator is not None:
+        chosen = next((row for row in _event_coordinators() if row.username == coordinator), None)
+        if chosen is None:
+            raise ApiRefusal(400, "Choose an Event Coordinator.")
+
+    query = db.session.query(EventRequest).filter(EventRequest.status.in_(ACTIVE_STATUSES))
+    if chosen is not None:
+        query = query.filter(EventRequest.assigned_coordinator_id == chosen.id)
+    if status is not None:
+        query = query.filter(EventRequest.status == status)
+    return query.order_by(EventRequest.id).all()
+
+
+def active_event_row_to_dict(event_request):
+    """What the Lead's list shows of an event (SCRUM-88 AC1); no coordinator is None."""
+    coordinator = event_request.assigned_coordinator
+    return {
+        "id": event_request.id,
+        "name": event_request.name,
+        "date": event_request.date,
+        "status": event_request.status,
+        "assigned_coordinator": coordinator.username if coordinator else None,
+    }
+
+
+def coordinator_workloads():
+    """Each Event Coordinator and how many active events they hold, by username,
+    whatever the list is filtered to (SCRUM-88 AC4); one holding none shows 0."""
+    held = {
+        coordinator_id: count
+        for coordinator_id, count in db.session.query(
+            EventRequest.assigned_coordinator_id, func.count(EventRequest.id)
+        )
+        .filter(
+            EventRequest.status.in_(ACTIVE_STATUSES),
+            EventRequest.assigned_coordinator_id.isnot(None),
+        )
+        .group_by(EventRequest.assigned_coordinator_id)
+        .all()
+    }
+    return [
+        {"username": row.username, "active_events": held.get(row.id, 0)}
+        for row in _event_coordinators()
+    ]
 
 
 def queue_row_to_dict(event_request):
