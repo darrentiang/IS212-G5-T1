@@ -566,7 +566,7 @@ def coordinator_workloads():
         .all()
     }
     return [
-        {"username": row.username, "active_events": held.get(row.id, 0)}
+        {"id": row.id, "username": row.username, "active_events": held.get(row.id, 0)}
         for row in _event_coordinators()
     ]
 
@@ -613,7 +613,7 @@ def assign_coordinator(account, request_id, data):
     Submitted. The coordinator, the Lead and the moment are recorded, and the
     coordinator and the Organiser are told, in one commit with the assignment.
     The route's require(ASSIGNMENTS_MANAGE) has already refused anyone who is
-    not a Lead (AC9). Changing an assignment is SCRUM-44.
+    not a Lead (AC9). Changing an assignment is `reassign_coordinator` (SCRUM-44).
     """
     event_request = db.session.get(EventRequest, request_id)
     if event_request is None or event_request.status == "Draft":
@@ -632,6 +632,50 @@ def assign_coordinator(account, request_id, data):
 
     name = event_request.name
     create_notification(coordinator, f'You have been assigned the event "{name}".', event_request)
+    create_notification(
+        event_request.created_by,
+        f'{coordinator.username} has been assigned to your event "{name}".',
+        event_request,
+    )
+    db.session.commit()
+    return event_request
+
+
+def reassign_coordinator(account, request_id, data):
+    """Move an assigned active event to another Event Coordinator (SCRUM-44 AC1-AC5).
+
+    Only a Submitted, Approved, Planning, Safety Check or Confirmed event that
+    already has a coordinator can be moved, and not to the one it has. The
+    status, the fields and the arrangements are not touched. The new
+    coordinator, the one it leaves and the Organiser are told, in one commit
+    with the change; the Organiser's page then shows the new coordinator and
+    the Lead who moved it. The route's require(ASSIGNMENTS_MANAGE) has already
+    refused anyone who is not a Lead (AC6). A refusal changes nothing.
+    """
+    event_request = db.session.get(EventRequest, request_id)
+    if event_request is None or event_request.status == "Draft":
+        raise ApiRefusal(404, "Event request not found.")
+    if event_request.status not in ACTIVE_STATUSES:
+        raise ApiRefusal(
+            409, f"A {event_request.status} event cannot be reassigned, only an active one."
+        )
+    previous = event_request.assigned_coordinator
+    if previous is None:
+        raise ApiRefusal(409, "This request has no coordinator yet; assign it from the Unassigned queue.")
+
+    coordinator = _chosen_coordinator(data)
+    if coordinator.id == previous.id:
+        raise ApiRefusal(409, f"This event is already assigned to {previous.username}.")
+
+    event_request.assigned_coordinator_id = coordinator.id
+    event_request.assigned_by_id = account.id
+    event_request.assigned_at = datetime.now(timezone.utc)
+
+    name = event_request.name
+    create_notification(coordinator, f'You have been assigned the event "{name}".', event_request)
+    create_notification(
+        previous, f'The event "{name}" has been reassigned to {coordinator.username}.', event_request
+    )
     create_notification(
         event_request.created_by,
         f'{coordinator.username} has been assigned to your event "{name}".',

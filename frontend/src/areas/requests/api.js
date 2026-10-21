@@ -195,7 +195,7 @@ export const listAssignmentQueue = () => request('GET', '/api/assignments/queue'
 
 // GET /api/assignments?coordinator=<username>&status=<active status>   (SCRUM-88)
 // 200:     { events: [ { id, name, date, status, assigned_coordinator } ],
-//            coordinators: [ { username, active_events } ] }
+//            coordinators: [ { id, username, active_events } ] }
 //          every Submitted, Approved, Planning, Safety Check or Confirmed request, by id;
 //          assigned_coordinator is a username or null (shown as "Unassigned"); both
 //          filters are optional; the counts ignore them and list every Event Coordinator
@@ -208,6 +208,17 @@ export const listAssignments = ({ coordinator = '', status = '' } = {}) => {
   const query = params.toString()
   return request('GET', `/api/assignments${query ? `?${query}` : ''}`)
 }
+
+// POST /api/requests/:id/reassign   (SCRUM-44)
+// body:    { coordinator_id }   required
+// 200:     the request, its status unchanged, with the new assigned_coordinator, assigned_by (the
+//          Lead) and assigned_at; the new coordinator, the previous one and the Organiser are told
+// 400/403/404/409: { message }   400 no coordinator chosen, or the account is not an Event
+//          Coordinator; 403 not the Event Coordinator Lead; 404 unknown or a Draft; 409 not
+//          Submitted, Approved, Planning, Safety Check or Confirmed, no coordinator yet, or the
+//          coordinator it already has
+export const reassignRequest = (id, coordinatorId) =>
+  request('POST', `/api/requests/${id}/reassign`, { coordinator_id: coordinatorId })
 
 // GET /api/assignments/coordinators   (SCRUM-86)
 // 200:     [ { id, username } ]   every account holding the Event Coordinator role, by username
