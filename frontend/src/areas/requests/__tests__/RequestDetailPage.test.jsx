@@ -48,6 +48,7 @@ const SUBMITTED = {
   registration_needs: 'Guest list supplied',
   status: STATUS.REQUEST.SUBMITTED,
   created_by: 'org1',
+  assigned_coordinator: 'coord1', // SCRUM-87: a coordinator is offered actions only on their own event
   ...NO_CHOICES,
   registration_enabled: false,
   submitted_at: '2026-09-01T10:00:00',
@@ -741,6 +742,7 @@ describe('RequestDetailPage', () => {
         name: 'Tech Fair 2026',
         status,
         created_by: 'org1',
+        assigned_coordinator: 'coord1',
         ...NO_CHOICES,
         registration_enabled: false,
       })
@@ -947,6 +949,7 @@ describe('RequestDetailPage', () => {
         name: 'Tech Fair 2026',
         status,
         created_by: 'org1',
+        assigned_coordinator: 'coord1',
         registration_enabled: false,
         ...NO_CHOICES,
       })
@@ -997,6 +1000,7 @@ describe('RequestDetailPage', () => {
       name: 'Tech Fair 2026',
       status: 'Approved',
       created_by: 'org1',
+      assigned_coordinator: 'coord1',
       registration_enabled: false,
       ...NO_CHOICES,
     })

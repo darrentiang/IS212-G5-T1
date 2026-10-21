@@ -51,7 +51,9 @@ def login(client, username="coord1"):
 
 def make_event(status="Approved", created_by="org1", **overrides):
     owner = db.session.query(Account).filter_by(username=created_by).one()
+    # SCRUM-87: a coordinator acts only on an event assigned to them, so every event here is coord1's.
     fields = dict(EVENT_DEFAULTS)
+    fields.setdefault("assigned_coordinator", db.session.query(Account).filter_by(username="coord1").one())
     fields.update(overrides)
     event = EventRequest(created_by=owner, status=status, **fields)
     db.session.add(event)
@@ -300,18 +302,23 @@ def test_one_event_can_have_booking_requests_for_several_venues(client):
 # --- AC8 (decision, see module docstring): any Event Coordinator may raise ---
 
 
-# @story: SCRUM-36
-# @ac: 8
-def test_any_event_coordinator_may_raise_not_just_one(client):
-    # coord2 did not create or decide this event; raising is still allowed
-    # (team decision, permissions.md 1.7: assignment is not built yet).
-    login(client, "coord2")
+# @story: SCRUM-87
+# @ac: 4
+def test_only_the_assigned_coordinator_may_raise_not_any_coordinator(client):
+    # SCRUM-36 AC8 let any coordinator raise while assignment was unbuilt;
+    # SCRUM-87 narrows it to the event's assigned coordinator (a write answers 404).
     event = make_event()
+    login(client, "coord2")
 
+    refused = post_booking(client, event)
+
+    assert refused.status_code == 404
+    assert booking_count() == 0
+
+    login(client, "coord1")
     resp = post_booking(client, event)
-
     assert resp.status_code == 201
-    assert resp.get_json()["raised_by"] == "coord2"
+    assert resp.get_json()["raised_by"] == "coord1"
 
 
 # --- AC9: an Approved booking or a request awaiting a decision for the same venue and event
@@ -479,7 +486,7 @@ def test_not_logged_in_cannot_raise(client):
 def test_an_account_holding_event_coordinator_among_its_roles_can_raise(client):
     # multi1 is Event Coordinator and Venue Staff: any role allowing it is enough (D-09).
     login(client, "multi1")
-    event = make_event()
+    event = make_event(assigned_coordinator=db.session.query(Account).filter_by(username="multi1").one())
 
     resp = post_booking(client, event)
 
@@ -942,7 +949,7 @@ def test_withdrawing_a_booking_that_belongs_to_another_venue_is_refused(client):
 def test_an_account_holding_event_coordinator_among_its_roles_can_withdraw(client):
     # multi1 is Event Coordinator and Venue Staff: any role allowing it is enough (D-09).
     login(client, "multi1")
-    event_id = make_event()
+    event_id = make_event(assigned_coordinator=db.session.query(Account).filter_by(username="multi1").one())
     booking_id = post_booking(client, event_id).get_json()["id"]
 
     resp = decide(client, venue_id(), booking_id, "withdraw")

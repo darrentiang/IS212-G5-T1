@@ -1,4 +1,5 @@
 import { test, expect, request as playwrightRequest } from '@playwright/test'
+import { assignAsLead } from './helpers/assign.js'
 
 // SCRUM-78 Suggest an Alternative When Rejecting a Venue Booking. Curated rows:
 // team test sheet, TC-SCRUM-78-01 to 14. Seeded Seminar Room 1 (/venues/1) is
@@ -42,8 +43,8 @@ async function apiAs(username) {
   return api
 }
 
-// org1 submits the event and coord1 approves it; `raisedBy` then raises the
-// booking at the venue, so it is Requested and ready to be decided.
+// org1 submits the event; the Lead assigns `raisedBy`, who approves it and raises the
+// booking at the venue (SCRUM-87: only the assigned coordinator), so it is Requested and ready to be decided.
 async function requestedBooking(name, venueId, { raisedBy = 'coord1', ...event } = {}) {
   const organiser = await apiAs('org1')
   const submitted = await organiser.post('/api/requests', {
@@ -53,7 +54,9 @@ async function requestedBooking(name, venueId, { raisedBy = 'coord1', ...event }
   const { id: eventId } = await submitted.json()
   await organiser.dispose()
 
-  const approver = await apiAs('coord1')
+  await assignAsLead(eventId, raisedBy)
+
+  const approver = await apiAs(raisedBy)
   const approved = await approver.post(`/api/requests/${eventId}/approve`, { data: { reason: '' } })
   expect(approved.ok()).toBeTruthy()
   await approver.dispose()

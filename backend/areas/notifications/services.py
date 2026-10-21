@@ -23,16 +23,15 @@ def _can_view_event(account, event_request):
     """Whether this account may open event_request's own page.
 
     Mirrors areas/requests/services.py's get_visible_request rule (Event
-    Coordinator: all except Draft; Event Organiser: own only) rather than
-    importing it: areas do not import each other's services (ADR-001's area
-    split), and this is a read-only predicate, not a refusal, so duplicating
-    the two lines is cheaper than coupling the areas. Keep both in sync if
-    that rule changes; SCRUM-87 will narrow it to the assigned coordinator
-    only, and this call site narrows with it.
+    Coordinator: only an event assigned to them, SCRUM-87; Event Organiser:
+    own only) rather than importing it: areas do not import each other's
+    services (ADR-001's area split), and this is a read-only predicate, not a
+    refusal, so duplicating the two lines is cheaper than coupling the areas.
+    Keep both in sync if that rule changes.
     """
     if event_request is None:
         return False
-    if account.has_role(COORDINATOR_ROLE) and event_request.status != "Draft":
+    if account.has_role(COORDINATOR_ROLE) and event_request.assigned_coordinator_id == account.id:
         return True
     return account.has_role(ORGANISER_ROLE) and event_request.created_by_id == account.id
 

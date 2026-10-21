@@ -47,7 +47,9 @@ def login(client, username="coord1"):
 
 def make_event(status="Approved", **overrides):
     owner = db.session.query(Account).filter_by(username="org1").one()
+    # SCRUM-87: a coordinator acts only on an event assigned to them, so every event here is coord1's.
     fields = dict(EVENT_DEFAULTS)
+    fields.setdefault("assigned_coordinator", db.session.query(Account).filter_by(username="coord1").one())
     fields.update(overrides)
     event = EventRequest(created_by=owner, status=status, **fields)
     db.session.add(event)
@@ -149,7 +151,7 @@ def test_search_reports_the_event_values_it_used(client):
         "attendance": 20,
         # SCRUM-82 AC6: what the page needs to offer Request booking and Place hold.
         "status": "Approved",
-        "assigned_coordinator": None,
+        "assigned_coordinator": "coord1",
     }
 
 
@@ -201,14 +203,36 @@ def test_search_is_refused_to_an_account_without_venues_search(client, username)
     assert resp.get_json()["message"] == "You do not have permission to perform this action."
 
 
-# @story: SCRUM-33
-# @ac: 1
-@pytest.mark.parametrize("username", ["coord1", "coord2", "multi1"])
-def test_search_is_allowed_to_every_event_coordinator(client, username):
+# @story: SCRUM-87
+# @ac: 4
+@pytest.mark.parametrize("username", ["coord2", "multi1"])
+def test_search_is_refused_to_a_coordinator_the_event_is_not_assigned_to(client, username):
+    # SCRUM-33 allowed every coordinator; SCRUM-87 narrows it to the assigned one (a read answers 403).
     event = make_event()
     login(client, username)
 
+    resp = search(client, event)
+
+    assert resp.status_code == 403
+    assert resp.get_json()["message"] == "You do not have permission to perform this action."
+
+
+# @story: SCRUM-87
+# @ac: 4
+def test_search_is_allowed_to_the_assigned_coordinator_even_with_two_roles(client):
+    event = make_event(assigned_coordinator=db.session.query(Account).filter_by(username="multi1").one())
+    login(client, "multi1")
+
     assert search(client, event).status_code == 200
+
+
+# @story: SCRUM-87
+# @ac: 4
+def test_search_is_refused_for_an_event_nobody_is_assigned_to(client):
+    event = make_event(assigned_coordinator=None)
+    login(client, "coord1")
+
+    assert search(client, event).status_code == 403
 
 
 # @story: SCRUM-33

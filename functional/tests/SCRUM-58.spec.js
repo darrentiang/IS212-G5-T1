@@ -37,12 +37,19 @@ test('a logged-in user sees only their own notifications, newest first, with eve
   await login(page, 'org1')
   await openNotifications(page)
 
+  // SCRUM-87: specs that ran before this one have had org1's requests assigned
+  // (SCRUM-86 AC6 notifies the Organiser), so org1 holds more than the two
+  // seeded rows. Find the seeded two and check them, newest first.
   const rows = page.locator('[data-testid^="notifications-row-"]')
-  await expect(rows).toHaveCount(2)
-  await expect(rows.first()).toContainText('Your request "Annual Dinner" was submitted.')
-  await expect(rows.first()).toContainText('Unread')
-  await expect(rows.nth(1)).toContainText('Your request "Open House" was approved.')
-  await expect(rows.nth(1)).toContainText('Read')
+  const submitted = rows.filter({ hasText: 'Your request "Annual Dinner" was submitted.' })
+  const approved = rows.filter({ hasText: 'Your request "Open House" was approved.' })
+  await expect(submitted).toHaveCount(1)
+  await expect(approved).toHaveCount(1)
+  await expect(submitted).toContainText('Unread')
+  await expect(approved).toContainText('Read')
+  const testIds = await rows.evaluateAll((nodes) => nodes.map((node) => node.dataset.testid))
+  const idOf = async (row) => row.getAttribute('data-testid')
+  expect(testIds.indexOf(await idOf(submitted))).toBeLessThan(testIds.indexOf(await idOf(approved)))
 })
 
 // @tc: TC-SCRUM-58-02
@@ -52,10 +59,13 @@ test('a logged-in user sees only their own notifications, newest first, with eve
 test('the unread count is shown in the navigation on every page', async ({ page }) => {
   await login(page, 'org1')
 
-  await expect(page.getByTestId('layout-nav-notifications')).toHaveText('Notifications (1)')
+  // SCRUM-87: org1 may hold more unread rows than the seeded one (see 01).
+  const nav = page.getByTestId('layout-nav-notifications')
+  await expect(nav).toHaveText(/^Notifications \(\d+\)$/)
+  const shown = await nav.textContent()
 
   await page.getByTestId('layout-nav-requests').click()
-  await expect(page.getByTestId('layout-nav-notifications')).toHaveText('Notifications (1)')
+  await expect(nav).toHaveText(shown)
 })
 
 // @tc: TC-SCRUM-58-03
@@ -64,6 +74,9 @@ test('the unread count is shown in the navigation on every page', async ({ page 
 // @ac: 4
 test('opening an unread notification marks it read and the unread count falls by one', async ({ page }) => {
   await login(page, 'org1')
+  const nav = page.getByTestId('layout-nav-notifications')
+  await expect(nav).toHaveText(/^Notifications \(\d+\)$/)
+  const before = Number((await nav.textContent()).match(/\d+/)[0])
   await openNotifications(page)
 
   const row = page.locator('[data-testid^="notifications-row-"]', { hasText: 'Annual Dinner' })
@@ -74,7 +87,7 @@ test('opening an unread notification marks it read and the unread count falls by
   await expect(page).toHaveURL(new RegExp(`/requests/`))
   await page.goBack()
   await expect(page.getByTestId(`notifications-status-${notificationId}`)).toHaveText('Read')
-  await expect(page.getByTestId('layout-nav-notifications')).toHaveText('Notifications')
+  await expect(nav).toHaveText(before === 1 ? 'Notifications' : `Notifications (${before - 1})`)
 })
 
 // @tc: TC-SCRUM-58-04

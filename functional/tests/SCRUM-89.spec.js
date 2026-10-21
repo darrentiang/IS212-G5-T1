@@ -126,7 +126,7 @@ test('the Safety Officer opens an event in Safety Check and sees what the check 
 // @story: SCRUM-89
 // @ac: 3
 test('the Safety Officer cannot open an event that is not in Safety Check', async ({ page }) => {
-  await login(page, 'coord1')
+  await login(page, 'coord2') // Open House is assigned to coord2 (SCRUM-87)
   await openEvent(page, 'Open House')
   const address = page.url()
   await logout(page)

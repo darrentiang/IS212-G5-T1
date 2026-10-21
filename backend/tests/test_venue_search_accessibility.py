@@ -65,7 +65,9 @@ def make_event(status="Approved", required_features=(), **overrides):
         db.session.query(AccessibilityFeature).filter_by(name=name).one()
         for name in required_features
     ]
+    # SCRUM-87: a coordinator acts only on an event assigned to them, so every event here is coord1's.
     fields = dict(EVENT_DEFAULTS)
+    fields.setdefault("assigned_coordinator", db.session.query(Account).filter_by(username="coord1").one())
     fields.update(overrides)
     event = EventRequest(
         created_by=owner, status=status, accessibility_features=features, **fields

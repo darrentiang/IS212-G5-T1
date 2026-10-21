@@ -1,8 +1,10 @@
 """Venue booking request — Jira area(s) 12, 13, 14 (docs/design/frontend.md §2).
 
 SCRUM-36: raise a booking request for one venue against one event, and list
-a venue's booking requests. SCRUM-37: approve or reject one. SCRUM-77: the
-raising Coordinator withdraws one before it is decided. Raising and
+a venue's booking requests. SCRUM-37: approve or reject one. SCRUM-77: a
+Coordinator withdraws one before it is decided. SCRUM-87: raising, withdrawing
+(whoever raised it) and the other event actions below belong to the event's
+assigned Coordinator only; anyone else is refused and nothing changes. Raising and
 withdrawing are bookings.edit (Event Coordinator); deciding is
 bookings.decide (Venue Staff); listing reuses venues.view (Event Coordinator
 and Venue Staff), since a venue's booking requests are shown on its own page

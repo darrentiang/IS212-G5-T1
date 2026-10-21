@@ -1775,6 +1775,7 @@ const REQUESTED_BOOKING = {
   layout: 'Theatre',
   facilities: ['Projector', 'Whiteboard'],
   raised_by: 'coord1',
+  assigned_coordinator: 'coord1', // SCRUM-87: Withdraw is the assigned coordinator's
 }
 
 describe('VenueDetailPage deciding a booking request', () => {

@@ -34,8 +34,9 @@ test('an Event Coordinator sees event requests that are not Draft', async ({ pag
   await login(page, 'coord1')
   await page.getByTestId('layout-nav-requests').click()
 
+  // SCRUM-87: only the requests assigned to coord1 (Annual Dinner), never coord2's or a Draft.
   await expect(page.getByText('Annual Dinner')).toBeVisible()
-  await expect(page.getByText('Client B Conference')).toBeVisible()
+  await expect(page.getByText('Client B Conference')).not.toBeVisible()
   await expect(page.getByText('Design Workshop')).not.toBeVisible()
   await expect(page.getByTestId('layout-roles')).toHaveText('Event Coordinator')
 })
@@ -48,7 +49,9 @@ test('an account with two roles may use what either role allows', async ({ page 
   await login(page, 'multi1')
   await page.getByTestId('layout-nav-requests').click()
 
-  await expect(page.getByText('Annual Dinner')).toBeVisible()
+  // SCRUM-87: the Coordinator role lists multi1's assigned events (Past Gala), not coord1's.
+  await expect(page.getByText('Past Gala')).toBeVisible()
+  await expect(page.getByText('Annual Dinner')).not.toBeVisible()
   await expect(page.getByText('Design Workshop')).not.toBeVisible()
   const roles = page.getByTestId('layout-roles')
   await expect(roles).toContainText('Event Coordinator')

@@ -1,4 +1,5 @@
 import { test, expect, request as playwrightRequest } from '@playwright/test'
+import { assignAsLead } from './helpers/assign.js'
 
 // SCRUM-41 Reserve Setup and Turnaround Time Around a Booking. Curated rows:
 // team test sheet, TC-SCRUM-41-01 to 12, one test per row in the row's order,
@@ -73,6 +74,8 @@ async function approvedEvent(name, startTime, endTime, date = DATE) {
   expect(submitted.status()).toBe(201)
   const { id } = await submitted.json()
   await organiser.dispose()
+
+  await assignAsLead(id) // SCRUM-87: only the assigned coordinator decides
 
   const coordinator = await apiAs('coord1')
   const approved = await coordinator.post(`/api/requests/${id}/approve`, { data: { reason: '' } })

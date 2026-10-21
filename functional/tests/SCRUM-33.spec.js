@@ -1,5 +1,5 @@
 import { test, expect, request as playwrightRequest } from '@playwright/test'
-import { startPlanning } from './helpers/assign.js'
+import { assignAsLead, startPlanning } from './helpers/assign.js'
 
 // SCRUM-33 Search Venues by Date and Capacity. One test per curated row of the
 // Test cases tab, in the row's order; every row can be reached through the
@@ -95,6 +95,7 @@ async function submittedEvent(name, overrides = {}) {
 // Submits as org1 and approves as coord1, so the event may be searched (AC1).
 async function approvedEvent(name, overrides = {}) {
   const id = await submittedEvent(name, overrides)
+  await assignAsLead(id) // SCRUM-87: only the assigned coordinator decides
   const coordinator = await apiAs('coord1')
   const approved = await coordinator.post(`/api/requests/${id}/approve`, { data: { reason: '' } })
   expect(approved.ok()).toBeTruthy()
@@ -270,6 +271,7 @@ test('venue search is not available for a Submitted event', async ({ page }) => 
   // The seeded Annual Dinner is Submitted too, but SCRUM-29 decides it, so this
   // test submits an event of its own.
   const eventId = await submittedEvent('SCRUM-33 Submitted Event', { date: dateAhead(4) })
+  await assignAsLead(eventId) // SCRUM-87: coord1 opens only an assigned event
   await login(page, 'coord1')
   await openRequest(page, eventId)
 
@@ -291,7 +293,7 @@ test('venue search is not available for a Submitted event', async ({ page }) => 
 // @story: SCRUM-33
 // @ac: 1
 test('venue search is not available for a Confirmed event', async ({ page }) => {
-  await login(page, 'coord1')
+  await login(page, 'coord2') // Open House is assigned to coord2 (SCRUM-87)
   await page.goto(`/requests/${OPEN_HOUSE}`)
 
   await expect(page.getByTestId('request-detail-name')).toHaveText('Open House')

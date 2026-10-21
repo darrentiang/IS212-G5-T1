@@ -17,6 +17,7 @@
     {
       "name": "SCRUM-49 TC07 Session A",
       "created_by": "org1",
+      "assigned_coordinator": "coord1",
       "status": "Approved",
       "date": "2026-12-15",
       "start_time": "10:00",
@@ -28,6 +29,7 @@
     {
       "name": "SCRUM-49 TC07 Session B",
       "created_by": "org1",
+      "assigned_coordinator": "coord1",
       "status": "Approved",
       "date": "2026-12-15",
       "start_time": "11:30",
@@ -39,6 +41,7 @@
     {
       "name": "SCRUM-49 TC08 Session A",
       "created_by": "org1",
+      "assigned_coordinator": "coord1",
       "status": "Approved",
       "date": "2026-12-15",
       "start_time": "10:00",
@@ -51,6 +54,7 @@
     {
       "name": "SCRUM-49 TC08 Session B",
       "created_by": "org1",
+      "assigned_coordinator": "coord1",
       "status": "Approved",
       "date": "2026-12-15",
       "start_time": "11:30",
@@ -63,6 +67,7 @@
     {
       "name": "SCRUM-49 TC09 Session A",
       "created_by": "org1",
+      "assigned_coordinator": "coord1",
       "status": "Approved",
       "date": "2026-12-15",
       "start_time": "10:00",
@@ -74,6 +79,7 @@
     {
       "name": "SCRUM-49 TC09 Session B",
       "created_by": "org1",
+      "assigned_coordinator": "coord1",
       "status": "Approved",
       "date": "2026-12-15",
       "start_time": "11:30",
@@ -85,6 +91,7 @@
     {
       "name": "SCRUM-49 TC10 Session A",
       "created_by": "org1",
+      "assigned_coordinator": "coord1",
       "status": "Approved",
       "date": "2026-12-15",
       "start_time": "12:00",
@@ -96,6 +103,7 @@
     {
       "name": "SCRUM-49 TC10 Session B",
       "created_by": "org1",
+      "assigned_coordinator": "coord1",
       "status": "Approved",
       "date": "2026-12-15",
       "start_time": "14:00",
@@ -107,6 +115,7 @@
     {
       "name": "SCRUM-49 TC11 Past Session",
       "created_by": "org1",
+      "assigned_coordinator": "coord1",
       "status": "Completed",
       "date": "2026-12-14",
       "start_time": "10:00",
@@ -119,6 +128,7 @@
     {
       "name": "SCRUM-49 TC11 Released Session",
       "created_by": "org1",
+      "assigned_coordinator": "coord1",
       "status": "Approved",
       "date": "2026-12-16",
       "start_time": "10:00",

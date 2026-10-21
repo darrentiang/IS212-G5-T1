@@ -151,10 +151,10 @@ def test_a_new_notification_is_shown_first(client):
 # @story: SCRUM-58
 # @ac: 6
 def test_the_event_is_named_for_a_recipient_who_may_open_it(client):
-    # An Event Coordinator may open any request except a Draft: Annual Dinner is Submitted.
-    create_notification(account("coord2"), "About the dinner.", event("Annual Dinner"))
+    # An Event Coordinator may open only a request assigned to them (SCRUM-87): Annual Dinner is coord1's.
+    create_notification(account("coord1"), "About the dinner.", event("Annual Dinner"))
     db.session.commit()
-    login(client, "coord2")
+    login(client, "coord1")
 
     listed = client.get("/api/notifications").get_json()
 

@@ -145,7 +145,7 @@ def test_event_is_named_and_linkable_when_the_account_may_view_it(client):
 
     body = client.get("/api/notifications").get_json()
 
-    # coord1 may view "Annual Dinner" (Submitted, not Draft).
+    # coord1 may view "Annual Dinner" (Submitted, assigned to coord1).
     row = next(r for r in body if r["message"] == "This request now needs your attention.")
     assert row["event_request_name"] == "Annual Dinner"
     assert row["event_request_id"] is not None

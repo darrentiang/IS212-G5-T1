@@ -1,4 +1,5 @@
 import { test, expect, request as playwrightRequest } from '@playwright/test'
+import { assignAsLead } from './helpers/assign.js'
 
 // SCRUM-42 Warn When a Requested Venue Appears Unsuitable. Curated rows:
 // team test sheet, TC-SCRUM-42-01 to 13. Seeded Seminar Room 1 (/venues/1:
@@ -55,6 +56,8 @@ async function approvedEvent(name, fields) {
   expect(submitted.status()).toBe(201)
   const { id } = await submitted.json()
   await organiser.dispose()
+
+  await assignAsLead(id) // SCRUM-87: only the assigned coordinator decides
 
   const coordinator = await apiAs('coord1')
   const approved = await coordinator.post(`/api/requests/${id}/approve`, { data: { reason: '' } })

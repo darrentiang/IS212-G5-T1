@@ -406,7 +406,7 @@ test('an Event Coordinator who is not a Lead cannot view the unassigned queue', 
   await expect(page.getByTestId('not-permitted-message')).toBeVisible()
   await expect(page.getByTestId('assignment-queue-title')).toHaveCount(0)
   await expect(queueRow(page, id)).toHaveCount(0)
-  const stored = await readRequest('coord1', id)
+  const stored = await readRequest('lead1', id) // SCRUM-87: a coordinator cannot read an unassigned request
   expect(stored.assigned_coordinator).toBeNull()
   expect(stored.status).toBe('Submitted')
 })

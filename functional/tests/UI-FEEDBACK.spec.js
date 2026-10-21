@@ -1,4 +1,5 @@
 import { test, expect, request as playwrightRequest } from '@playwright/test'
+import { assignAsLead } from './helpers/assign.js'
 
 // Chore: make every action's result visible (ui-guidelines.md §4 and §13).
 // Not a story, so there are no rows in the team test sheet; the TC ids below
@@ -48,6 +49,7 @@ async function submitAsOrg1(name) {
   expect(resp.status()).toBe(201)
   const { id } = await resp.json()
   await api.dispose()
+  await assignAsLead(id) // SCRUM-87: only the assigned coordinator decides
   return id
 }
 

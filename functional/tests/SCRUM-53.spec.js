@@ -401,10 +401,12 @@ test('a coordinator who is not assigned to the event cannot send it', async ({ p
   const event = await planningEvent('SCRUM-53 TC-11 Other Gala', 11, { venues: [venue] })
   const other = ['coord1', 'coord2'].find((name) => name !== event.coordinator)
 
+  // SCRUM-87: the other coordinator cannot even open the event, so nothing is offered.
   await login(page, other)
-  await openEvent(page, event.name)
+  await page.goto(`/requests/${event.id}`)
 
-  await expect(page.getByTestId('request-detail-status')).toHaveText('Planning')
+  await expect(page.getByTestId('request-detail-banner')).toContainText('You do not have permission')
+  await expect(page.getByTestId('request-detail-fields')).toHaveCount(0)
   await expect(page.getByTestId('request-detail-send-safety-button')).toHaveCount(0)
   await expect(page.getByTestId('request-detail-safety-check-at')).toHaveCount(0)
 })
