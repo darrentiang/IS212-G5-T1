@@ -295,9 +295,13 @@ test('the assigned coordinator is notified, naming the event', async ({ page }) 
   await login(page, 'coord1')
   await page.getByTestId('layout-nav-notifications').click()
 
-  const notice = page.locator('[data-testid^="notifications-message-"]', { hasText: '"Notify Coordinator"' })
-  await expect(notice).toHaveCount(1)
-  await expect(notice).toHaveText('You have been assigned the event "Notify Coordinator".')
+  // Found by this request's id, not its name: a retry's earlier request has the same name.
+  const reply = await page.request.get('/api/notifications')
+  const notices = (await reply.json()).filter((row) => row.event_request_id === id)
+  expect(notices).toHaveLength(1)
+  await expect(page.getByTestId(`notifications-message-${notices[0].id}`)).toHaveText(
+    'You have been assigned the event "Notify Coordinator".'
+  )
 })
 
 // @tc: TC-SCRUM-86-10
