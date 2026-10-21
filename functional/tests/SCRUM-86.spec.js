@@ -295,9 +295,13 @@ test('the assigned coordinator is notified, naming the event', async ({ page }) 
   await login(page, 'coord1')
   await page.getByTestId('layout-nav-notifications').click()
 
-  const notice = page.locator('[data-testid^="notifications-message-"]', { hasText: '"Notify Coordinator"' })
-  await expect(notice).toHaveCount(1)
-  await expect(notice).toHaveText('You have been assigned the event "Notify Coordinator".')
+  // Found by this request's id, not its name: a retry's earlier request has the same name.
+  const reply = await page.request.get('/api/notifications')
+  const notices = (await reply.json()).filter((row) => row.event_request_id === id)
+  expect(notices).toHaveLength(1)
+  await expect(page.getByTestId(`notifications-message-${notices[0].id}`)).toHaveText(
+    'You have been assigned the event "Notify Coordinator".'
+  )
 })
 
 // @tc: TC-SCRUM-86-10
@@ -310,8 +314,16 @@ test('the Event Organiser is notified and can see who is assigned', async ({ pag
   await login(page, 'org1')
   await page.getByTestId('layout-nav-notifications').click()
 
-  const notice = page.locator('[data-testid^="notifications-message-"]', { hasText: '"Notify Organiser"' })
-  await expect(notice).toHaveText('coord1 has been assigned to your event "Notify Organiser".')
+  // Found by this request's id, not its name: the organiser is also told it was
+  // received (SCRUM-62), and a retry's earlier request has the same name.
+  const reply = await page.request.get('/api/notifications')
+  const assigned = (await reply.json()).filter(
+    (row) => row.event_request_id === id && row.message.includes('has been assigned')
+  )
+  expect(assigned).toHaveLength(1)
+  await expect(page.getByTestId(`notifications-message-${assigned[0].id}`)).toHaveText(
+    'coord1 has been assigned to your event "Notify Organiser".'
+  )
 
   await openFromRequestsPage(page, id)
   await expect(page.getByTestId('request-detail-assigned-coordinator')).toHaveText('coord1')
