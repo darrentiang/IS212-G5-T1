@@ -13,6 +13,8 @@ SCRUM-89: the Safety Officer lists, opens, approves and rejects events in Safety
 SCRUM-53: the assigned Event Coordinator sends a Planning event for safety check.
 SCRUM-84: an Approved event moves to Planning when its first hold is placed.
 SCRUM-82: a booking marked Venue unavailable stops the event being sent.
+SCRUM-62: the creating Event Organiser is told when their request is received,
+approved or rejected (the assignment notice is SCRUM-86's, below).
 
 Object rules from permissions.md / ADR-002 live here next to the query.
 """
@@ -413,6 +415,7 @@ def submit_new_request(account, data):
     event_request.status = "Submitted"
     event_request.submitted_at = datetime.now(timezone.utc)
     db.session.add(event_request)
+    _notify_received(account, event_request)
     db.session.commit()
     return event_request
 
@@ -433,6 +436,7 @@ def submit_draft(account, request_id):
 
     event_request.status = "Submitted"
     event_request.submitted_at = datetime.now(timezone.utc)
+    _notify_received(account, event_request)
     db.session.commit()
     return event_request
 
@@ -703,8 +707,28 @@ def _record_decision(event_request, account, decision, reason):
     event_request.decided_at = datetime.now(timezone.utc)
     event_request.decided_by_id = account.id
 
+    _notify_decision(event_request, decision, reason)
     db.session.commit()
     return event_request
+
+
+def _notify_received(organiser, event_request):
+    """SCRUM-62 AC1: a submission or resubmission tells its Organiser once.
+
+    Only the creating Organiser submits or resubmits a request, so the account
+    acting is the one to tell; a new request's created_by is not loaded yet.
+    The notice joins the action's commit (notifications.py), so a refused
+    submission, which raises before this, tells nobody (AC6).
+    """
+    create_notification(organiser, f'Your request "{event_request.name}" was received.', event_request)
+
+
+def _notify_decision(event_request, decision, reason):
+    """SCRUM-62 AC3, AC4: an approval, with its reason if given, or a rejection with its reason."""
+    message = f'Your request "{event_request.name}" was {decision.lower()}.'
+    if reason:
+        message += f" Reason: {reason}"
+    create_notification(event_request.created_by, message, event_request)
 
 
 def save_new_draft(account, data):
@@ -785,6 +809,7 @@ def resubmit_request(account, request_id, data):
 
     event_request.status = "Submitted"
     event_request.submitted_at = datetime.now(timezone.utc)
+    _notify_received(account, event_request)
     db.session.commit()
     return event_request
 
