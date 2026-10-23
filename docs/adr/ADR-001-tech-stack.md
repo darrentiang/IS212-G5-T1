@@ -5,6 +5,8 @@
 ## Context
 Release 1 must run from a clean checkout on any team member's machine and in CI, enforce role-based access and booking rules server-side, and be fully unit-testable in the stack taught in the module (Python, Flask, SQLAlchemy). The team has five developers with mixed React and Python experience.
 
+The Week 7 customer changes (venue setup and turnaround, venue unavailability, several venues per event, expiring holds, Event Coordinator Lead, Safety Officer) add features and roles, not new technology, so the stack is unchanged.
+
 ## Decision
 - **Front end:** React 19 with Vite and Tailwind CSS. Code is split by area (`frontend/src/areas/<area>/`, one per group of Jira area labels) so Developers on different stories rarely edit the same file. `fetch` is called in one place, `frontend/src/app/http.js`; each area's `api.js` holds that area's calls and pages never call `fetch` directly (`docs/design/frontend.md`).
 - **API:** Python Flask. The API owns every business rule: state transitions (`docs/design/state-model.md`), permissions (`docs/design/permissions.md`, ADR-002), conflict detection, warnings. The browser only reflects what the API decides. Routes and services are split by area (`backend/areas/<area>/`, the same eight areas as the front end, `docs/design/frontend.md` §2); models stay in one file.
