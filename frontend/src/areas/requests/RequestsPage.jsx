@@ -78,6 +78,11 @@ export default function RequestsPage() {
                     </td>
                     <td data-testid={`requests-status-${row.id}`}>
                       <span className={statusBadgeClass(row.status)}>{row.status}</span>
+                      {row.clarification_requested && (
+                        <span className="ml-2 text-sm" data-testid={`requests-clarification-flag-${row.id}`}>
+                          Clarification requested
+                        </span>
+                      )}
                     </td>
                     <td>{row.created_by}</td>
                   </tr>

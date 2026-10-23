@@ -14,7 +14,8 @@ from errors import ApiRefusal
 # Feature keys used on routes and in /api/login, /api/me "features".
 REQUESTS_VIEW = "requests.view"
 REQUESTS_EDIT = "requests.edit"
-REQUESTS_DECIDE = "requests.decide"  # SCRUM-29: approve or reject a Submitted request
+REQUESTS_DECIDE = "requests.decide"  # SCRUM-29: approve or reject a Submitted request; SCRUM-45: ask for clarification
+CLARIFICATIONS_REPLY = "clarifications.reply"  # SCRUM-45: the Event Organiser answers a clarification on their request
 VENUES_VIEW = "venues.view"
 VENUES_EDIT = "venues.edit"  # SCRUM-31: maintain venue records (Venue Staff)
 VENUES_SEARCH = "venues.search"  # SCRUM-33: search venues for an event (Event Coordinator)
@@ -40,6 +41,7 @@ ALL_FEATURES = frozenset(
         REQUESTS_VIEW,
         REQUESTS_EDIT,
         REQUESTS_DECIDE,
+        CLARIFICATIONS_REPLY,
         VENUES_VIEW,
         VENUES_EDIT,
         VENUES_SEARCH,
@@ -67,6 +69,7 @@ ROLE_FEATURES = {
     "Event Organiser": {
         REQUESTS_VIEW,  # own requests only (service filter)
         REQUESTS_EDIT,  # own Draft / submit (service rule)
+        CLARIFICATIONS_REPLY,  # SCRUM-45: only on their own request (service rule)
         NOTIFICATIONS_VIEW,
     },
     "Event Coordinator": {

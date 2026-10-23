@@ -15,6 +15,7 @@ from db import db
 from models import (
     AccessibilityFeature,
     Account,
+    Clarification,
     EventRequest,
     Facility,
     RoomLayout,
@@ -139,6 +140,24 @@ def make_equipment_requirement(*, event, equipment, quantity, status="Requested"
     row = EquipmentRequirement(event_request=event, equipment_type=equipment,
                                quantity=quantity, status=status,
                                technical_requirements=technical_requirements)
+    db.session.add(row)
+    db.session.commit()
+    return row
+
+
+def make_clarification(*, event, message, reply=None, asked_by="coord1", replied_by="org2", ended=False):
+    """Store one clarification on the event (SCRUM-45); with a reply it is answered, with ended it was ended by a decision."""
+    now = datetime.now(timezone.utc)
+    row = Clarification(
+        event_request=event,
+        requested_by=account(asked_by),
+        message=message,
+        requested_at=now,
+        reply=reply,
+        replied_by=account(replied_by) if reply is not None else None,
+        replied_at=now if reply is not None else None,
+        ended_at=now if ended else None,
+    )
     db.session.add(row)
     db.session.commit()
     return row

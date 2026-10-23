@@ -9,6 +9,8 @@ SCRUM-88: the Event Coordinator Lead lists every active event and each coordinat
 SCRUM-30: save, edit and delete a Draft.
 SCRUM-42: the fixed lists a request's required layout, facilities and
 accessibility features are chosen from.
+SCRUM-45: the assigned coordinator asks the Organiser for clarification of a Submitted request, and
+the Organiser replies.
 SCRUM-44: the Lead moves an assigned active event to another Event Coordinator.
 SCRUM-86: the Event Coordinator Lead lists the unassigned queue and assigns a request from it;
 approving a request assigns no one.
@@ -24,6 +26,7 @@ from areas.requests import services
 from permissions import (
     ASSIGNMENTS_MANAGE,
     ASSIGNMENTS_VIEW,
+    CLARIFICATIONS_REPLY,
     REQUESTS_DECIDE,
     REQUESTS_EDIT,
     REQUESTS_VIEW,
@@ -88,6 +91,26 @@ def assign_request(request_id):
     account = g.account
     data = flask_request.get_json(silent=True) or {}
     updated = services.assign_coordinator(account, request_id, data)
+    return jsonify(services.request_detail_dict(updated, account)), 200
+
+
+@bp.post("/requests/<int:request_id>/clarification")
+@require(REQUESTS_DECIDE)
+def request_clarification(request_id):
+    """SCRUM-45: the assigned coordinator asks the Organiser what is missing; the request stays Submitted."""
+    account = g.account
+    data = flask_request.get_json(silent=True) or {}
+    updated = services.request_clarification(account, request_id, data)
+    return jsonify(services.request_detail_dict(updated, account)), 201
+
+
+@bp.post("/requests/<int:request_id>/clarification/reply")
+@require(CLARIFICATIONS_REPLY)
+def reply_to_clarification(request_id):
+    """SCRUM-45: the Organiser answers the open clarification, which ends the wait."""
+    account = g.account
+    data = flask_request.get_json(silent=True) or {}
+    updated = services.reply_to_clarification(account, request_id, data)
     return jsonify(services.request_detail_dict(updated, account)), 200
 
 

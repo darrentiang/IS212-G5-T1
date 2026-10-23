@@ -38,6 +38,25 @@ describe('RequestsPage', () => {
     expect(screen.queryByText('Client B Conference')).not.toBeInTheDocument()
   })
 
+  // @story: SCRUM-45
+  // @ac: 2
+  it('shows Clarification requested beside the status of a request awaiting one, and only that one', async () => {
+    api.listRequests.mockResolvedValue([
+      { id: 1, name: 'Asked Gala', status: 'Submitted', created_by: 'org2', clarification_requested: true },
+      { id: 2, name: 'Quiet Gala', status: 'Submitted', created_by: 'org2', clarification_requested: false },
+    ])
+
+    render(
+      <MemoryRouter>
+        <RequestsPage />
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByTestId('requests-clarification-flag-1')).toHaveTextContent('Clarification requested')
+    expect(screen.getByTestId('requests-status-1')).toHaveTextContent('Submitted')
+    expect(screen.queryByTestId('requests-clarification-flag-2')).not.toBeInTheDocument()
+  })
+
   // @story: SCRUM-27
   // @ac: 8
   it('shows the API refusal in the banner', async () => {

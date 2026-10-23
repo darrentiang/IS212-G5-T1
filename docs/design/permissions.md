@@ -11,6 +11,7 @@ Kept current by every story that adds an action: the row is added or changed in 
 | View all assignments and active events | No | No | Yes | No | No | No | No |
 | Edit an event during Planning | No | Assigned coordinator only | No | No | No | No | No |
 | Approve or reject an event request; request clarification | No | Assigned only | No | No | No | No | No |
+| Reply to a clarification request | Own only | No | No | No | No | No | No |
 | View event request resulting status and any reason | Own only | Assigned only | Yes | No | No | No | No |
 | Reassign an event to another coordinator | No | No | Yes | No | No | No | No |
 | Send for safety check, cancel, mark completed | No | Assigned coordinator | No | No | No | No | No |
@@ -54,6 +55,7 @@ Keys used in `backend/permissions.py` and on API routes / `features` from `/api/
 | requests.view | Yes | Yes | Yes | No | No | Yes | No |
 | requests.edit | Yes | No | No | No | No | No | No |
 | requests.decide | No | Yes | No | No | No | No | No |
+| clarifications.reply | Yes | No | No | No | No | No | No |
 | venues.view | No | Yes | Yes | Yes | No | No | No |
 | venues.edit | No | No | No | Yes | No | No | No |
 | venues.search | No | Yes | No | No | No | No | No |
@@ -105,6 +107,7 @@ Keys used in `backend/permissions.py` and on API routes / `features` from `/api/
 | 1.26 | 20-10-2026 | Event Coordinator column: "All except Draft" and the unenforced "Yes*" rows become "Assigned only" (view, decide, search venues, raise, warnings, internal planning information), and withdrawing a booking becomes the assigned coordinator's whoever raised it; `requests.edit` is withdrawn from Event Coordinators (the Event Organiser alone creates or submits); the Rule \* note rewritten, since every such row is now enforced | SCRUM-87 (copied from `target/permissions.md` v1.7, this story's slice; SCRUM-44 adds reassignment and SCRUM-88 the Lead's wider view) |
 | 1.27 | 21-10-2026 | New row "View all assignments and active events" and key `assignments.view` for the Event Coordinator Lead; the Lead's "View event requests" cell becomes "all active events, read-only"; the Lead gains read-only "View venues, venue booking requests and venue holds", "View a venue's availability calendar" and "View internal planning information" (`venues.view`, `internal_notes.view`) so a listed event's arrangements can be seen | SCRUM-88 AC1–6 |
 | 1.28 | 22-10-2026 | "Reassign an event" becomes "Reassign an event to another coordinator" and moves to the Event Coordinator Lead alone (was: the assigned coordinator initiates, the new coordinator accepts); it uses the existing key `assignments.manage`, so no key is added | Week 7 customer change 5; SCRUM-44 (copied from `target/permissions.md` v1.7, this story's slice) |
+| 1.29 | 23-10-2026 | New row "Reply to a clarification request" and key `clarifications.reply` for the Event Organiser (own request only, enforced in the service); asking for clarification stays on `requests.decide`, assigned coordinator only | SCRUM-45 AC3, AC7 (the request-clarification row already existed; the reply is the Organiser's half) |
 
 SCRUM-81: Technical Support may decide or correct a requirement only while the event is Approved or Planning and no reservation for the same event/type is Reserved. Released history does not block a decision. Arrangement notes remain editable in those event stages even with a Reserved reservation. These mutations grant no general event-request access.
 

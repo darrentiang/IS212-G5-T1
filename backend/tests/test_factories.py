@@ -7,7 +7,7 @@ AGENTS.md §4 and docs/test-cases/AUTOMATION.md.
 from db import db
 from datetime import datetime
 
-from factories import account, make_block, make_booking, make_event, make_hold, make_venue
+from factories import account, make_block, make_booking, make_clarification, make_event, make_hold, make_venue
 from models import EventRequest, VenueBlock, VenueBookingRequest, VenueHold
 
 
@@ -89,3 +89,19 @@ def test_venue_booking_block_and_hold_helpers_store_the_given_values(app):
     stored_hold = db.session.get(VenueHold, hold.id)
     assert (stored_hold.status, stored_hold.expires_at) == ("Held", datetime(2026, 12, 4, 17, 0))
     assert stored_hold.placed_by.username == "coord1"
+
+
+# @story: setup
+# @ac: test-speed
+def test_make_clarification_stores_an_open_answered_or_ended_clarification(app):
+    event = make_event(
+        name="Factory Clarified", status="Submitted", date="2026-12-01", start_time="09:00", end_time="11:00"
+    )
+
+    open_one = make_clarification(event=event, message="Which room?")
+    answered = make_clarification(event=event, message="How many?", reply="Forty")
+    ended = make_clarification(event=event, message="Which date?", ended=True)
+
+    assert [row.is_open for row in (open_one, answered, ended)] == [True, False, False]
+    assert (answered.reply, answered.replied_by.username) == ("Forty", "org2")
+    assert event.open_clarification.message == "Which room?"
