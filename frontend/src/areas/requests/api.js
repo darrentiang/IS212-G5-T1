@@ -233,3 +233,9 @@ export const listAssignableCoordinators = () => request('GET', '/api/assignments
 //          Coordinator; 404 unknown or a Draft; 409 already assigned, or not Submitted
 export const assignRequest = (id, coordinatorId) =>
   request('POST', `/api/requests/${id}/assign`, { coordinator_id: coordinatorId })
+
+// POST /api/requests/:id/complete (SCRUM-66), no input fields.
+// 200: event detail with completion: { completed_by, completed_at (ISO UTC) }.
+// 400: invalid stored period; 401/403: authentication/feature; 404: object;
+// 409: wrong stage, too early or changed concurrently. Refusals change nothing.
+export const completeRequest = (id) => request('POST', `/api/requests/${id}/complete`)

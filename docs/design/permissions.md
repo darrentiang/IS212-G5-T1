@@ -13,7 +13,7 @@ Kept current by every story that adds an action: the row is added or changed in 
 | Approve or reject an event request; request clarification | No | Assigned only | No | No | No | No | No |
 | View event request resulting status and any reason | Own only | Assigned only | Yes | No | No | No | No |
 | Reassign an event to another coordinator | No | No | Yes | No | No | No | No |
-| Send for safety check, cancel, mark completed | No | Assigned coordinator | No | No | No | No | No |
+| Send for safety check, cancel | No | Assigned coordinator | No | No | No | No | No |
 | View venues, venue booking requests and venue holds | No | Yes | Yes, read-only | Yes | No | No | No |
 | View a venue's availability calendar | No | Yes | Yes, read-only | Yes | No | No | No |
 | Search venues free on an Approved or Planning event's dates and large enough for its attendance | No | Assigned only | No | No | No | No | No |
@@ -54,6 +54,7 @@ Keys used in `backend/permissions.py` and on API routes / `features` from `/api/
 | requests.view | Yes | Yes | Yes | No | No | Yes | No |
 | requests.edit | Yes | No | No | No | No | No | No |
 | requests.decide | No | Yes | No | No | No | No | No |
+| requests.complete | No | Yes | No | No | No | No | No |
 | venues.view | No | Yes | Yes | Yes | No | No | No |
 | venues.edit | No | No | No | Yes | No | No | No |
 | venues.search | No | Yes | No | No | No | No | No |
@@ -105,6 +106,7 @@ Keys used in `backend/permissions.py` and on API routes / `features` from `/api/
 | 1.26 | 20-10-2026 | Event Coordinator column: "All except Draft" and the unenforced "Yes*" rows become "Assigned only" (view, decide, search venues, raise, warnings, internal planning information), and withdrawing a booking becomes the assigned coordinator's whoever raised it; `requests.edit` is withdrawn from Event Coordinators (the Event Organiser alone creates or submits); the Rule \* note rewritten, since every such row is now enforced | SCRUM-87 (copied from `target/permissions.md` v1.7, this story's slice; SCRUM-44 adds reassignment and SCRUM-88 the Lead's wider view) |
 | 1.27 | 21-10-2026 | New row "View all assignments and active events" and key `assignments.view` for the Event Coordinator Lead; the Lead's "View event requests" cell becomes "all active events, read-only"; the Lead gains read-only "View venues, venue booking requests and venue holds", "View a venue's availability calendar" and "View internal planning information" (`venues.view`, `internal_notes.view`) so a listed event's arrangements can be seen | SCRUM-88 AC1–6 |
 | 1.28 | 22-10-2026 | "Reassign an event" becomes "Reassign an event to another coordinator" and moves to the Event Coordinator Lead alone (was: the assigned coordinator initiates, the new coordinator accepts); it uses the existing key `assignments.manage`, so no key is added | Week 7 customer change 5; SCRUM-44 (copied from `target/permissions.md` v1.7, this story's slice) |
+| 1.29 | — | Assigned-only requests.complete feature and completion API/read contract | SCRUM-66; unmerged implementation, date to be recorded at review |
 
 SCRUM-81: Technical Support may decide or correct a requirement only while the event is Approved or Planning and no reservation for the same event/type is Reserved. Released history does not block a decision. Arrangement notes remain editable in those event stages even with a Reserved reservation. These mutations grant no general event-request access.
 
@@ -117,3 +119,22 @@ requirement and no Reserved reservation for its event/type. Read history uses
 `equipment.requirements.view`: assigned Coordinator, or Technical Support for
 non-Draft events. A different Coordinator's read is 403; missing objects are
 404. No new role or event status is introduced. Multi-role access is a union.
+
+## SCRUM-66 — Event completion
+
+| Action | Event Organiser | Event Coordinator | Event Coordinator Lead | Venue Staff | Technical Support Staff | Safety Officer | Attendee |
+|---|---|---|---|---|---|---|---|
+| Mark an ended Confirmed event Completed | No | Assigned only | No | No | No | No | No |
+
+`requests.complete` is held only through the Event Coordinator role. POST
+`/api/requests/:id/complete` returns 401 without login, 403 without the feature,
+404 for missing, Draft or unassigned/other-assigned objects, 409 for a non-Confirmed
+stage or an end not yet reached. No request body grants actor, period or status.
+Existing authorised detail readers retain access to Completed records. In this
+snapshot the Lead can still read an assigned non-Draft record through the existing
+`_lead_may_read` rule, even after it leaves active lists; completion does not widen
+or narrow that rule.
+
+SCRUM-66 v2: AC2's appropriate-error rule permits the generic 404 for an
+object-level write refusal without revealing protected event information. The
+route and direct-service feature refusal both use the generic 403 message.

@@ -148,6 +148,11 @@ def request_to_dict(event_request):
 def request_detail_dict(event_request, account):
     """Detail JSON; coordinator_notes only when the account may see them."""
     payload = request_to_dict(event_request)
+    if event_request.completed_at is not None and event_request.completed_by is not None:
+        payload["completion"] = {
+            "completed_at": event_request.completed_at.isoformat() + "Z",
+            "completed_by": event_request.completed_by.username,
+        }
     if can(account, INTERNAL_NOTES_VIEW):
         payload["coordinator_notes"] = event_request.coordinator_notes
     reviewing = account.has_role(SAFETY_OFFICER_ROLE) and event_request.status == SAFETY_CHECK

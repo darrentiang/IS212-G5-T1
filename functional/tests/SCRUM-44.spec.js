@@ -246,9 +246,9 @@ test('only accounts holding the Event Coordinator role can be chosen', async ({ 
   await login(page, 'lead1')
   await openAssignments(page)
 
-  const options = await page.getByTestId(`assignments-reassign-input-${id}`).locator('option').allTextContents()
+  const options = page.getByTestId(`assignments-reassign-input-${id}`).locator('option')
 
-  expect(options).toEqual(['Choose a coordinator', 'coord1', 'coord2', 'leadcoord1', 'multi1'])
+  await expect(options).toHaveText(['Choose a coordinator', 'coord1', 'coord2', 'leadcoord1', 'multi1'])
   expect((await detail('coord1', id)).assigned_coordinator).toBe('coord1')
 })
 
