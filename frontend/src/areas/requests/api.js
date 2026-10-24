@@ -239,3 +239,9 @@ export const assignRequest = (id, coordinatorId) =>
 // 400: invalid stored period; 401/403: authentication/feature; 404: object;
 // 409: wrong stage, too early or changed concurrently. Refusals change nothing.
 export const completeRequest = (id) => request('POST', `/api/requests/${id}/complete`)
+
+// POST /api/requests/:id/cancel (SCRUM-65). body: { reason } (required text).
+// 200: event detail with cancellation { cancelled_by, cancelled_at (UTC), reason }.
+// All own active arrangements release atomically; no stock or review changes.
+// 400: invalid reason; 401/403: auth/feature; 404: protected object; 409: stage.
+export const cancelRequest = (id, reason) => request('POST', `/api/requests/${id}/cancel`, { reason })

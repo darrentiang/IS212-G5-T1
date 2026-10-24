@@ -6,13 +6,15 @@ import { completeRequest } from './api'
 
 // The server owns the end-time check: browser clocks cannot grant permission.
 // Confirm is explicit because Completed cannot be reopened by this workflow.
-export default function CompletionSection({ event, onCompleted }) {
-  return <CompletionAction key={event.id} event={event} onCompleted={onCompleted} />
+export default function CompletionSection({ event, onCompleted, activeAction, onActionChange }) {
+  return <CompletionAction key={event.id} event={event} onCompleted={onCompleted} activeAction={activeAction} onActionChange={onActionChange} />
 }
 
-function CompletionAction({ event, onCompleted }) {
+function CompletionAction({ event, onCompleted, activeAction, onActionChange }) {
   const auth = useAuth()
-  const [open, setOpen] = useState(false)
+  const [localOpen, setLocalOpen] = useState(false)
+  const open = onActionChange ? activeAction === 'event-complete' : localOpen
+  const setOpen = onActionChange ? (value) => onActionChange(value ? 'event-complete' : null) : setLocalOpen
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const generation = useRef(0)
@@ -48,7 +50,7 @@ function CompletionAction({ event, onCompleted }) {
         </p>
       )}
       {allowed && !open && (
-        <button type="button" className="btn-secondary" data-testid="request-detail-complete-button"
+        <button type="button" className="btn btn-secondary" data-testid="request-detail-complete-button"
           onClick={() => { setError(null); setOpen(true) }}>Mark as Completed</button>
       )}
       {allowed && open && (
@@ -56,9 +58,9 @@ function CompletionAction({ event, onCompleted }) {
           <p>Mark this event as Completed? This cannot be undone.</p>
           {error && <p role="alert" data-testid="request-detail-complete-error">{error}</p>}
           <div className="flex gap-3">
-            <button type="button" className="btn-secondary" disabled={busy}
+            <button type="button" className="btn btn-secondary" disabled={busy}
               data-testid="request-detail-complete-cancel-button" onClick={() => { setOpen(false); setError(null) }}>Cancel</button>
-            <button type="submit" className="btn-primary" disabled={busy}
+            <button type="submit" className="btn btn-primary" disabled={busy}
               data-testid="request-detail-complete-confirm-button">Confirm completion</button>
           </div>
         </form>

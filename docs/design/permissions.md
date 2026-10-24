@@ -13,7 +13,7 @@ Kept current by every story that adds an action: the row is added or changed in 
 | Approve or reject an event request; request clarification | No | Assigned only | No | No | No | No | No |
 | View event request resulting status and any reason | Own only | Assigned only | Yes | No | No | No | No |
 | Reassign an event to another coordinator | No | No | Yes | No | No | No | No |
-| Send for safety check, cancel | No | Assigned coordinator | No | No | No | No | No |
+| Send for safety check | No | Assigned coordinator | No | No | No | No | No |
 | View venues, venue booking requests and venue holds | No | Yes | Yes, read-only | Yes | No | No | No |
 | View a venue's availability calendar | No | Yes | Yes, read-only | Yes | No | No | No |
 | Search venues free on an Approved or Planning event's dates and large enough for its attendance | No | Assigned only | No | No | No | No | No |
@@ -55,6 +55,7 @@ Keys used in `backend/permissions.py` and on API routes / `features` from `/api/
 | requests.edit | Yes | No | No | No | No | No | No |
 | requests.decide | No | Yes | No | No | No | No | No |
 | requests.complete | No | Yes | No | No | No | No | No |
+| requests.cancel | No | Yes | No | No | No | No | No |
 | venues.view | No | Yes | Yes | Yes | No | No | No |
 | venues.edit | No | No | No | Yes | No | No | No |
 | venues.search | No | Yes | No | No | No | No | No |
@@ -107,6 +108,7 @@ Keys used in `backend/permissions.py` and on API routes / `features` from `/api/
 | 1.27 | 21-10-2026 | New row "View all assignments and active events" and key `assignments.view` for the Event Coordinator Lead; the Lead's "View event requests" cell becomes "all active events, read-only"; the Lead gains read-only "View venues, venue booking requests and venue holds", "View a venue's availability calendar" and "View internal planning information" (`venues.view`, `internal_notes.view`) so a listed event's arrangements can be seen | SCRUM-88 AC1–6 |
 | 1.28 | 22-10-2026 | "Reassign an event" becomes "Reassign an event to another coordinator" and moves to the Event Coordinator Lead alone (was: the assigned coordinator initiates, the new coordinator accepts); it uses the existing key `assignments.manage`, so no key is added | Week 7 customer change 5; SCRUM-44 (copied from `target/permissions.md` v1.7, this story's slice) |
 | 1.29 | — | Assigned-only requests.complete feature and completion API/read contract | SCRUM-66; unmerged implementation, date to be recorded at review |
+| 1.30 | — | Assigned-only requests.cancel; atomic whole-event release in all five permitted stages | SCRUM-65; date pending team review |
 
 SCRUM-81: Technical Support may decide or correct a requirement only while the event is Approved or Planning and no reservation for the same event/type is Reserved. Released history does not block a decision. Arrangement notes remain editable in those event stages even with a Reserved reservation. These mutations grant no general event-request access.
 
@@ -138,3 +140,23 @@ or narrow that rule.
 SCRUM-66 v2: AC2's appropriate-error rule permits the generic 404 for an
 object-level write refusal without revealing protected event information. The
 route and direct-service feature refusal both use the generic 403 message.
+
+## SCRUM-65 — Cancel the whole event
+
+| Action | Event Organiser | Event Coordinator | Event Coordinator Lead | Venue Staff | Technical Support Staff | Safety Officer | Attendee |
+|---|---|---|---|---|---|---|---|
+| Cancel an event and release its commitments | No | Assigned only | No | No | No | No | No |
+
+`requests.cancel` is granted by the Coordinator role only. POST
+`/api/requests/:id/cancel` takes `{reason}`. Wrong role is generic 403;
+nonexistent, Draft, unassigned or other-assigned objects are generic 404;
+Rejected/Completed/Cancelled are 409. Invalid reason is 400. Refusals do not
+change cancellation-owned records. A multi-role user still needs assignment.
+
+Whole-event cancellation is allowed in Submitted, Approved, Planning, Safety
+Check and Confirmed. Its internal release is not a grant of equipment.reserve
+or permission to use standalone release actions in locked stages. Organisers
+request withdrawal through SCRUM-59/60; that workflow can call the same domain
+action as the deciding assigned Coordinator, but is not implemented here.
+Authorised event-detail readers can view cancellation metadata; no broader read
+access is introduced. Notification delivery is SCRUM-64.

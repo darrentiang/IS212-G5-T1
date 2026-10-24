@@ -4,6 +4,7 @@ import { useAuth } from '../../app/auth'
 import { STATUS, formatDate, formatDateTime, formatTime, statusBadgeClass } from '../../app/format'
 import SafetyCheckSection from './SafetyCheckSection'
 import CompletionSection from './CompletionSection'
+import CancellationSection from './CancellationSection'
 import PlaceHoldForm from './PlaceHoldForm'
 import VenueBookingsSection from './VenueBookingsSection'
 import VenueHoldsSection from './VenueHoldsSection'
@@ -171,6 +172,8 @@ export default function RequestDetailPage() {
   const [cancellingId, setCancellingId] = useState(null)
   const [cancelReason, setCancelReason] = useState('')
   const [cancelError, setCancelError] = useState(null)
+
+  const isCancelled = row?.status === STATUS.REQUEST.CANCELLED
 
   // Keyed to id: a reply for the request the user has left can
   // arrive after the current one, so a stale reply is ignored
@@ -345,7 +348,7 @@ const openDecision = (action) => {
     return () => {
       active = false
     }
-  }, [id, canSeeHolds])
+  }, [id, canSeeHolds, isCancelled])
 
   // SCRUM-83: read like the holds, keyed to id.
   useEffect(() => {
@@ -364,14 +367,14 @@ const openDecision = (action) => {
     return () => {
       active = false
     }
-  }, [id, canSeeHolds])
+  }, [id, canSeeHolds, isCancelled])
 
   // SCRUM-83 AC3: offered on an Approved booking to the assigned coordinator
   // while the event is Approved or Planning; the API refuses anything else.
   const canCancelBooking = (booking) => canPlaceHold && booking.status === STATUS.BOOKING.APPROVED
   // SCRUM-87 AC4: the assigned coordinator may withdraw a Requested booking, whoever raised it.
   const canWithdrawBooking = (booking) =>
-    isAssignedCoordinator && booking.status === STATUS.BOOKING.REQUESTED
+    isAssignedCoordinator && !isCancelled && booking.status === STATUS.BOOKING.REQUESTED
 
   const openCancel = (bookingId) => {
     setOpenAction('cancel')
@@ -756,7 +759,8 @@ const openDecision = (action) => {
 
       {loading || !row ? null : (
         <div className="card space-y-6">
-          <CompletionSection event={row} onCompleted={setRow} />
+          <CompletionSection event={row} onCompleted={setRow} activeAction={openAction} onActionChange={setOpenAction} />
+          <CancellationSection event={row} onCancelled={setRow} activeAction={openAction} onActionChange={setOpenAction} />
           <dl className="detail-list" data-testid="request-detail-fields">
             {typeof FIELDS !== 'undefined' && FIELDS.map(renderValue)}
           </dl>
@@ -1087,7 +1091,7 @@ const openDecision = (action) => {
           {canSeeHolds && holds && (
             <VenueHoldsSection
               holds={holds}
-              canRelease={isAssignedCoordinator}
+              canRelease={isAssignedCoordinator && !isCancelled}
               submitting={submitting}
               onRelease={handleReleaseHold}
             />
