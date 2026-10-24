@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import { useAuth } from '../../app/auth'
 import { STATUS, formatDate, formatDateTime, formatTime, statusBadgeClass } from '../../app/format'
 import SafetyCheckSection from './SafetyCheckSection'
+import CompletionSection from './CompletionSection'
 import PlaceHoldForm from './PlaceHoldForm'
 import VenueBookingsSection from './VenueBookingsSection'
 import VenueHoldsSection from './VenueHoldsSection'
@@ -755,6 +756,7 @@ const openDecision = (action) => {
 
       {loading || !row ? null : (
         <div className="card space-y-6">
+          <CompletionSection event={row} onCompleted={setRow} />
           <dl className="detail-list" data-testid="request-detail-fields">
             {typeof FIELDS !== 'undefined' && FIELDS.map(renderValue)}
           </dl>

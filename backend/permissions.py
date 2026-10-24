@@ -12,6 +12,7 @@ from flask import g
 from errors import ApiRefusal
 
 # Feature keys used on routes and in /api/login, /api/me "features".
+REQUESTS_COMPLETE = "requests.complete"  # SCRUM-66: assigned Coordinator only
 REQUESTS_VIEW = "requests.view"
 REQUESTS_EDIT = "requests.edit"
 REQUESTS_DECIDE = "requests.decide"  # SCRUM-29: approve or reject a Submitted request
@@ -40,6 +41,7 @@ ALL_FEATURES = frozenset(
         REQUESTS_VIEW,
         REQUESTS_EDIT,
         REQUESTS_DECIDE,
+        REQUESTS_COMPLETE,
         VENUES_VIEW,
         VENUES_EDIT,
         VENUES_SEARCH,
@@ -72,6 +74,7 @@ ROLE_FEATURES = {
     "Event Coordinator": {
         REQUESTS_VIEW,  # only the events assigned to them (service filter, SCRUM-87)
         # No requests.edit: only an Event Organiser creates or submits a request (SCRUM-87 AC7).
+        REQUESTS_COMPLETE,
         REQUESTS_DECIDE,  # and only on an event assigned to them (service rule, SCRUM-87 AC3)
         VENUES_VIEW,
         VENUES_SEARCH,

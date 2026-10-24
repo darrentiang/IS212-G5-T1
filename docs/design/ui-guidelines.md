@@ -54,6 +54,7 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | 1.43 | 19-10-2026 | The Notifications page texts for venue booking decisions, equipment decisions and equipment reservations; no new page, element or test id | SCRUM-63 tells the event's assigned Event Coordinator when Venue Staff or Technical Support Staff decide or change something for their event |
 | 1.45 | 22-10-2026 | §1/§6 the All assignments page gains a coordinator select and a Reassign button on each assigned row, with their test ids, messages and the three Notifications page texts; §7 the request page shows the new coordinator and the reassigning Lead after a reassignment | SCRUM-44 AC1–6: the Event Coordinator Lead moves an assigned active event to another Event Coordinator |
 | 1.46 | 22-10-2026 | The Notifications page texts for an event request received, approved and rejected, beside the assignment (SCRUM-86) and reassignment (SCRUM-44) notices they sit with; no new page, element or test id | SCRUM-62 tells the Event Organiser who created a request when it is received, assigned a coordinator, approved or rejected |
+| 1.47 | — | Completion confirmation, metadata, refusal and documented ids on Request detail | SCRUM-66; unmerged implementation, date to be recorded at review |
 
 ## 1. Pages
 
@@ -747,3 +748,27 @@ uses the new one.
 
 Saving or editing a Draft and any refused action tell nobody. Clarification
 notices are SCRUM-45's.
+
+## SCRUM-66 — Completion on Request detail
+
+Only the assigned Coordinator with `requests.complete` on a Confirmed event sees
+Mark as Completed. The browser does not compare wall clocks: the API validates
+the end. Open an inline confirmation, focus Cancel via `useReveal`, disable both
+buttons during submission. Refusal stays in the form with the API message.
+Success updates the detail status and shows actor/time; reload preserves it.
+Late replies after navigation are discarded. Completed events show no completion
+action, but permitted readers can still open the detail.
+
+| Element | data-testid |
+|---|---|
+| Open completion | request-detail-complete-button |
+| Confirmation form | request-detail-complete-form |
+| Cancel confirmation | request-detail-complete-cancel-button |
+| Confirm completion | request-detail-complete-confirm-button |
+| Refusal | request-detail-complete-error |
+| Completion actor and time | request-detail-completion-details |
+
+SCRUM-66 v2: display the completion date, time and explicit UTC suffix. Render
+no completion section when neither details nor an action is available. Completed
+events remain in the assigned Coordinator's general Requests list as historical
+records; the active assignments list/counts exclude them.

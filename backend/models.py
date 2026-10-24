@@ -47,7 +47,7 @@ from db import db
 # SCRUM-81 adds requirement review metadata and arrangement notes.
 # SCRUM-85 adds a venue hold's expired_at and warning_sent_at, so 23.
 # SCRUM-86 adds who assigned an event request's coordinator (assigned_by_id), so 24.
-SCHEMA_VERSION = 24
+SCHEMA_VERSION = 25  # SCRUM-66: completion actor and timestamp
 
 
 account_roles = db.Table(
@@ -159,6 +159,10 @@ class EventRequest(db.Model):
     registration_needs = db.Column(db.Text)
 
     registration_enabled = db.Column(db.Boolean, nullable=False, default=False)
+    completed_at = db.Column(db.DateTime, nullable=True)  # UTC, SCRUM-66
+    completed_by_id = db.Column(db.Integer, db.ForeignKey("accounts.id"), nullable=True)
+    completed_by = db.relationship("Account", foreign_keys=[completed_by_id])
+
     coordinator_notes = db.Column(db.Text, nullable=True)
     submitted_at = db.Column(db.DateTime, nullable=True)
 
