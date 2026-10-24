@@ -44,6 +44,8 @@ nobody. Withdrawing tells nobody (AC7).
 
 from datetime import datetime, timedelta, timezone
 
+from sqlalchemy import update
+
 import clock
 import occupancy
 from areas.requests.services import start_planning_if_approved
@@ -83,6 +85,21 @@ def _get_event_request(event_request_id):
     event_request = db.session.get(EventRequest, event_request_id)
     if event_request is None:
         raise ApiRefusal(404, "Event request not found.")
+    return event_request
+
+
+def _lock_event(event_request_id):
+    """Serialise venue writes with cancellation/completion before validation.
+
+    A cached read is not authoritative: SQLite allows a read to precede another
+    session's commit. Take the same event write lock as SCRUM-51/65/66, then
+    expire event, booking and relationship snapshots. Never commit here; the
+    existing action commits its full change, or request teardown rolls it back.
+    """
+    event_request = _get_event_request(event_request_id)
+    db.session.execute(update(EventRequest).where(EventRequest.id == event_request_id)
+                       .values(id=EventRequest.id))
+    db.session.expire_all()
     return event_request
 
 
@@ -173,6 +190,7 @@ def _get_booking(venue_id, booking_id):
     booking = db.session.get(VenueBookingRequest, booking_id)
     if booking is None or booking.venue_id != venue.id:
         raise ApiRefusal(404, "Booking request not found.")
+    _lock_event(booking.event_request_id)
     return booking
 
 
@@ -731,8 +749,8 @@ def _get_assigned_event(account, event_request_id):
     the same rule SCRUM-53 applies to sending for safety check. SCRUM-87 owns
     the functional rows for this; the rule is enforced here.
     """
-    event_request = db.session.get(EventRequest, event_request_id)
-    if event_request is None or event_request.assigned_coordinator_id != account.id:
+    event_request = _lock_event(event_request_id)
+    if event_request.assigned_coordinator_id != account.id:
         raise ApiRefusal(404, "Event request not found.")
     return event_request
 

@@ -153,6 +153,12 @@ def request_detail_dict(event_request, account):
             "completed_at": event_request.completed_at.isoformat() + "Z",
             "completed_by": event_request.completed_by.username,
         }
+    if event_request.cancelled_at is not None and event_request.cancelled_by is not None:
+        payload["cancellation"] = {
+            "cancelled_at": event_request.cancelled_at.isoformat() + "Z",
+            "cancelled_by": event_request.cancelled_by.username,
+            "reason": event_request.cancel_reason,
+        }
     if can(account, INTERNAL_NOTES_VIEW):
         payload["coordinator_notes"] = event_request.coordinator_notes
     reviewing = account.has_role(SAFETY_OFFICER_ROLE) and event_request.status == SAFETY_CHECK
