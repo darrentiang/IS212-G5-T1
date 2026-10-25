@@ -47,7 +47,9 @@ from db import db
 # SCRUM-81 adds requirement review metadata and arrangement notes.
 # SCRUM-85 adds a venue hold's expired_at and warning_sent_at, so 23.
 # SCRUM-86 adds who assigned an event request's coordinator (assigned_by_id), so 24.
-SCHEMA_VERSION = 26  # SCRUM-65: event cancellation actor, timestamp and reason
+# SCRUM-65 adds the event's cancellation actor, timestamp and reason, so 26.
+# SCRUM-45 adds the Clarification table (a request's clarifications and replies), so 27.
+SCHEMA_VERSION = 27
 
 
 account_roles = db.Table(
@@ -204,6 +206,9 @@ class EventRequest(db.Model):
         order_by="SafetyDecision.decided_at, SafetyDecision.id",
         back_populates="event_request",
     )
+    clarifications = db.relationship(
+        "Clarification", order_by="Clarification.id", back_populates="event_request"
+    )
     facilities = db.relationship(
         "Facility", secondary="event_request_facilities", order_by="Facility.id"
     )
@@ -222,11 +227,17 @@ class EventRequest(db.Model):
                 missing.append(field)
         return missing
 
+    @property
+    def open_clarification(self):
+        """The clarification still waiting, if any (SCRUM-45): asked, not answered, not ended."""
+        return next((row for row in self.clarifications if row.is_open), None)
+
     def to_dict(self):
         return {
             "id": self.id,
             "status": self.status,
             "created_by": self.created_by.username if self.created_by else None,
+            "clarification_requested": self.open_clarification is not None,
             "registration_enabled": bool(self.registration_enabled),
             "submitted_at": self.submitted_at.isoformat() if self.submitted_at else None,
             "decision": self.decision,
@@ -572,6 +583,50 @@ class Reservation(db.Model):
 
     def __repr__(self):
         return f"<Reservation {self.id} type {self.equipment_type_id} {self.status}>"
+
+
+class Clarification(db.Model):
+    """One question the assigned Event Coordinator put to the Event Organiser, and its reply (SCRUM-45).
+
+    "Clarification requested" is not stored on the request: it is the flag
+    shown while a clarification is open (state-model.md), that is while it has
+    no reply and has not been ended. The reply ends the wait; so does the
+    coordinator's decision on the request, which sets ended_at and leaves no
+    reply. Every row stays, oldest first, as the request's record of what was
+    asked and answered (AC5). Times are UTC.
+    """
+
+    __tablename__ = "clarifications"
+
+    id = db.Column(db.Integer, primary_key=True)
+    event_request_id = db.Column(db.Integer, db.ForeignKey("event_requests.id"), nullable=False)
+    requested_by_id = db.Column(db.Integer, db.ForeignKey("accounts.id"), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    requested_at = db.Column(db.DateTime, nullable=False)
+    reply = db.Column(db.Text, nullable=True)
+    replied_by_id = db.Column(db.Integer, db.ForeignKey("accounts.id"), nullable=True)
+    replied_at = db.Column(db.DateTime, nullable=True)
+    ended_at = db.Column(db.DateTime, nullable=True)
+
+    event_request = db.relationship("EventRequest", back_populates="clarifications")
+    requested_by = db.relationship("Account", foreign_keys=[requested_by_id])
+    replied_by = db.relationship("Account", foreign_keys=[replied_by_id])
+
+    @property
+    def is_open(self):
+        return self.reply is None and self.ended_at is None
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "message": self.message,
+            "requested_by": self.requested_by.username,
+            "requested_at": self.requested_at.isoformat(),
+            "reply": self.reply,
+            "replied_by": self.replied_by.username if self.replied_by else None,
+            "replied_at": self.replied_at.isoformat() if self.replied_at else None,
+            "open": self.is_open,
+        }
 
 
 class SafetyDecision(db.Model):

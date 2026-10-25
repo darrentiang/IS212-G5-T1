@@ -13,6 +13,8 @@ SCRUM-89: the Safety Officer lists, opens, approves and rejects events in Safety
 SCRUM-53: the assigned Event Coordinator sends a Planning event for safety check.
 SCRUM-84: an Approved event moves to Planning when its first hold is placed.
 SCRUM-82: a booking marked Venue unavailable stops the event being sent.
+SCRUM-45: the assigned Event Coordinator asks the Organiser for clarification of a Submitted request;
+the Organiser replies; a decision ends a wait nobody answered.
 SCRUM-62: the creating Event Organiser is told when their request is received,
 approved or rejected (the assignment and reassignment notices it also relies on
 are SCRUM-86's and SCRUM-44's, below).
@@ -30,6 +32,7 @@ from errors import ApiRefusal
 from models import (
     AccessibilityFeature,
     Account,
+    Clarification,
     EventRequest,
     Facility,
     Role,
@@ -170,7 +173,20 @@ def request_detail_dict(event_request, account):
         payload["requested_changes"] = _requested_changes(event_request)
     if reviewing:
         payload["safety_check"] = _safety_check_to_dict(event_request)
+    if _may_read_clarifications(account, event_request):
+        payload["clarifications"] = [row.to_dict() for row in event_request.clarifications]
     return payload
+
+
+def _may_read_clarifications(account, event_request):
+    """The Organiser who wrote the request, its assigned coordinator and the Lead
+    (read-only) see its clarifications and replies (SCRUM-45 AC2, AC5); the Safety
+    Officer, who opens only an event in Safety Check, does not."""
+    return (
+        event_request.created_by_id == account.id
+        or event_request.assigned_coordinator_id == account.id
+        or account.has_role(LEAD_ROLE)
+    )
 
 
 def _safety_decision_to_dict(decision):
@@ -713,6 +729,8 @@ def start_planning_if_approved(event_request):
 
 
 def _record_decision(event_request, account, decision, reason):
+    # SCRUM-45 AC6: a decision ends a clarification the Organiser has not answered.
+    _end_open_clarification(event_request)
     event_request.status = decision
     event_request.decision = decision
     event_request.decision_reason = reason
@@ -720,6 +738,86 @@ def _record_decision(event_request, account, decision, reason):
     event_request.decided_by_id = account.id
 
     _notify_decision(event_request, decision, reason)
+    db.session.commit()
+    return event_request
+
+
+def _end_open_clarification(event_request):
+    open_one = event_request.open_clarification
+    if open_one is not None:
+        open_one.ended_at = datetime.now(timezone.utc)
+
+
+def _clarification_text(data, message):
+    """The trimmed message, else refuse 400 with `message` (a blank one is refused, SCRUM-45 AC1, AC3)."""
+    raw = (data or {}).get("message")
+    text = raw.strip() if isinstance(raw, str) else ""
+    if not text:
+        raise ApiRefusal(400, message)
+    return text
+
+
+def request_clarification(account, request_id, data):
+    """Ask the Organiser what is missing or unclear on a Submitted request (SCRUM-45 AC1, AC2, AC4, AC7, AC8).
+
+    Only the assigned coordinator, and only while the request is Submitted; a
+    request that is not theirs answers 404, like every write (permissions.md).
+    One clarification is open at a time. The request stays Submitted; the
+    Organiser is told, in one commit with the clarification. A refusal changes
+    nothing.
+    """
+    event_request = db.session.get(EventRequest, request_id)
+    if (
+        event_request is None
+        or event_request.assigned_coordinator_id != account.id
+        or event_request.status == "Draft"
+    ):
+        raise ApiRefusal(404, "Event request not found.")
+    if event_request.status != "Submitted":
+        raise ApiRefusal(409, "Only a Submitted request can have clarification requested.")
+    text = _clarification_text(data, "Say what is missing or unclear.")
+    if event_request.open_clarification is not None:
+        raise ApiRefusal(409, "A clarification is already open on this request.")
+
+    db.session.add(
+        Clarification(
+            event_request=event_request,
+            requested_by_id=account.id,
+            message=text,
+            requested_at=datetime.now(timezone.utc),
+        )
+    )
+    create_notification(
+        event_request.created_by,
+        f'Clarification was requested on your request "{event_request.name}".',
+        event_request,
+    )
+    db.session.commit()
+    return event_request
+
+
+def reply_to_clarification(account, request_id, data):
+    """The Organiser answers the open clarification, which ends the wait (SCRUM-45 AC3, AC4, AC7, AC8).
+
+    Only the Organiser who created the request (another's answers 404). The
+    request's details are not touched; the coordinator makes any amendment. The
+    assigned coordinator is told, in one commit with the reply.
+    """
+    event_request = _get_own_request(account, request_id)
+    open_one = event_request.open_clarification
+    if open_one is None:
+        raise ApiRefusal(409, "No clarification is open on this request.")
+    text = _clarification_text(data, "Write a reply.")
+
+    open_one.reply = text
+    open_one.replied_by_id = account.id
+    open_one.replied_at = datetime.now(timezone.utc)
+    if event_request.assigned_coordinator is not None:
+        create_notification(
+            event_request.assigned_coordinator,
+            f'{account.username} replied to your clarification request on "{event_request.name}".',
+            event_request,
+        )
     db.session.commit()
     return event_request
 

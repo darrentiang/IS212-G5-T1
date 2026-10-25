@@ -11,6 +11,7 @@ Kept current by every story that adds an action: the row is added or changed in 
 | View all assignments and active events | No | No | Yes | No | No | No | No |
 | Edit an event during Planning | No | Assigned coordinator only | No | No | No | No | No |
 | Approve or reject an event request; request clarification | No | Assigned only | No | No | No | No | No |
+| Reply to a clarification request | Own only | No | No | No | No | No | No |
 | View event request resulting status and any reason | Own only | Assigned only | Yes | No | No | No | No |
 | Reassign an event to another coordinator | No | No | Yes | No | No | No | No |
 | Send for safety check | No | Assigned coordinator | No | No | No | No | No |
@@ -54,6 +55,7 @@ Keys used in `backend/permissions.py` and on API routes / `features` from `/api/
 | requests.view | Yes | Yes | Yes | No | No | Yes | No |
 | requests.edit | Yes | No | No | No | No | No | No |
 | requests.decide | No | Yes | No | No | No | No | No |
+| clarifications.reply | Yes | No | No | No | No | No | No |
 | requests.complete | No | Yes | No | No | No | No | No |
 | requests.cancel | No | Yes | No | No | No | No | No |
 | venues.view | No | Yes | Yes | Yes | No | No | No |
@@ -109,6 +111,7 @@ Keys used in `backend/permissions.py` and on API routes / `features` from `/api/
 | 1.28 | 22-10-2026 | "Reassign an event" becomes "Reassign an event to another coordinator" and moves to the Event Coordinator Lead alone (was: the assigned coordinator initiates, the new coordinator accepts); it uses the existing key `assignments.manage`, so no key is added | Week 7 customer change 5; SCRUM-44 (copied from `target/permissions.md` v1.7, this story's slice) |
 | 1.29 | — | Assigned-only requests.complete feature and completion API/read contract | SCRUM-66; unmerged implementation, date to be recorded at review |
 | 1.30 | — | Assigned-only requests.cancel; atomic whole-event release in all five permitted stages | SCRUM-65; date pending team review |
+| 1.31 | 23-10-2026 | New row "Reply to a clarification request" and key `clarifications.reply` for the Event Organiser (own request only, enforced in the service); asking for clarification stays on `requests.decide`, assigned coordinator only | SCRUM-45 AC3, AC7 (the request-clarification row already existed; the reply is the Organiser's half) |
 
 SCRUM-81: Technical Support may decide or correct a requirement only while the event is Approved or Planning and no reservation for the same event/type is Reserved. Released history does not block a decision. Arrangement notes remain editable in those event stages even with a Reserved reservation. These mutations grant no general event-request access.
 

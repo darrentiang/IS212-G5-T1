@@ -186,6 +186,25 @@ export const cancelBooking = (venueId, bookingId, reason) =>
 export const withdrawBooking = (venueId, bookingId) =>
   request('POST', `/api/venues/${venueId}/bookings/${bookingId}/withdraw`)
 
+// POST /api/requests/:id/clarification   (SCRUM-45)
+// body:    { message }   required, not blank
+// 201:     the request, still Submitted, with clarification_requested true and its clarifications:
+//          [ { id, message, requested_by, requested_at, reply, replied_by, replied_at, open } ],
+//          oldest first; the Organiser is told
+// 400/403/404/409: { message }   400 a blank message; 403 not an Event Coordinator; 404 not the
+//          request's assigned coordinator (or unknown or a Draft); 409 not Submitted, or one is open
+export const requestClarification = (id, message) =>
+  request('POST', `/api/requests/${id}/clarification`, { message })
+
+// POST /api/requests/:id/clarification/reply   (SCRUM-45)
+// body:    { message }   required, not blank
+// 200:     the request with the reply recorded and clarification_requested false; the assigned
+//          coordinator is told
+// 400/403/404/409: { message }   400 a blank reply; 403 not an Event Organiser; 404 not the
+//          Organiser who wrote the request; 409 no clarification is open
+export const replyToClarification = (id, message) =>
+  request('POST', `/api/requests/${id}/clarification/reply`, { message })
+
 // GET /api/assignments/queue   (SCRUM-86)
 // 200:     [ { id, name, purpose, date, attendance, created_by, submitted_at } ]
 //          every Submitted request with no assigned coordinator, oldest submission first;

@@ -56,6 +56,7 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | 1.46 | 22-10-2026 | The Notifications page texts for an event request received, approved and rejected, beside the assignment (SCRUM-86) and reassignment (SCRUM-44) notices they sit with; no new page, element or test id | SCRUM-62 tells the Event Organiser who created a request when it is received, assigned a coordinator, approved or rejected |
 | 1.47 | — | Completion confirmation, metadata, refusal and documented ids on Request detail | SCRUM-66; unmerged implementation, date to be recorded at review |
 | 1.48 | — | Event cancellation form, persistent metadata, shared lifecycle confirmation state and post-cancel arrangement refresh | SCRUM-65; date pending team review |
+| 1.49 | 23-10-2026 | §7 the request page's Clarifications section (the Request clarification button and form, the reply form, the history, the flag beside the status and on the Requests page) with their test ids, messages and banners; the Notifications page texts for a clarification requested and a reply | SCRUM-45 AC1–8: the assigned Event Coordinator asks the Event Organiser what is missing on a Submitted request, and the Organiser replies |
 
 ## 1. Pages
 
@@ -204,6 +205,16 @@ While the page is waiting for the API it renders the title row and nothing below
 | Assigned coordinator (SCRUM-86; shown once assigned) | `<page>-assigned-coordinator` | `request-detail-assigned-coordinator` |
 | Assigned by, the Lead (SCRUM-86; shown with the coordinator) | `<page>-assigned-by` | `request-detail-assigned-by` |
 | Assignment date (SCRUM-86; shown with the coordinator, `03 Oct 2026`) | `<page>-assigned-at` | `request-detail-assigned-at` |
+
+**Clarifications (SCRUM-45).** While the request is Submitted and no clarification is open, the assigned Event Coordinator sees a Request clarification button in the card's action row, beside Reject and Approve, that opens an inline form directly below the card (§13) with one Message field and Send and Cancel buttons; a blank message shows `Say what is missing or unclear.` under the field and sends nothing. Sending shows the banner `Clarification requested`, leaves the request Submitted and shows Clarification requested (a flag, §6, not a status) beside its status here and on the Requests page. While one is open the Organiser who wrote the request sees, under it, a Your reply field and a Send reply button; a blank reply shows `Write a reply.` and sends nothing, and sending shows the banner `Reply sent` and takes the flag away. Every clarification is listed, oldest first, as its message, `<username>, <moment>` (§9) and, once answered, the reply and `<username>, <moment>`; one a decision (Approve or Reject) ended is kept with no reply. A refusal (one already open, none open, no longer Submitted) shows in the banner and the page shows the request as it now stands. Once anything has been asked, a Clarifications section below the details shows the history to the Organiser who wrote the request, its assigned coordinator and the Lead (read-only); with nothing asked there is no section.
+
+| Element | `data-testid` |
+|---|---|
+| History section | `request-detail-clarifications` |
+| Request clarification button (action row), form (below the card), Message field, message under it, Send, Cancel | `request-detail-clarification-button`, `request-detail-clarification-form`, `request-detail-clarification-message-input`, `request-detail-clarification-message-error`, `request-detail-clarification-send-button`, `request-detail-clarification-cancel-button` |
+| Reply form, Your reply field, message under it, Send reply | `request-detail-clarification-reply-form`, `request-detail-clarification-reply-input`, `request-detail-clarification-reply-error`, `request-detail-clarification-reply-button` |
+| An entry, its message, who and when, its reply, who replied and when | `request-detail-clarification-row-<id>`, `request-detail-clarification-message-<id>`, `request-detail-clarification-by-<id>`, `request-detail-clarification-reply-<id>`, `request-detail-clarification-reply-by-<id>` |
+| The flag beside the status (request page, Requests page) | `request-detail-clarification-flag`, `requests-clarification-flag-<id>` |
 
 **Where the request page's forms open (§13).** Approve and Reject (SCRUM-29) sit in the request card's action row, under the fields, like the Draft's Delete, Edit and Submit. The forms those rows open (Edit draft, the Delete draft confirmation, and the Approve or Reject reason form) open directly below the card, above Venue holds and the safety sections, so they appear next to the button that opened them.
 
@@ -746,9 +757,12 @@ uses the new one.
 | Coordinator reassigned (SCRUM-44's notice, naming the new coordinator) | `coord2 has been assigned to your event "Annual Gala".` |
 | Approved | `Your request "Annual Gala" was approved.` then, when a reason was given, ` Reason: <reason>` |
 | Rejected | `Your request "Annual Gala" was rejected. Reason: <reason>` |
+| Clarification requested (SCRUM-45; told to the Organiser) | `Clarification was requested on your request "Annual Gala".` |
+| The Organiser replied (SCRUM-45; told to the request's assigned coordinator) | `org2 replied to your clarification request on "Annual Gala".` |
 
-Saving or editing a Draft and any refused action tell nobody. Clarification
-notices are SCRUM-45's.
+Saving or editing a Draft and any refused action tell nobody. The two clarification
+notices are SCRUM-45's; the reply notice goes to the coordinator the request is
+assigned to when the Organiser replies.
 
 ## SCRUM-66 — Completion on Request detail
 

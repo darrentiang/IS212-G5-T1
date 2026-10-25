@@ -27,6 +27,7 @@ Every acceptance criterion that changes a status uses a value from these tables.
 | 1.20 | 19-10-2026 | Event request: assignment moves to submission (an unassigned queue the Event Coordinator Lead assigns from; not a status); Approved → Planning when the first booking request or hold is raised, replacing auto-assignment at approval; a rejected request keeps its coordinator when resubmitted | Week 7 customer change 5; SCRUM-86 (copied from `target/state-model.md` v1.3, this story's slice; the hold half was SCRUM-84's) |
 | 1.21 | — | Manual end-gated completion, UTC completion metadata and conditional write; schema 25 | SCRUM-66; unmerged implementation, date to be recorded at review |
 | 1.22 | — | Atomic whole-event cancellation, preserved history and cancellation metadata; schema 26 | SCRUM-65; date pending team review |
+| 1.23 | 23-10-2026 | Event request: the clarification requested flag clears also when the request is approved or rejected, and is shown while a clarification is open; the clarifications and replies are kept with the request (a Clarification record: message, replier, times; an open one has no reply and no end) | SCRUM-45 (this story's slice of `target/state-model.md` v1.3, which already has the flag; the target says it clears only when the Organiser responds) |
 
 The front end holds these words in `frontend/src/app/format.js` (`STATUS`); a change here changes that file in the same pull request. v1.12 adds Held and Released (`STATUS.HOLD`); v1.18 adds Expired (`STATUS.HOLD.EXPIRED`); v1.14 adds Cancelled to a venue booking request's words (`STATUS.BOOKING.CANCELLED`); v1.15's Venue unavailable is a flag, held there as `VENUE_UNAVAILABLE`.
 
@@ -52,7 +53,7 @@ The front end holds these words in `frontend/src/app/format.js` (`STATUS`); a ch
 
 Assignment is not a status. A Submitted request with no assigned coordinator is in the **unassigned queue**; the Event Coordinator Lead assigns it, and the status stays Submitted (SCRUM-86). A request resubmitted after rejection keeps the coordinator it had and does not return to the queue. Approving a request assigns no one. Reassignment never changes the status (SCRUM-44).
 
-Flags on a Submitted request, not statuses: **clarification requested** (set by the Event Coordinator, cleared when the Event Organiser responds). Cancelled has no outgoing transition; a new request is submitted instead.
+Flags on a Submitted request, not statuses: **clarification requested** (set by the assigned Event Coordinator, cleared when the Event Organiser replies, or when the coordinator approves or rejects the request, SCRUM-45). The flag is not stored: it is shown while a clarification has no reply and has not been ended by a decision. Only one is open at a time, and every clarification and reply is kept with the request. Cancelled has no outgoing transition; a new request is submitted instead.
 
 ```mermaid
 stateDiagram-v2

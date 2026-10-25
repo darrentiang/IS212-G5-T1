@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import { useAuth } from '../../app/auth'
 import { STATUS, formatDate, formatDateTime, formatTime, statusBadgeClass } from '../../app/format'
+import ClarificationSection, { AskClarificationForm } from './ClarificationSection'
 import SafetyCheckSection from './SafetyCheckSection'
 import CompletionSection from './CompletionSection'
 import CancellationSection from './CancellationSection'
@@ -23,6 +24,8 @@ import {
   rejectRequest,
   releaseHold,
   rejectSafetyCheck,
+  replyToClarification,
+  requestClarification,
   requestSafetyChanges,
   resubmitRequest,
   sendForSafetyCheck,
@@ -280,6 +283,40 @@ const openDecision = (action) => {
     Boolean(can?.('safety.send')) &&
     row?.status === STATUS.REQUEST.PLANNING &&
     row?.assigned_coordinator === account?.username
+
+  // SCRUM-45: the assigned coordinator asks, beside Approve and Reject, while the request
+  // is Submitted and none is open; the Organiser who wrote it answers the open one. The
+  // API refuses anything else.
+  const canAskClarification = canDecide && !row?.clarification_requested
+  const canReplyClarification =
+    Boolean(can?.('clarifications.reply')) &&
+    Boolean(row?.clarification_requested) &&
+    row?.created_by === account?.username
+
+  // Each answers true when it went through. A refusal shows in the banner and the
+  // request is read again, since it may mean the other side acted first (another tab).
+  const handleClarification = (send, banner) => async (message) => {
+    setSubmitting(true)
+    try {
+      setRow(await send(id, message))
+      setBanner(null)
+      setSuccessBanner(banner)
+      return true
+    } catch (error) {
+      setBanner(error.message)
+      setSuccessBanner(null)
+      try {
+        setRow(await getRequest(id))
+      } catch (reloadError) {
+        setBanner(reloadError.message)
+      }
+      return false
+    } finally {
+      setSubmitting(false)
+    }
+  }
+  const handleAskClarification = handleClarification(requestClarification, 'Clarification requested')
+  const handleReplyToClarification = handleClarification(replyToClarification, 'Reply sent')
 
   const handleSend = async () => {
     setSubmitting(true)
@@ -795,6 +832,11 @@ const openDecision = (action) => {
               <dt>Status</dt>
               <dd data-testid="request-detail-status">
                 <span className={statusBadgeClass(row.status)}>{row.status}</span>
+                {row.clarification_requested && (
+                  <span className="ml-2 text-sm" data-testid="request-detail-clarification-flag">
+                    Clarification requested
+                  </span>
+                )}
               </dd>
             </div>
             {row.safety_check_at &&
@@ -923,6 +965,17 @@ const openDecision = (action) => {
           {/* SCRUM-29: approve or reject a Submitted request, in the card's action row (§7). */}
           {canDecide && (
             <div className="flex flex-wrap justify-end gap-2">
+              {canAskClarification && (
+                <button
+                  type="button"
+                  disabled={submitting}
+                  onClick={() => openDecision('clarify')}
+                  className="btn btn-secondary"
+                  data-testid="request-detail-clarification-button"
+                >
+                  Request clarification
+                </button>
+              )}
               <button
                 type="button"
                 disabled={submitting}
@@ -947,6 +1000,15 @@ const openDecision = (action) => {
       )}
 
       {/* The forms the card's action rows open sit directly below the card (ui-guidelines.md §13). */}
+      {/* SCRUM-45: the message the assigned coordinator sends the Organiser. */}
+      {canAskClarification && openAction === 'clarify' && (
+        <AskClarificationForm
+          submitting={submitting}
+          onClose={() => setOpenAction(null)}
+          onAsk={handleAskClarification}
+        />
+      )}
+
       {/* SCRUM-30: edit any field of an own Draft, including the name. */}
       {openAction === 'edit' && editValues && (
         <div ref={editRef} className="card form-card space-y-4" data-testid="request-detail-edit-form">
@@ -1097,6 +1159,17 @@ const openDecision = (action) => {
             />
           )}
         </VenuesSection>
+      )}
+
+      {/* SCRUM-45: what the coordinator asked and the Organiser answered. */}
+      {!loading && row?.clarifications?.length > 0 && (
+        <ClarificationSection
+          clarifications={row.clarifications}
+          canReply={canReplyClarification}
+          submitting={submitting}
+          onAsk={handleAskClarification}
+          onReply={handleReplyToClarification}
+        />
       )}
 
       {/* SCRUM-89: review an event in Safety Check, and decide it. */}
