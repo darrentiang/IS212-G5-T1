@@ -54,7 +54,9 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | 1.43 | 19-10-2026 | The Notifications page texts for venue booking decisions, equipment decisions and equipment reservations; no new page, element or test id | SCRUM-63 tells the event's assigned Event Coordinator when Venue Staff or Technical Support Staff decide or change something for their event |
 | 1.45 | 22-10-2026 | §1/§6 the All assignments page gains a coordinator select and a Reassign button on each assigned row, with their test ids, messages and the three Notifications page texts; §7 the request page shows the new coordinator and the reassigning Lead after a reassignment | SCRUM-44 AC1–6: the Event Coordinator Lead moves an assigned active event to another Event Coordinator |
 | 1.46 | 22-10-2026 | The Notifications page texts for an event request received, approved and rejected, beside the assignment (SCRUM-86) and reassignment (SCRUM-44) notices they sit with; no new page, element or test id | SCRUM-62 tells the Event Organiser who created a request when it is received, assigned a coordinator, approved or rejected |
-| 1.47 | 23-10-2026 | §7 the request page's Clarifications section (the Request clarification button and form, the reply form, the history, the flag beside the status and on the Requests page) with their test ids, messages and banners; the Notifications page texts for a clarification requested and a reply | SCRUM-45 AC1–8: the assigned Event Coordinator asks the Event Organiser what is missing on a Submitted request, and the Organiser replies |
+| 1.47 | — | Completion confirmation, metadata, refusal and documented ids on Request detail | SCRUM-66; unmerged implementation, date to be recorded at review |
+| 1.48 | — | Event cancellation form, persistent metadata, shared lifecycle confirmation state and post-cancel arrangement refresh | SCRUM-65; date pending team review |
+| 1.49 | 23-10-2026 | §7 the request page's Clarifications section (the Request clarification button and form, the reply form, the history, the flag beside the status and on the Requests page) with their test ids, messages and banners; the Notifications page texts for a clarification requested and a reply | SCRUM-45 AC1–8: the assigned Event Coordinator asks the Event Organiser what is missing on a Submitted request, and the Organiser replies |
 
 ## 1. Pages
 
@@ -761,3 +763,69 @@ uses the new one.
 Saving or editing a Draft and any refused action tell nobody. The two clarification
 notices are SCRUM-45's; the reply notice goes to the coordinator the request is
 assigned to when the Organiser replies.
+
+## SCRUM-66 — Completion on Request detail
+
+Only the assigned Coordinator with `requests.complete` on a Confirmed event sees
+Mark as Completed. The browser does not compare wall clocks: the API validates
+the end. Open an inline confirmation, focus Cancel via `useReveal`, disable both
+buttons during submission. Refusal stays in the form with the API message.
+Success updates the detail status and shows actor/time; reload preserves it.
+Late replies after navigation are discarded. Completed events show no completion
+action, but permitted readers can still open the detail.
+
+| Element | data-testid |
+|---|---|
+| Open completion | request-detail-complete-button |
+| Confirmation form | request-detail-complete-form |
+| Cancel confirmation | request-detail-complete-cancel-button |
+| Confirm completion | request-detail-complete-confirm-button |
+| Refusal | request-detail-complete-error |
+| Completion actor and time | request-detail-completion-details |
+
+SCRUM-66 v2: display the completion date, time and explicit UTC suffix. Render
+no completion section when neither details nor an action is available. Completed
+events remain in the assigned Coordinator's general Requests list as historical
+records; the active assignments list/counts exclude them.
+
+## SCRUM-65 — Cancel event on Request detail
+
+The assigned Coordinator with requests.cancel sees **Cancel event** only in
+Submitted, Approved, Planning, Safety Check or Confirmed. The inline form has a
+required Cancellation reason textarea, **Keep event** (dismiss) and **Confirm
+cancellation**. It warns that commitments will be released and the action cannot
+be undone. Focus the reason through useReveal. noValidate delegates validation
+to the server, including whitespace-only input; a refusal stays in the form
+with its entered reason and API message. Disable all form controls while pending.
+
+The form shares Request detail's openAction with completion and existing actions:
+opening one closes the others. Success updates the event and re-fetches bookings
+and holds; stale earlier reads are discarded by the existing effect cleanup.
+Suppress standalone withdraw/release controls immediately when Cancelled. Late
+cancellation responses after event navigation/unmount cannot replace the current
+record. Both lifecycle components retain standalone uncontrolled behaviour for
+focused tests; the real page uses the shared action state.
+
+Authorised readers see **Cancelled by <username> at <date, time> UTC** and the
+reason, retained after reload/reopening. Use formatDateTime with explicit UTC,
+matching SCRUM-66. No empty cancellation region if neither metadata nor an action
+exists. Organisers have no direct Cancel event control. Cancelled history remains
+readable, but no resubmit/reopen/planning actions are offered. A new request is
+required to organise the event again. Cancellation notifications are SCRUM-64.
+
+| Element | data-testid |
+|---|---|
+| Open event cancellation | request-detail-cancel-button |
+| Inline form | request-detail-cancel-form |
+| Reason | request-detail-cancel-reason-input |
+| Keep event / dismiss | request-detail-cancel-dismiss-button |
+| Confirm cancellation | request-detail-cancel-confirm-button |
+| Refusal | request-detail-cancel-error |
+| Cancellation actor/time and reason group | request-detail-cancellation-details |
+| Recorded reason | request-detail-cancellation-reason |
+
+Messages: `Cancellation reason is required.`; `Cancellation reason must be text.`;
+`A JSON object containing reason is required.`; protected write `Event request
+not found.`; wrong role `You do not have permission to perform this action.`;
+wrong stage `Only a Submitted, Approved, Planning, Safety Check or Confirmed
+event can be cancelled.` No modal or new page is introduced.

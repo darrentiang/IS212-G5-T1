@@ -172,7 +172,7 @@ describe('RequestNewPage', () => {
     await waitFor(() => {
       expect(screen.getByTestId('request-detail-banner')).toHaveTextContent('Draft saved')
     })
-    expect(screen.getByTestId('request-detail-status')).toHaveTextContent('Draft')
+    expect(await screen.findByTestId('request-detail-status')).toHaveTextContent('Draft')
   })
 
   // @story: SCRUM-30

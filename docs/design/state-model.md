@@ -25,7 +25,9 @@ Every acceptance criterion that changes a status uses a value from these tables.
 | 1.18 | 19-10-2026 | Venue hold: Held → Expired when its expiry date and time is reached (System); an Expired hold holds nothing and offers no Release | SCRUM-85 (copied from `target/state-model.md` v1.3, this story's slice) |
 | 1.19 | 19-10-2026 | Full-quantity equipment reserve/release workflow, current availability and scoped history; no schema or status change | SCRUM-51 AC1–7 |
 | 1.20 | 19-10-2026 | Event request: assignment moves to submission (an unassigned queue the Event Coordinator Lead assigns from; not a status); Approved → Planning when the first booking request or hold is raised, replacing auto-assignment at approval; a rejected request keeps its coordinator when resubmitted | Week 7 customer change 5; SCRUM-86 (copied from `target/state-model.md` v1.3, this story's slice; the hold half was SCRUM-84's) |
-| 1.21 | 23-10-2026 | Event request: the clarification requested flag clears also when the request is approved or rejected, and is shown while a clarification is open; the clarifications and replies are kept with the request (a Clarification record: message, replier, times; an open one has no reply and no end) | SCRUM-45 (this story's slice of `target/state-model.md` v1.3, which already has the flag; the target says it clears only when the Organiser responds) |
+| 1.21 | — | Manual end-gated completion, UTC completion metadata and conditional write; schema 25 | SCRUM-66; unmerged implementation, date to be recorded at review |
+| 1.22 | — | Atomic whole-event cancellation, preserved history and cancellation metadata; schema 26 | SCRUM-65; date pending team review |
+| 1.23 | 23-10-2026 | Event request: the clarification requested flag clears also when the request is approved or rejected, and is shown while a clarification is open; the clarifications and replies are kept with the request (a Clarification record: message, replier, times; an open one has no reply and no end) | SCRUM-45 (this story's slice of `target/state-model.md` v1.3, which already has the flag; the target says it clears only when the Organiser responds) |
 
 The front end holds these words in `frontend/src/app/format.js` (`STATUS`); a change here changes that file in the same pull request. v1.12 adds Held and Released (`STATUS.HOLD`); v1.18 adds Expired (`STATUS.HOLD.EXPIRED`); v1.14 adds Cancelled to a venue booking request's words (`STATUS.BOOKING.CANCELLED`); v1.15's Venue unavailable is a flag, held there as `VENUE_UNAVAILABLE`.
 
@@ -46,8 +48,8 @@ The front end holds these words in `frontend/src/app/format.js` (`STATUS`); a ch
 | Safety Check | Planning | Request changes (reason and at least one area required) | Safety Officer |
 | Safety Check / Confirmed | Planning | An approved venue booking is marked Venue unavailable | System |
 | Confirmed | Planning | Significant change accepted via change request | Event Coordinator |
-| Confirmed | Completed | Mark completed after the event | Event Coordinator |
-| Planning / Confirmed | Cancelled | Cancel | Authorised user (SCRUM-65 defines who) |
+| Confirmed | Completed | Manually mark completed at or after scheduled end | Assigned Event Coordinator |
+| Submitted / Approved / Planning / Safety Check / Confirmed | Cancelled | Cancel with a nonblank reason; release event commitments | Assigned Event Coordinator |
 
 Assignment is not a status. A Submitted request with no assigned coordinator is in the **unassigned queue**; the Event Coordinator Lead assigns it, and the status stays Submitted (SCRUM-86). A request resubmitted after rejection keeps the coordinator it had and does not return to the queue. Approving a request assigns no one. Reassignment never changes the status (SCRUM-44).
 
@@ -255,3 +257,69 @@ out-of-service units; its real quantity must feed the shared provider. SCRUM-53
 currently requires review approval, not reservations, before Safety Check. Its
 owner must agree/update that readiness rule if committed equipment is required;
 SCRUM-51 does not silently change safety submission or add a notification flow.
+
+## SCRUM-66 — Manual event completion (schema 25)
+
+Confirmed → Completed is explicit, assigned-Coordinator-only, at or after the
+scheduled end date/time in Singapore. Completed has no outgoing lifecycle
+transition. Refusals and repeated attempts preserve completion metadata.
+`EventRequest.completed_by_id` references the actor; `completed_at` is UTC and
+serialised with `Z` in the authorised detail's `completion` object. Metadata is
+absent on records not completed by this action. The controlled local clock
+supplies both eligibility and the timestamp. An atomic conditional write also
+checks assignment, status and the period have not changed since validation.
+Completion changes no other event fields, booking, hold, requirement, reservation
+or notification. Active lists/counts already exclude Completed; existing object
+read permissions continue to apply. This story adds no retrospective reporting,
+auto-completion or resource-release workflow.
+
+### SCRUM-66 v2 audit clarification
+
+Completed events are excluded from active-event lists and workload counts, not
+from the assigned Coordinator's general Requests/history list. Completion
+metadata is returned only when both its actor and timestamp exist; absent or
+partial legacy data remains readable and is not backfilled with invented values.
+
+## SCRUM-65 — Event cancellation (schema 26)
+
+Cancelled is terminal: no return to another lifecycle status or further planning.
+The assigned Coordinator supplies a nonblank, trimmed reason in one of the five
+permitted stages. EventRequest.cancelled_at is UTC, cancelled_by_id identifies
+the Coordinator and cancel_reason retains the reason. Detail JSON includes
+`cancellation: {cancelled_at (Z), cancelled_by, reason}` only when actor and time
+exist; legacy/partial metadata is safely omitted, not invented or backfilled.
+
+The same commit changes every own Requested booking request to Withdrawn,
+every own Approved booking to Cancelled (its own cancellation actor/time/reason
+are filled, its approval history retained), every own Held hold to Released
+(released_at filled) and every own Reserved equipment reservation to Released.
+All already terminal arrangements remain unchanged. No record is deleted,
+no stock or equipment review is changed, and other events are untouched.
+All effects succeed together or roll back together. Resource providers already
+exclude these released/cancelled/withdrawn statuses; no availability formula is
+duplicated. Other bookings, venue blocks, inactive venues and out-of-service
+units can still prevent availability. A venue becoming unavailable alone never
+triggers event cancellation (Week 7 change 2).
+
+Lock order is event then affected equipment types in ascending id order, matching
+SCRUM-51. Fresh ownership/status under the event write lock prevents a stale or
+repeated cancellation; reserve serialises against the same event lock. This
+workflow intentionally bypasses standalone per-arrangement stage restrictions
+without calling their individually committing service actions. The controlled
+Singapore clock supplies one instant converted to UTC for all cancellation
+metadata. Cancellation introduces no scheduled-end boundary.
+
+The general Requests list retains permitted historical records; active-event
+queries/counts exclude Cancelled already. SCRUM-72 still permits resubmission
+only of Rejected requests. A new event after cancellation is a new request,
+not restoration of released bookings or reservations. SCRUM-64 owns notices;
+SCRUM-59/60 own withdrawal requests and decisions. No notification is added by
+this story, including per-arrangement release notices.
+
+SCRUM-65 audit follow-up: venue booking/hold writes now take the same event
+write lock before eligibility/ownership checks and expire cached ORM reads.
+This covers raising, holding, deciding, withdrawing, cancelling and releasing
+a hold through the existing shared helpers. It prevents an in-flight stale
+venue write from recommitting arrangements or returning a Cancelled event to
+Planning after the cancellation cascade. Existing status/permission messages
+and commit boundaries are unchanged; no new lifecycle transition is added.

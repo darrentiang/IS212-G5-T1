@@ -27,6 +27,8 @@ from permissions import (
     ASSIGNMENTS_MANAGE,
     ASSIGNMENTS_VIEW,
     CLARIFICATIONS_REPLY,
+    REQUESTS_COMPLETE,
+    REQUESTS_CANCEL,
     REQUESTS_DECIDE,
     REQUESTS_EDIT,
     REQUESTS_VIEW,
@@ -250,3 +252,23 @@ def delete_draft_request(request_id):
     account = g.account
     services.delete_draft(account, request_id)
     return "", 204
+
+
+@bp.post("/requests/<int:request_id>/complete")
+@require(REQUESTS_COMPLETE)
+def complete_request(request_id):
+    """SCRUM-66: manual completion; actor, time and period are server-owned."""
+    from areas.requests.completion import complete_event
+
+    row = complete_event(g.account, request_id)
+    return jsonify(services.request_detail_dict(row, g.account)), 200
+
+
+@bp.post("/requests/<int:request_id>/cancel")
+@require(REQUESTS_CANCEL)
+def cancel_event_request(request_id):
+    """SCRUM-65: one atomic event cancellation, not individual release actions."""
+    from areas.requests.cancellation import cancel_event
+
+    row = cancel_event(g.account, request_id, flask_request.get_json(silent=True))
+    return jsonify(services.request_detail_dict(row, g.account)), 200

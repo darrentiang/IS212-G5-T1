@@ -47,8 +47,9 @@ from db import db
 # SCRUM-81 adds requirement review metadata and arrangement notes.
 # SCRUM-85 adds a venue hold's expired_at and warning_sent_at, so 23.
 # SCRUM-86 adds who assigned an event request's coordinator (assigned_by_id), so 24.
-# SCRUM-45 adds the Clarification table (a request's clarifications and replies), so 25.
-SCHEMA_VERSION = 25
+# SCRUM-65 adds the event's cancellation actor, timestamp and reason, so 26.
+# SCRUM-45 adds the Clarification table (a request's clarifications and replies), so 27.
+SCHEMA_VERSION = 27
 
 
 account_roles = db.Table(
@@ -160,6 +161,15 @@ class EventRequest(db.Model):
     registration_needs = db.Column(db.Text)
 
     registration_enabled = db.Column(db.Boolean, nullable=False, default=False)
+    completed_at = db.Column(db.DateTime, nullable=True)  # UTC, SCRUM-66
+    completed_by_id = db.Column(db.Integer, db.ForeignKey("accounts.id"), nullable=True)
+    completed_by = db.relationship("Account", foreign_keys=[completed_by_id])
+
+    cancelled_at = db.Column(db.DateTime, nullable=True)  # UTC, SCRUM-65
+    cancelled_by_id = db.Column(db.Integer, db.ForeignKey("accounts.id"), nullable=True)
+    cancel_reason = db.Column(db.Text, nullable=True)
+    cancelled_by = db.relationship("Account", foreign_keys=[cancelled_by_id])
+
     coordinator_notes = db.Column(db.Text, nullable=True)
     submitted_at = db.Column(db.DateTime, nullable=True)
 
