@@ -28,6 +28,7 @@ from datetime import date, datetime, timezone
 
 from sqlalchemy import func, or_
 
+import arrangement_flags
 import occupancy
 from db import db
 from errors import ApiRefusal
@@ -251,6 +252,8 @@ def _safety_check_to_dict(event_request):
         "venue_bookings": [
             {
                 "id": booking.id,
+                # SCRUM-61 AC3: the Safety Officer sees the too-small flag while the event is in Safety Check.
+                "too_small": arrangement_flags.booking_too_small(booking),
                 "date": booking.date,
                 "start_time": booking.start_time,
                 "end_time": booking.end_time,

@@ -8,12 +8,14 @@ No inventory quantity is changed. All refusal paths roll the transaction back.
 SCRUM-52's out-of-service input is consumed through SCRUM-50, never redefined.
 SCRUM-63: reserve and release tell the event's assigned Event Coordinator in
 the same transaction, so a refusal tells nobody.
+SCRUM-61: a Reserved reservation whose period is not the event's is flagged.
 """
 from contextlib import contextmanager
 from datetime import datetime
 
 from sqlalchemy import update
 
+import arrangement_flags
 from areas.equipment import services
 from areas.equipment.requirements import EDITABLE_STATUSES, MAX_QUANTITY, _event
 from db import db
@@ -25,10 +27,13 @@ from permissions import EQUIPMENT_RESERVE, can
 
 def to_dict(row):
     equipment = db.session.get(EquipmentType, row.equipment_type_id)
+    event = db.session.get(EventRequest, row.event_request_id)
     return {"id": row.id, "event_request_id": row.event_request_id,
             "equipment_type_id": row.equipment_type_id, "equipment_type_name": equipment.name,
             "quantity": row.quantity, "date": row.date,
-            "start_time": row.start_time, "end_time": row.end_time, "status": row.status}
+            "start_time": row.start_time, "end_time": row.end_time, "status": row.status,
+            # SCRUM-61: derived at every read, never stored (arrangement_flags.py).
+            "timing_mismatch": arrangement_flags.reservation_timing_mismatch(row, event)}
 
 
 def list_for_event(account, event_id):

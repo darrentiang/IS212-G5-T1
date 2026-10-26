@@ -105,6 +105,8 @@ export const searchVenues = (
 //          requirements (SCRUM-42)
 //          decision, decided_at, decided_by: null until decided; decision_reason:
 //          null unless one was given (SCRUM-37)
+//          too_small, timing_mismatch (SCRUM-61): derived at every read, never stored;
+//          true only on a Requested or Approved row
 // 403/404: { message }
 export const listVenueBookings = (id) => request('GET', `/api/venues/${id}/bookings`)
 

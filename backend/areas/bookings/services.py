@@ -46,6 +46,7 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import update
 
+import arrangement_flags
 import clock
 import occupancy
 from areas.requests.services import start_planning_if_approved
@@ -554,6 +555,9 @@ def booking_to_dict(booking):
         "cancelled_by": booking.cancelled_by.username if booking.cancelled_by else None,
         # SCRUM-82: derived at every read, never stored; only ever true on an Approved booking.
         "venue_unavailable": bool(occupancy.blocks_over(booking)),
+        # SCRUM-61: derived at every read, never stored (arrangement_flags.py).
+        "too_small": arrangement_flags.booking_too_small(booking),
+        "timing_mismatch": arrangement_flags.booking_timing_mismatch(booking),
     }
 
 
@@ -961,4 +965,6 @@ def hold_to_dict(hold):
         "released_at": hold.released_at.isoformat() if hold.released_at else None,
         # SCRUM-85: naive local, like expires_at.
         "expired_at": hold.expired_at.isoformat(timespec="minutes") if hold.expired_at else None,
+        # SCRUM-61: derived at every read; a hold is never out of step with the event's period.
+        "too_small": arrangement_flags.hold_too_small(hold),
     }
