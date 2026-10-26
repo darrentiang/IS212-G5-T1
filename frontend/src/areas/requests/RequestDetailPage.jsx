@@ -7,6 +7,7 @@ import SafetyCheckSection from './SafetyCheckSection'
 import ArrangementsSection from './ArrangementsSection'
 import CompletionSection from './CompletionSection'
 import CancellationSection from './CancellationSection'
+import EventEditSection from './EventEditSection'
 import PlaceHoldForm from './PlaceHoldForm'
 import VenueBookingsSection from './VenueBookingsSection'
 import VenueHoldsSection from './VenueHoldsSection'
@@ -79,6 +80,8 @@ import { useReveal, useRevealError } from '../../app/reveal'
 // The assigned coordinator cancels an Approved booking there with a reason,
 // while the event is Approved or Planning, and the coordinator who raised a
 // Requested one withdraws it (SCRUM-77).
+// SCRUM-47: the assigned coordinator edits the event after submission and sees
+// its record of significant changes (EventEditSection).
 
 // Same order and labels as RequestNewPage's form (ui-guidelines.md §7): FIELDS
 // come before the Venue requirements and Accessibility needs groups,
@@ -801,6 +804,16 @@ const openDecision = (action) => {
         <div className="card space-y-6">
           <CompletionSection event={row} onCompleted={setRow} activeAction={openAction} onActionChange={setOpenAction} />
           <CancellationSection event={row} onCancelled={setRow} activeAction={openAction} onActionChange={setOpenAction} />
+          <EventEditSection
+            event={row}
+            onEdited={(updated) => {
+              setRow(updated)
+              setBanner(null)
+              setSuccessBanner('Event updated')
+            }}
+            activeAction={openAction}
+            onActionChange={setOpenAction}
+          />
           <dl className="detail-list" data-testid="request-detail-fields">
             {typeof FIELDS !== 'undefined' && FIELDS.map(renderValue)}
           </dl>

@@ -15,6 +15,8 @@ SCRUM-84: an Approved event moves to Planning when its first hold is placed.
 SCRUM-82: a booking marked Venue unavailable stops the event being sent.
 SCRUM-45: the assigned Event Coordinator asks the Organiser for clarification of a Submitted request;
 the Organiser replies; a decision ends a wait nobody answered.
+SCRUM-47: the assigned coordinator's edits after submission are in editing.py;
+the detail carries their change record.
 SCRUM-62: the creating Event Organiser is told when their request is received,
 approved or rejected (the assignment and reassignment notices it also relies on
 are SCRUM-86's and SCRUM-44's, below).
@@ -180,6 +182,9 @@ def request_detail_dict(event_request, account):
         payload["clarifications"] = [row.to_dict() for row in event_request.clarifications]
     if event_request.created_by_id == account.id:
         payload["arrangements"] = _arrangements_for_organiser(event_request)
+    # SCRUM-47 AC5: the record of significant changes, for the assigned coordinator.
+    if event_request.assigned_coordinator_id == account.id:
+        payload["change_record"] = [row.to_dict() for row in event_request.changes]
     return payload
 
 
@@ -435,12 +440,13 @@ def _parse_positive_int(value):
     return number
 
 
-def _refuse_if_invalid_date(event_request):
+def _refuse_if_invalid_date(event_request, today=None):
+    """today: SCRUM-47 passes the controlled clock's date; submission keeps date.today()."""
     try:
         entered = datetime.strptime(event_request.date, "%Y-%m-%d").date()
     except (TypeError, ValueError):
         raise ApiRefusal(400, "Date must be a valid date.")
-    if entered < date.today():
+    if entered < (today or date.today()):
         raise ApiRefusal(400, "Date cannot be earlier than today.")
 
 

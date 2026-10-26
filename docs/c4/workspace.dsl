@@ -21,6 +21,7 @@ workspace "ConnectSphere" "Event Planning and Venue Booking System — release 1
             database = container "Database" "Accounts and roles, event requests and their decisions, venues and layouts, venue bookings, equipment and reservations, registrations, notifications." "SQLite (development, CI); PostgreSQL only for a hosted demo (ADR-001)" "Database"
         }
 
+        // Week 7 customer changes add the Event Coordinator Lead and Safety Officer roles; no new containers.
         // Deferred beyond release 1 (ADR-003): Notification & Task Worker, external email/SMS gateway.
 
         // --- Relationships (Structurizr derives C1 from these) ---

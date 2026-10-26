@@ -13,6 +13,7 @@ from errors import ApiRefusal
 
 # Feature keys used on routes and in /api/login, /api/me "features".
 REQUESTS_CANCEL = "requests.cancel"  # SCRUM-65: assigned Coordinator only
+REQUESTS_EDIT_EVENT = "requests.edit_event"  # SCRUM-47: edit after submission, assigned Coordinator only
 REQUESTS_COMPLETE = "requests.complete"  # SCRUM-66: assigned Coordinator only
 REQUESTS_VIEW = "requests.view"
 REQUESTS_EDIT = "requests.edit"
@@ -46,6 +47,7 @@ ALL_FEATURES = frozenset(
         CLARIFICATIONS_REPLY,
         REQUESTS_COMPLETE,
         REQUESTS_CANCEL,
+        REQUESTS_EDIT_EVENT,
         VENUES_VIEW,
         VENUES_EDIT,
         VENUES_SEARCH,
@@ -81,6 +83,7 @@ ROLE_FEATURES = {
         # No requests.edit: only an Event Organiser creates or submits a request (SCRUM-87 AC7).
         REQUESTS_COMPLETE,
         REQUESTS_CANCEL,
+        REQUESTS_EDIT_EVENT,  # SCRUM-47: only the assigned coordinator (service rule)
         REQUESTS_DECIDE,  # and only on an event assigned to them (service rule, SCRUM-87 AC3)
         VENUES_VIEW,
         VENUES_SEARCH,
