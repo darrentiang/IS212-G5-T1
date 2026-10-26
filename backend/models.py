@@ -49,7 +49,8 @@ from db import db
 # SCRUM-86 adds who assigned an event request's coordinator (assigned_by_id), so 24.
 # SCRUM-65 adds the event's cancellation actor, timestamp and reason, so 26.
 # SCRUM-45 adds the Clarification table (a request's clarifications and replies), so 27.
-SCHEMA_VERSION = 27
+# SCRUM-47 adds the EventChange table (the record of significant changes), so 28.
+SCHEMA_VERSION = 28
 
 
 account_roles = db.Table(
@@ -208,6 +209,9 @@ class EventRequest(db.Model):
     )
     clarifications = db.relationship(
         "Clarification", order_by="Clarification.id", back_populates="event_request"
+    )
+    changes = db.relationship(
+        "EventChange", order_by="EventChange.id", back_populates="event_request"
     )
     facilities = db.relationship(
         "Facility", secondary="event_request_facilities", order_by="Facility.id"
@@ -626,6 +630,40 @@ class Clarification(db.Model):
             "replied_by": self.replied_by.username if self.replied_by else None,
             "replied_at": self.replied_at.isoformat() if self.replied_at else None,
             "open": self.is_open,
+        }
+
+
+class EventChange(db.Model):
+    """One significant change the assigned Event Coordinator made to an event (SCRUM-47 AC5).
+
+    A row per changed field per save, never changed afterwards: ``field`` is the
+    API field name (date, start_time, end_time, attendance, equipment_requirements,
+    layout, facilities, accessibility_features), and the old and new values are
+    kept as the text the event showed (lists joined with ", ", no layout as
+    null). Ordinary changes are not recorded. ``changed_at`` is UTC.
+    """
+
+    __tablename__ = "event_changes"
+
+    id = db.Column(db.Integer, primary_key=True)
+    event_request_id = db.Column(db.Integer, db.ForeignKey("event_requests.id"), nullable=False)
+    field = db.Column(db.String(64), nullable=False)
+    old_value = db.Column(db.Text, nullable=True)
+    new_value = db.Column(db.Text, nullable=True)
+    changed_by_id = db.Column(db.Integer, db.ForeignKey("accounts.id"), nullable=False)
+    changed_at = db.Column(db.DateTime, nullable=False)
+
+    event_request = db.relationship("EventRequest", back_populates="changes")
+    changed_by = db.relationship("Account", foreign_keys=[changed_by_id])
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "field": self.field,
+            "old_value": self.old_value,
+            "new_value": self.new_value,
+            "changed_by": self.changed_by.username,
+            "changed_at": self.changed_at.isoformat() + "Z",
         }
 
 

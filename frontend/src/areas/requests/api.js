@@ -264,3 +264,24 @@ export const completeRequest = (id) => request('POST', `/api/requests/${id}/comp
 // All own active arrangements release atomically; no stock or review changes.
 // 400: invalid reason; 401/403: auth/feature; 404: protected object; 409: stage.
 export const cancelRequest = (id, reason) => request('POST', `/api/requests/${id}/cancel`, { reason })
+
+// PATCH /api/requests/:id (SCRUM-47), the assigned Event Coordinator only.
+// body:    any subset of { name, purpose, description, date, start_time, end_time, attendance,
+//            equipment_requirements, registration_needs, layout, facilities, accessibility_features };
+//          a field left out is unchanged
+// 200:     the event detail, its status unchanged, with change_record:
+//          [ { id, field, old_value, new_value, changed_by, changed_at (ISO UTC, Z) } ], oldest first:
+//          one entry per significant change (date, times, attendance, equipment requirements,
+//          layout, facilities, accessibility features); ordinary changes are not recorded
+// 400:     { message }   a submission rule broken (required field, date before today, start not
+//          before end, attendance not a positive whole number, a choice not on the list)
+// 403/404: { message }   403 without requests.edit_event; 404 not this coordinator's event, or a Draft
+// 409:     { message }   not Submitted/Approved/Planning/Safety Check/Confirmed; a significant change in
+//          Safety Check or Confirmed; the date or times while the event has a Held venue
+// A refusal changes nothing.
+export const editEvent = (id, data) => request('PATCH', `/api/requests/${id}`, data)
+
+// GET /api/venue-options   (SCRUM-47: the edit form's lists; a coordinator does not hold requests.edit)
+// 200:     { layouts: [name], facilities: [name], accessibility_features: [name] }   in list order
+// A thin wrapper of the call the venues area makes, each area owning its own (frontend.md §1).
+export const getEditOptions = () => request('GET', '/api/venue-options')

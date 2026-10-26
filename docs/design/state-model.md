@@ -28,6 +28,7 @@ Every acceptance criterion that changes a status uses a value from these tables.
 | 1.21 | — | Manual end-gated completion, UTC completion metadata and conditional write; schema 25 | SCRUM-66; unmerged implementation, date to be recorded at review |
 | 1.22 | — | Atomic whole-event cancellation, preserved history and cancellation metadata; schema 26 | SCRUM-65; date pending team review |
 | 1.23 | 23-10-2026 | Event request: the clarification requested flag clears also when the request is approved or rejected, and is shown while a clarification is open; the clarifications and replies are kept with the request (a Clarification record: message, replier, times; an open one has no reply and no end) | SCRUM-45 (this story's slice of `target/state-model.md` v1.3, which already has the flag; the target says it clears only when the Organiser responds) |
+| 1.24 | 25-10-2026 | No change to any status or transition. Event request: the assigned Event Coordinator edits it after submission; an edit never changes its status or its arrangements, and each significant change is kept in a change record (an EventChange record: field, old and new value, who, when); schema 28 | SCRUM-47 |
 
 The front end holds these words in `frontend/src/app/format.js` (`STATUS`); a change here changes that file in the same pull request. v1.12 adds Held and Released (`STATUS.HOLD`); v1.18 adds Expired (`STATUS.HOLD.EXPIRED`); v1.14 adds Cancelled to a venue booking request's words (`STATUS.BOOKING.CANCELLED`); v1.15's Venue unavailable is a flag, held there as `VENUE_UNAVAILABLE`.
 
@@ -323,3 +324,29 @@ a hold through the existing shared helpers. It prevents an in-flight stale
 venue write from recommitting arrangements or returning a Cancelled event to
 Planning after the cancellation cascade. Existing status/permission messages
 and commit boundaries are unchanged; no new lifecycle transition is added.
+
+## SCRUM-47 — Editing an event after submission (schema 28)
+
+The assigned Event Coordinator edits a Submitted, Approved, Planning, Safety
+Check or Confirmed event (`PATCH /api/requests/:id`); a Draft is its
+Organiser's (SCRUM-30), a Rejected request is revised when it is resubmitted
+(SCRUM-72), and a Completed or Cancelled event cannot be edited. The
+submission checks apply to what is changed: required fields stay filled, a
+changed date is not before today (Singapore, the controlled clock), start is
+before end, attendance is a positive whole number. A refusal changes nothing.
+
+A change to the date, start or end time, expected attendance, equipment
+requirements, or required layout, facilities or accessibility features is
+significant; any other change is ordinary. Significant changes are refused in
+Safety Check and Confirmed: a Confirmed event returns to Planning through an
+accepted change request (SCRUM-59/60, "Confirmed → Planning" above), and the
+edit is then made in Planning. While the event has a Held hold, its date and
+times are refused until the hold is released; Released and Expired holds and
+Approved bookings do not stop it.
+
+Each significant change adds one EventChange row (field, old value, new
+value, changed_by, changed_at in UTC), shown to the assigned coordinator as
+`change_record` on the event's detail. Ordinary changes are not recorded.
+The edit never changes the event's status or its flags, and never moves,
+cancels or releases a booking request, hold or equipment reservation: each
+keeps the date, times and attendance it was made with.

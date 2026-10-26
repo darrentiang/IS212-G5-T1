@@ -57,6 +57,7 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | 1.47 | — | Completion confirmation, metadata, refusal and documented ids on Request detail | SCRUM-66; unmerged implementation, date to be recorded at review |
 | 1.48 | — | Event cancellation form, persistent metadata, shared lifecycle confirmation state and post-cancel arrangement refresh | SCRUM-65; date pending team review |
 | 1.49 | 23-10-2026 | §7 the request page's Clarifications section (the Request clarification button and form, the reply form, the history, the flag beside the status and on the Requests page) with their test ids, messages and banners; the Notifications page texts for a clarification requested and a reply | SCRUM-45 AC1–8: the assigned Event Coordinator asks the Event Organiser what is missing on a Submitted request, and the Organiser replies |
+| 1.50 | 25-10-2026 | SCRUM-47 section: Edit event on Request detail (button, inline form, refusal) and the Change record, with their test ids and messages | SCRUM-47 AC1–7: the assigned Event Coordinator edits an event after submission and sees its record of significant changes |
 
 ## 1. Pages
 
@@ -829,3 +830,43 @@ Messages: `Cancellation reason is required.`; `Cancellation reason must be text.
 not found.`; wrong role `You do not have permission to perform this action.`;
 wrong stage `Only a Submitted, Approved, Planning, Safety Check or Confirmed
 event can be cancelled.` No modal or new page is introduced.
+
+## SCRUM-47 — Edit event on Request detail
+
+The event's assigned Event Coordinator sees **Edit event** while the event is
+Submitted, Approved, Planning, Safety Check or Confirmed; nobody else does
+(the Organiser, the Lead, another coordinator), and a Draft, Rejected,
+Completed or Cancelled event shows no Edit event. It opens an inline form with
+the same fields, order and labels as the Draft edit form (§7), filled with the
+event's values; the layout, facilities and accessibility features come from
+`/api/venue-options`. **Save** sends the form; **Cancel** closes it unchanged.
+noValidate: every rule is the API's, and a refusal stays in the form with the
+entered values and the API's message. Success closes the form, shows the
+event as it now is and the success banner `Event updated`. The form shares
+Request detail's openAction, like completion and cancellation.
+
+The assigned coordinator also sees **Change record**: one line per significant
+change, oldest first, `<Field>: <old> → <new>, by <username> at <date, time> UTC`
+(dates and times formatted as in §9, an empty value as `None`), or
+`No significant changes recorded.` Ordinary changes have no line.
+
+| Element | data-testid |
+|---|---|
+| Open the form | request-detail-event-edit-button |
+| Inline form | request-detail-event-edit-form |
+| A field | request-detail-event-edit-<field>-input, field in kebab-case (name, purpose, description, date, start-time, end-time, attendance, equipment-requirements, registration-needs, layout) |
+| A checkbox | request-detail-event-edit-facilities-<option>-input, request-detail-event-edit-accessibility-features-<option>-input (option in kebab-case, §5) |
+| Cancel | request-detail-event-edit-cancel-button |
+| Save | request-detail-event-edit-confirm-button |
+| Refusal | request-detail-event-edit-error |
+| Change record | request-detail-change-record |
+| One change (its field in `data-field`) | request-detail-change-record-entry |
+| No changes yet | request-detail-change-record-empty |
+
+Messages: the submission messages (`Missing required fields: …`, `Date cannot be
+earlier than today.`, `Start time must be before the end time.`, `Attendance must
+be a positive whole number.`); `A significant change to an event in Safety Check
+or Confirmed needs an accepted change request.`; `Release the held venue before
+changing the event's date or times.`; `Only a Submitted, Approved, Planning, Safety
+Check or Confirmed event can be edited.`; protected write `Event request not
+found.`; wrong role `You do not have permission to perform this action.`

@@ -18,6 +18,7 @@ SCRUM-72: revise and resubmit a Rejected request.
 SCRUM-89: the Safety Officer approves or rejects an event in Safety Check.
 SCRUM-90: the Safety Officer returns it to Planning with the changes it needs.
 SCRUM-53: the assigned Event Coordinator sends a Planning event for safety check.
+SCRUM-47: the assigned Event Coordinator edits an event after submission.
 """
 
 from flask import Blueprint, g, jsonify, request as flask_request
@@ -31,6 +32,7 @@ from permissions import (
     REQUESTS_CANCEL,
     REQUESTS_DECIDE,
     REQUESTS_EDIT,
+    REQUESTS_EDIT_EVENT,
     REQUESTS_VIEW,
     SAFETY_DECIDE,
     SAFETY_SEND,
@@ -271,4 +273,14 @@ def cancel_event_request(request_id):
     from areas.requests.cancellation import cancel_event
 
     row = cancel_event(g.account, request_id, flask_request.get_json(silent=True))
+    return jsonify(services.request_detail_dict(row, g.account)), 200
+
+
+@bp.patch("/requests/<int:request_id>")
+@require(REQUESTS_EDIT_EVENT)
+def edit_event_request(request_id):
+    """SCRUM-47: the assigned coordinator changes the fields sent; status and arrangements stay."""
+    from areas.requests.editing import edit_event
+
+    row = edit_event(g.account, request_id, flask_request.get_json(silent=True))
     return jsonify(services.request_detail_dict(row, g.account)), 200
