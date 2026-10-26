@@ -1,8 +1,9 @@
 """SCRUM-46 test-owned preconditions: the events the Organiser opens (TC-SCRUM-46-01 to 13).
 
 Every event is named "SCRUM-46 TCnn ..." and belongs to org1, so --clear removes
-exactly what this file stages and nothing else (the seeded Design Workshop of row
-09 is not touched). Events are inserted in the status the row starts from, with
+exactly what this file stages and nothing else. Row 09 stages its own Draft: the
+seeded Design Workshop is submitted by an earlier spec (SCRUM-30), so a run of the
+whole suite no longer finds it a Draft. Events are inserted in the status the row starts from, with
 the Approved bookings and equipment requirements the row lists: a Completed event
 cannot be reached through the app (its end time must have passed) and no screen
 sets coordinator notes, so staging them directly is the only way to hold those
@@ -76,6 +77,7 @@ def seed():
         booking(two, hall, 'Approved')
         arranged(event('06 Planning Gala', 'Planning'))
         arranged(event('07 Safety Gala', 'Safety Check', safety_check_at=NOW))
+        event('09 Draft Gala', 'Draft', coordinator=None)
         returned = event('08 Returned Gala', 'Planning', date='2027-03-20')
         booking(returned, room, 'Approved')
         db.session.add(VenueBlock(

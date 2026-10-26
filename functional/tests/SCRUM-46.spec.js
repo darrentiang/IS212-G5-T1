@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url'
 // "SCRUM-46 TCnn ..." and owned by org1: a Completed event cannot be reached
 // through the app (its end time must have passed) and no screen sets a
 // coordinator's notes, so the rows start from staged events, as SCRUM-50 and
-// SCRUM-66 do. Row 09 opens the seeded Draft Design Workshop. The Organiser's
+// SCRUM-66 do. The Organiser's
 // Requests page lists a staged event by its name.
 
 const BASE_URL = 'http://localhost:5173'
@@ -169,7 +169,7 @@ test('an event that goes back from Confirmed to Planning stops showing its arran
 // @story: SCRUM-46
 // @ac: 4
 test('a Draft event lists no arrangements', async ({ page }) => {
-  await organiserOpens(page, 'Design Workshop')
+  await organiserOpens(page, 'SCRUM-46 TC09 Draft Gala')
 
   await expect(page.getByTestId('request-detail-status')).toHaveText('Draft')
   await expect(page.getByTestId('request-detail-arrangements')).toHaveCount(0)
