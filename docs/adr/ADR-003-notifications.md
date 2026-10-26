@@ -5,6 +5,8 @@
 ## Context
 The briefing lists fourteen notification triggers and allows delivery "in-app or another suitable channel" (p10). The team decided in-app only for release 1 (PROJECT_CONTEXT §3.3; stories SCRUM-62 to 64). An earlier draft of this ADR proposed a separate Notification & Task Worker sending email and SMS through a third-party gateway.
 
+The Week 7 customer changes add notification triggers (hold expiry, venue unavailable, coordinator assignment and reassignment, safety check outcomes) but ask for no email or SMS, so the decision stands.
+
 ## Decision
 - Notifications are rows in the database, written by the API in the same transaction as the state change that triggers them. There is no separate process and no external service in release 1.
 - Users read their notifications through the API (`GET /api/notifications`) and the web application; unread state is per user.

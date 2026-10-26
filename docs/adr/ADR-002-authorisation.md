@@ -5,6 +5,8 @@
 ## Context
 Access depends on role and on the user's relationship to an event (briefing p11): an Event Organiser sees only their own requests, an Attendee never sees internal planning information, a Coordinator edits only events assigned to them. One account may hold several roles (customer clarification Q-06) and may do anything any of its roles allows (decision D-09). `docs/design/permissions.md` is the table of who may do what.
 
+The Week 7 customer changes add two roles, the Event Coordinator Lead and the Safety Officer. Both go into the same matrix and `permissions.md`; the model is unchanged.
+
 ## Decision
 **The API is the authority.** Every route decides whether this account may do this action on this object.
 - `backend/permissions.py` holds the role → feature matrix, a direct transcription of `permissions.md`. `can(account, feature)` returns true if any of the account's roles allows the feature.
