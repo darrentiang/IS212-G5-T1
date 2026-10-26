@@ -4,6 +4,7 @@ import { useAuth } from '../../app/auth'
 import { STATUS, formatDate, formatDateTime, formatTime, statusBadgeClass } from '../../app/format'
 import ClarificationSection, { AskClarificationForm } from './ClarificationSection'
 import SafetyCheckSection from './SafetyCheckSection'
+import ArrangementsSection from './ArrangementsSection'
 import CompletionSection from './CompletionSection'
 import CancellationSection from './CancellationSection'
 import PlaceHoldForm from './PlaceHoldForm'
@@ -57,6 +58,8 @@ import { useReveal, useRevealError } from '../../app/reveal'
 // venues free for the event; that page belongs to the venues area.
 // SCRUM-72: the Organiser who created a Rejected request revises it in a form
 // that is already open and resubmits it (state-model.md: 'Rejected -> Submitted').
+// SCRUM-46: the Event Organiser sees the arrangements of their own event
+// (ArrangementsSection), and a submitted event with no coordinator says so.
 // SCRUM-89: a Safety Officer opening an event in Safety Check sees its Approved
 // bookings and equipment, adds a note per area and approves or rejects it; the
 // decision then sends them back to Requests, where the event has left the list.
@@ -906,6 +909,14 @@ const openDecision = (action) => {
               </>
             )}
 
+            {/* SCRUM-46: a submitted event nobody has been assigned to says so. */}
+            {!row.assigned_coordinator && row.status !== STATUS.REQUEST.DRAFT && (
+              <div>
+                <dt>Assigned coordinator</dt>
+                <dd data-testid="request-detail-no-coordinator">No coordinator assigned yet.</dd>
+              </div>
+            )}
+
             {'coordinator_notes' in row && row.coordinator_notes != null && (
               <div>
                 <dt>Coordinator notes</dt>
@@ -1160,6 +1171,10 @@ const openDecision = (action) => {
           )}
         </VenuesSection>
       )}
+
+      {/* SCRUM-46: the Organiser's view of the event's arrangements (the server sends
+          them to the Organiser who wrote the request only). */}
+      {!loading && row && <ArrangementsSection arrangements={row.arrangements} />}
 
       {/* SCRUM-45: what the coordinator asked and the Organiser answered. */}
       {!loading && row?.clarifications?.length > 0 && (

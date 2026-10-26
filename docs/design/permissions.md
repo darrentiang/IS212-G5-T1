@@ -13,6 +13,7 @@ Kept current by every story that adds an action: the row is added or changed in 
 | Approve or reject an event request; request clarification | No | Assigned only | No | No | No | No | No |
 | Reply to a clarification request | Own only | No | No | No | No | No | No |
 | View event request resulting status and any reason | Own only | Assigned only | Yes | No | No | No | No |
+| View the arrangements of an event (its Approved venue bookings and equipment, once Confirmed) | Own only | No | No | No | No | No | No |
 | Reassign an event to another coordinator | No | No | Yes | No | No | No | No |
 | Send for safety check | No | Assigned coordinator | No | No | No | No | No |
 | View venues, venue booking requests and venue holds | No | Yes | Yes, read-only | Yes | No | No | No |
@@ -112,6 +113,7 @@ Keys used in `backend/permissions.py` and on API routes / `features` from `/api/
 | 1.29 | — | Assigned-only requests.complete feature and completion API/read contract | SCRUM-66; unmerged implementation, date to be recorded at review |
 | 1.30 | — | Assigned-only requests.cancel; atomic whole-event release in all five permitted stages | SCRUM-65; date pending team review |
 | 1.31 | 23-10-2026 | New row "Reply to a clarification request" and key `clarifications.reply` for the Event Organiser (own request only, enforced in the service); asking for clarification stays on `requests.decide`, assigned coordinator only | SCRUM-45 AC3, AC7 (the request-clarification row already existed; the reply is the Organiser's half) |
+| 1.32 | 26-10-2026 | New row "View the arrangements of an event" for the Event Organiser, own request only, enforced in the service; it is read with the existing `requests.view` key, so there is no new key. Coordinators and staff see an event's arrangements through the planning information they already have | SCRUM-46 AC2, AC5, AC6 |
 
 SCRUM-81: Technical Support may decide or correct a requirement only while the event is Approved or Planning and no reservation for the same event/type is Reserved. Released history does not block a decision. Arrangement notes remain editable in those event stages even with a Reserved reservation. These mutations grant no general event-request access.
 

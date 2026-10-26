@@ -53,6 +53,9 @@ SAFETY_CHECK = "Safety Check"
 # SCRUM-88 AC1: the statuses an event is still active in; Draft, Rejected,
 # Completed and Cancelled are not.
 ACTIVE_STATUSES = ("Submitted", "Approved", "Planning", SAFETY_CHECK, "Confirmed")
+# SCRUM-46: the statuses in which the Organiser sees the arrangements, or that they are in progress.
+ARRANGEMENTS_SHOWN = ("Confirmed", "Completed")
+ARRANGEMENTS_IN_PROGRESS = ("Submitted", "Approved", "Planning", SAFETY_CHECK)
 
 # The areas the Safety Officer may leave a note against (SCRUM-89 AC4); the keys
 # are what the API takes and returns.
@@ -175,7 +178,47 @@ def request_detail_dict(event_request, account):
         payload["safety_check"] = _safety_check_to_dict(event_request)
     if _may_read_clarifications(account, event_request):
         payload["clarifications"] = [row.to_dict() for row in event_request.clarifications]
+    if event_request.created_by_id == account.id:
+        payload["arrangements"] = _arrangements_for_organiser(event_request)
     return payload
+
+
+def _arrangements_for_organiser(event_request):
+    """What the Event Organiser who wrote the request sees of its arrangements (SCRUM-46).
+
+    Decided by the event's current status alone: Confirmed or Completed lists
+    each Approved venue booking and Approved equipment requirement; a status
+    before Confirmed says they are in progress and lists none; Draft, Rejected
+    and Cancelled have none (None). Nothing else of the planning (requests,
+    holds, decisions, reasons, notes) is included.
+    """
+    if event_request.status in ARRANGEMENTS_SHOWN:
+        bookings = [
+            row
+            for row in sorted(event_request.booking_requests, key=lambda row: row.id)
+            if row.status == "Approved"
+        ]
+        return {
+            "in_progress": False,
+            "venue_bookings": [
+                {
+                    "id": booking.id,
+                    "venue": booking.venue.name,
+                    "location": booking.venue.location,
+                    "date": booking.date,
+                    "start_time": booking.start_time,
+                    "end_time": booking.end_time,
+                }
+                for booking in bookings
+            ],
+            "equipment": [
+                {"id": row["id"], "equipment_type": row["equipment_type"], "quantity": row["quantity"]}
+                for row in _approved_equipment_requirements(event_request)
+            ],
+        }
+    if event_request.status in ARRANGEMENTS_IN_PROGRESS:
+        return {"in_progress": True}
+    return None
 
 
 def _may_read_clarifications(account, event_request):
