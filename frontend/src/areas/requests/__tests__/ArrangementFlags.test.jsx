@@ -1,8 +1,16 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { MemoryRouter, Route, Routes } from 'react-router'
+import * as api from '../api'
+import * as auth from '../../../app/auth'
+import RequestDetailPage from '../RequestDetailPage'
 import VenueBookingsSection from '../VenueBookingsSection'
 import VenueHoldsSection from '../VenueHoldsSection'
 import SafetyCheckSection from '../SafetyCheckSection'
+
+vi.mock('../api')
+vi.mock('../../../app/auth')
 
 // @story: SCRUM-61
 // @ac: 1, 3, 6
@@ -60,5 +68,30 @@ describe('SCRUM-61 flags on the request page', () => {
     expect(screen.getByTestId('request-detail-safety-booking-6-capacity')).toHaveTextContent(/^50$/)
     expect(screen.getByTestId('request-detail-safety-booking-6-too-small')).toHaveTextContent('Too small')
     expect(screen.queryByTestId('request-detail-safety-booking-7-too-small')).not.toBeInTheDocument()
+  })
+
+  it('reads the bookings and holds again after an edit, so a new flag shows without a reload', async () => {
+    const event = { id: 61, name: 'SCRUM-61 event', purpose: 'P', description: 'D', date: '2026-11-15',
+      start_time: '10:00', end_time: '12:00', attendance: 40, equipment_requirements: 'None',
+      registration_needs: 'None', status: 'Planning', created_by: 'org1', layout: null, facilities: [],
+      accessibility_features: [], assigned_coordinator: 'coord1', change_record: [] }
+    vi.mocked(auth.useAuth).mockReturnValue({ account: { username: 'coord1' },
+      can: (key) => ['requests.view', 'requests.edit_event', 'venues.view', 'bookings.edit'].includes(key) })
+    api.getRequest.mockResolvedValue(event)
+    api.listVenues.mockResolvedValue([])
+    api.listBookings.mockResolvedValueOnce([booking(1)]).mockResolvedValue([booking(1, { too_small: true })])
+    api.listHolds.mockResolvedValueOnce([hold(2)]).mockResolvedValue([hold(2, { too_small: true })])
+    api.getEditOptions.mockResolvedValue({ layouts: [], facilities: [], accessibility_features: [] })
+    api.editEvent.mockResolvedValue({ ...event, attendance: 60 })
+    render(<MemoryRouter initialEntries={['/requests/61']}><Routes>
+      <Route path="/requests/:id" element={<RequestDetailPage />} /></Routes></MemoryRouter>)
+    await screen.findByTestId('request-detail-booking-status-1')
+    expect(screen.queryByTestId('request-detail-booking-too-small-1')).not.toBeInTheDocument()
+    await userEvent.click(screen.getByTestId('request-detail-event-edit-button'))
+    await userEvent.click(await screen.findByTestId('request-detail-event-edit-confirm-button'))
+    expect(await screen.findByTestId('request-detail-booking-too-small-1')).toHaveTextContent('Too small')
+    expect(await screen.findByTestId('request-detail-hold-too-small-2')).toHaveTextContent('Too small')
+    expect(api.listBookings).toHaveBeenCalledTimes(2)
+    expect(api.listHolds).toHaveBeenCalledTimes(2)
   })
 })

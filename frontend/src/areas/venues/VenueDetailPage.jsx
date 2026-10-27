@@ -355,6 +355,8 @@ export default function VenueDetailPage() {
       setRow(updated)
       setOpenForm(null)
       setSuccess('Venue updated')
+      // SCRUM-61: a new capacity can set or clear Too small on the booking requests.
+      refreshLists()
     } catch (error) {
       setBanner(error.message)
     } finally {

@@ -180,6 +180,9 @@ export default function RequestDetailPage() {
   const [cancelError, setCancelError] = useState(null)
 
   const isCancelled = row?.status === STATUS.REQUEST.CANCELLED
+  // SCRUM-61: an edit can set or clear the flags on bookings and holds, so a
+  // successful one reads both lists again.
+  const [edits, setEdits] = useState(0)
 
   // Keyed to id: a reply for the request the user has left can
   // arrive after the current one, so a stale reply is ignored
@@ -388,7 +391,7 @@ const openDecision = (action) => {
     return () => {
       active = false
     }
-  }, [id, canSeeHolds, isCancelled])
+  }, [id, canSeeHolds, isCancelled, edits])
 
   // SCRUM-83: read like the holds, keyed to id.
   useEffect(() => {
@@ -407,7 +410,7 @@ const openDecision = (action) => {
     return () => {
       active = false
     }
-  }, [id, canSeeHolds, isCancelled])
+  }, [id, canSeeHolds, isCancelled, edits])
 
   // SCRUM-83 AC3: offered on an Approved booking to the assigned coordinator
   // while the event is Approved or Planning; the API refuses anything else.
@@ -807,6 +810,7 @@ const openDecision = (action) => {
               setRow(updated)
               setBanner(null)
               setSuccessBanner('Event updated')
+              setEdits((count) => count + 1)
             }}
             activeAction={openAction}
             onActionChange={setOpenAction}

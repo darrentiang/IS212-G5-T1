@@ -880,6 +880,11 @@ never in its place: **Too small** (`TOO_SMALL`, Danger) and **Timing mismatch**
 read; the page shows a badge only when the row's flag is true, and the status
 badge beside it keeps its own text.
 
+A change that can set or clear a flag reads the affected list again, so the flag
+shows without a reload: a saved Edit event (SCRUM-47) reads the request page's
+Venue bookings and Venue holds again, and a saved Update venue reads the venue
+page's booking requests again (with its clashes, as a duration save does).
+
 | Where | Element | data-testid |
 |---|---|---|
 | Request page, Venue bookings row | Too small, Timing mismatch | request-detail-booking-too-small-<id>, request-detail-booking-timing-mismatch-<id> |
