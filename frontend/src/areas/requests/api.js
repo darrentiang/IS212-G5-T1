@@ -15,6 +15,11 @@ export const listRequests = () => request('GET', '/api/requests')
 // GET /api/requests/:id
 // 200:     the list row's fields, plus coordinator_notes when the account may
 //          see internal notes (docs/design/permissions.md)
+//          SCRUM-46: for the Organiser who wrote the request only, `arrangements`:
+//          null (Draft, Rejected, Cancelled), { in_progress: true } (before Confirmed), or
+//          { in_progress: false, venue_bookings: [ { id, venue, location, date, start_time,
+//          end_time } ], equipment: [ { id, equipment_type, quantity } ] } (Confirmed, Completed;
+//          Approved bookings and requirements only)
 // 403/404: { message }
 export const getRequest = (id) => request('GET', `/api/requests/${id}`)
 

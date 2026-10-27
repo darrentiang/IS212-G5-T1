@@ -58,7 +58,8 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | 1.48 | — | Event cancellation form, persistent metadata, shared lifecycle confirmation state and post-cancel arrangement refresh | SCRUM-65; date pending team review |
 | 1.49 | 23-10-2026 | §7 the request page's Clarifications section (the Request clarification button and form, the reply form, the history, the flag beside the status and on the Requests page) with their test ids, messages and banners; the Notifications page texts for a clarification requested and a reply | SCRUM-45 AC1–8: the assigned Event Coordinator asks the Event Organiser what is missing on a Submitted request, and the Organiser replies |
 | 1.50 | 25-10-2026 | SCRUM-47 section: Edit event on Request detail (button, inline form, refusal) and the Change record, with their test ids and messages | SCRUM-47 AC1–7: the assigned Event Coordinator edits an event after submission and sees its record of significant changes |
-| 1.51 | 27-10-2026 | SCRUM-61 section: the Too small and Timing mismatch badges on the request page's bookings and holds, the venue page's booking requests, the Safety check card and the equipment page's reservations, with their test ids; the status test ids on a hold row and a venue booking-request row move from the cell to the status badge, so each holds the status alone | SCRUM-61 AC1, AC3, AC6: flags beside each affected arrangement |
+| 1.51 | 26-10-2026 | §7 the request page's Arrangements section for the Event Organiser (the in-progress sentence before Confirmed; the Approved venue bookings and equipment once Confirmed or Completed; none for a Draft, Rejected or Cancelled event) and the `No coordinator assigned yet.` line, with their test ids | SCRUM-46 AC1 to AC4 |
+| 1.52 | 27-10-2026 | SCRUM-61 section: the Too small and Timing mismatch badges on the request page's bookings and holds, the venue page's booking requests, the Safety check card and the equipment page's reservations, with their test ids; the status test ids on a hold row and a venue booking-request row move from the cell to the status badge, so each holds the status alone | SCRUM-61 AC1, AC3, AC6: flags beside each affected arrangement |
 
 ## 1. Pages
 
@@ -207,6 +208,7 @@ While the page is waiting for the API it renders the title row and nothing below
 | Assigned coordinator (SCRUM-86; shown once assigned) | `<page>-assigned-coordinator` | `request-detail-assigned-coordinator` |
 | Assigned by, the Lead (SCRUM-86; shown with the coordinator) | `<page>-assigned-by` | `request-detail-assigned-by` |
 | Assignment date (SCRUM-86; shown with the coordinator, `03 Oct 2026`) | `<page>-assigned-at` | `request-detail-assigned-at` |
+| No coordinator yet (SCRUM-46; a submitted event nobody is assigned to, in the place of the coordinator row) | `<page>-no-coordinator` | `request-detail-no-coordinator` |
 
 **Clarifications (SCRUM-45).** While the request is Submitted and no clarification is open, the assigned Event Coordinator sees a Request clarification button in the card's action row, beside Reject and Approve, that opens an inline form directly below the card (§13) with one Message field and Send and Cancel buttons; a blank message shows `Say what is missing or unclear.` under the field and sends nothing. Sending shows the banner `Clarification requested`, leaves the request Submitted and shows Clarification requested (a flag, §6, not a status) beside its status here and on the Requests page. While one is open the Organiser who wrote the request sees, under it, a Your reply field and a Send reply button; a blank reply shows `Write a reply.` and sends nothing, and sending shows the banner `Reply sent` and takes the flag away. Every clarification is listed, oldest first, as its message, `<username>, <moment>` (§9) and, once answered, the reply and `<username>, <moment>`; one a decision (Approve or Reject) ended is kept with no reply. A refusal (one already open, none open, no longer Submitted) shows in the banner and the page shows the request as it now stands. Once anything has been asked, a Clarifications section below the details shows the history to the Organiser who wrote the request, its assigned coordinator and the Lead (read-only); with nothing asked there is no section.
 
@@ -415,6 +417,16 @@ On the request page (`request-detail`), SCRUM-36: an Event Coordinator sees a Re
 | Expiry date, expiry time | `request-detail-hold-expiry-date-input`, `request-detail-hold-expiry-time-input` |
 | Message under an empty field | `request-detail-hold-venue-error`, `request-detail-hold-expiry-date-error`, `request-detail-hold-expiry-time-error` |
 | Place hold (confirm) and Cancel buttons | `request-detail-hold-confirm-button`, `request-detail-hold-cancel-button` |
+
+**Arrangements (SCRUM-46).** The Event Organiser who wrote a request sees an Arrangements section on the request page, below the Venues section and above Clarifications; nobody else does. Before Confirmed it shows one sentence, `Arrangements are in progress.`, and lists nothing, even if some arrangements are Approved. Once the event is Confirmed or Completed it lists the Approved venue bookings as a table per §6 (Venue, Location, Date and time as `12 Mar 2027, 10:00–12:00`) and the Approved equipment requirements (Equipment, Quantity), each under its own heading, or `No venue booking is approved for this event.` and `No equipment is approved for this event.` when there are none. A Draft, Rejected or Cancelled event has no Arrangements section. A submitted event nobody is assigned to shows `No coordinator assigned yet.` where the assigned coordinator would be.
+
+| Element | `data-testid` |
+|---|---|
+| Arrangements section | `request-detail-arrangements` |
+| In progress sentence | `request-detail-arrangements-in-progress` |
+| No Approved booking; no Approved equipment | `request-detail-arrangements-bookings-empty`, `request-detail-arrangements-equipment-empty` |
+| A booking row, its venue, location, date and time | `request-detail-arrangement-booking-<id>`, `-venue-<id>`, `-location-<id>`, `-period-<id>` |
+| An equipment row, its type and quantity | `request-detail-arrangement-equipment-<id>`, `-type-<id>`, `-quantity-<id>` |
 
 SCRUM-82: opened as `/requests/:id?hold=<id>` (venue search's Place hold), the request page opens the Place hold form once, as soon as it would offer Place hold, with that venue already chosen, brought into view with the Venue select focused (§13 pattern A). An unknown or retired venue id, or an account the form is not offered to, is ignored: the page opens normally.
 | Hold row | `request-detail-hold-row-<id>` |
