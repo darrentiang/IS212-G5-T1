@@ -36,6 +36,7 @@ Kept current by every story that adds an action: the row is added or changed in 
 | Maintain equipment inventory; withdraw from service | No | No | No | No | Yes | No | No |
 | View confirmed events open for registration | No | Yes | No | No | No | No | Yes |
 | Register or withdraw registration | No | No | No | No | No | No | Own only |
+| View my registrations | No | No | No | No | No | No | Own only |
 | Raise a change request on a confirmed event | Own only | No | No | No | No | No | No |
 | Decide a change request | No | Assigned coordinator | No | No | No | No | No |
 | View internal planning information (coordinator notes, booking requests, equipment requirements, decisions, reasons) | No | Assigned only | Yes, read-only | Venue-related only | Equipment-related only | Events in Safety Check | Never |
@@ -71,6 +72,7 @@ Keys used in `backend/permissions.py` and on API routes / `features` from `/api/
 | equipment.reserve | No | No | No | No | Yes | No | No |
 | equipment.edit | No | No | No | No | Yes | No | No |
 | registration.view | No | Yes | No | No | No | No | Yes |
+| registration.withdraw | No | No | No | No | No | No | Yes |
 | internal_notes.view | No | Yes | Yes | No | No | No | No |
 | notifications.view | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
 | bookings.edit | No | Yes | No | No | No | No | No |
@@ -116,6 +118,7 @@ Keys used in `backend/permissions.py` and on API routes / `features` from `/api/
 | 1.31 | 23-10-2026 | New row "Reply to a clarification request" and key `clarifications.reply` for the Event Organiser (own request only, enforced in the service); asking for clarification stays on `requests.decide`, assigned coordinator only | SCRUM-45 AC3, AC7 (the request-clarification row already existed; the reply is the Organiser's half) |
 | 1.32 | 25-10-2026 | "Edit an event during Planning" becomes "Edit an event after submission"; new key `requests.edit_event` for Event Coordinators (assigned coordinator only, enforced in the service, answering 404 to anyone else as a write). Ordinary changes in Submitted, Approved, Planning, Safety Check or Confirmed; significant changes only while Submitted, Approved or Planning. `requests.edit` stays the Event Organiser's alone | SCRUM-47 AC1, AC3, AC7 (the story's "Take note"); a key of its own because SCRUM-87 withdrew `requests.edit` from Event Coordinators |
 | 1.33 | 26-10-2026 | New row "View the arrangements of an event" for the Event Organiser, own request only, enforced in the service; it is read with the existing `requests.view` key, so there is no new key. Coordinators and staff see an event's arrangements through the planning information they already have | SCRUM-46 AC2, AC5, AC6 |
+| 1.34 | 28-10-2026 | New key `registration.withdraw` for the Attendee and new row "View my registrations" (own only, enforced in the service): an Attendee lists their own registrations and withdraws one; asking for a registration that is not theirs answers 404. Registering stays under its own story | SCRUM-55 AC1, AC3, AC5 |
 
 SCRUM-81: Technical Support may decide or correct a requirement only while the event is Approved or Planning and no reservation for the same event/type is Reserved. Released history does not block a decision. Arrangement notes remain editable in those event stages even with a Reserved reservation. These mutations grant no general event-request access.
 

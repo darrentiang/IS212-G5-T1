@@ -34,6 +34,7 @@ EQUIPMENT_REQUIREMENTS_REVIEW = "equipment.requirements.review"
 EQUIPMENT_RESERVE = "equipment.reserve"  # SCRUM-51: Technical Support Staff only
 EQUIPMENT_EDIT = "equipment.edit"  # SCRUM-49: change an equipment type's total units
 REGISTRATION_VIEW = "registration.view"
+REGISTRATION_WITHDRAW = "registration.withdraw"  # SCRUM-55: an Attendee lists their own registrations and withdraws one
 INTERNAL_NOTES_VIEW = "internal_notes.view"
 NOTIFICATIONS_VIEW = "notifications.view"
 ASSIGNMENTS_MANAGE = "assignments.manage"  # SCRUM-86: view the unassigned queue and assign from it (Event Coordinator Lead)
@@ -63,6 +64,7 @@ ALL_FEATURES = frozenset(
         EQUIPMENT_RESERVE,
         EQUIPMENT_EDIT,
         REGISTRATION_VIEW,
+        REGISTRATION_WITHDRAW,
         INTERNAL_NOTES_VIEW,
         NOTIFICATIONS_VIEW,
         ASSIGNMENTS_MANAGE,
@@ -130,6 +132,7 @@ ROLE_FEATURES = {
     },
     "Attendee": {
         REGISTRATION_VIEW,  # confirmed events with registration only
+        REGISTRATION_WITHDRAW,  # SCRUM-55: only their own registrations (service rule)
         NOTIFICATIONS_VIEW,
         # Never internal planning information.
     },

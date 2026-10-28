@@ -59,6 +59,7 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | 1.49 | 23-10-2026 | §7 the request page's Clarifications section (the Request clarification button and form, the reply form, the history, the flag beside the status and on the Requests page) with their test ids, messages and banners; the Notifications page texts for a clarification requested and a reply | SCRUM-45 AC1–8: the assigned Event Coordinator asks the Event Organiser what is missing on a Submitted request, and the Organiser replies |
 | 1.50 | 25-10-2026 | SCRUM-47 section: Edit event on Request detail (button, inline form, refusal) and the Change record, with their test ids and messages | SCRUM-47 AC1–7: the assigned Event Coordinator edits an event after submission and sees its record of significant changes |
 | 1.51 | 26-10-2026 | §7 the request page's Arrangements section for the Event Organiser (the in-progress sentence before Confirmed; the Approved venue bookings and equipment once Confirmed or Completed; none for a Draft, Rejected or Cancelled event) and the `No coordinator assigned yet.` line, with their test ids | SCRUM-46 AC1 to AC4 |
+| 1.52 | 28-10-2026 | §1 `/registrations`; §12 Registered is Success; a SCRUM-55 section: the My registrations page with its Withdraw button, banner texts and test ids | SCRUM-55 AC1, AC3, AC5 |
 
 ## 1. Pages
 
@@ -80,6 +81,7 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | `/equipment-requirements` | `equipment-requests` (nav: Equipment requests) | `equipment.requirements.view`; the API returns only the events this account may read |
 | `/requests/:id/equipment` | `equipment-requirements` (no nav) | `equipment.requirements.view`; the API returns only the events this account may read |
 | `/notifications` | `notifications` | Logged in; every role holds `notifications.view` |
+| `/registrations` | `registrations` (nav: My registrations) | `registration.withdraw` (the Attendee); the API returns only the account's own registrations |
 | — (shown in place of a refused page) | `not-permitted` | Anyone whose account lacks the page's feature |
 
 - Not logged in → any page sends the user to `/login`.
@@ -636,6 +638,7 @@ How pages look (tokens, type, spacing and the shared classes) is in `visual-styl
 | Completed | Neutral |
 | Requested | Info |
 | Withdrawn | Neutral |
+| Registered | Success |
 | Held | Warning |
 | Released | Neutral |
 | Expired | Danger |
@@ -882,3 +885,17 @@ or Confirmed needs an accepted change request.`; `Release the held venue before
 changing the event's date or times.`; `Only a Submitted, Approved, Planning, Safety
 Check or Confirmed event can be edited.`; protected write `Event request not
 found.`; wrong role `You do not have permission to perform this action.`
+
+## SCRUM-55 — My registrations and Withdraw
+
+**My registrations** (`/registrations`, page `registrations`, nav link `My registrations`) is for an Attendee: the page title is `My registrations`, and below it a table per §6 lists the account's own registrations, oldest first. Each row shows the event's name, its date and time as `20 Dec 2027, 10:00–12:00`, the event's status as a badge (so a Cancelled or Completed event reads as such), the registration's status as a badge (Registered or Withdrawn) and an Action cell. The Action cell holds a Withdraw button only on a Registered registration of an event that has not started and is not Cancelled; the server decides this (`can_withdraw`), never the browser's clock. With no registrations the page says `You have no registrations.` in place of the table.
+
+Withdraw acts at once, with no confirmation form, because registering again is possible while registration is open (SCRUM-54). On success the banner (§4) says `Withdrawn from <event name>.` and the row shows Withdrawn with no button. A refused withdrawal shows the API's message in the banner and the list is read again, so a registration withdrawn in another tab shows as Withdrawn: `This registration is already withdrawn.`, `This event was cancelled, so its registration cannot be withdrawn.` or `The event has started, so the registration can no longer be withdrawn.`; one that is not the account's own answers `Registration not found.` (404), and an account without `registration.withdraw` sees the not-permitted page.
+
+| Element | `data-testid` |
+|---|---|
+| Title, empty sentence | `registrations-title`, `registrations-empty` |
+| A registration row | `registrations-row-<id>` |
+| Its event, period, event status, registration status | `registrations-event-<id>`, `-period-<id>`, `-event-status-<id>`, `-status-<id>` |
+| Withdraw button | `registrations-withdraw-button-<id>` |
+| Banner and its dismiss control | `registrations-banner`, `registrations-banner-dismiss` |

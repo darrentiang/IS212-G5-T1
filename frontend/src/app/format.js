@@ -120,6 +120,8 @@ const BADGE = Object.freeze({
   // requirement's Requested and Approved do the same; Declined is its own word
   // and reads like a Rejected.
   [STATUS.REQUIREMENT.DECLINED]: 'badge-danger',
+  // SCRUM-55: a Registered registration is Success; Withdrawn is the booking's neutral Withdrawn above.
+  [STATUS.REGISTRATION.REGISTERED]: 'badge-success',
   [STATUS.HOLD.HELD]: 'badge-warning',
   [STATUS.HOLD.RELEASED]: 'badge-neutral',
   // SCRUM-85: Danger, so a lapsed hold reads apart from Held and Released.

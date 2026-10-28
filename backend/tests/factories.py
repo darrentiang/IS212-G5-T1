@@ -18,6 +18,8 @@ from models import (
     Clarification,
     EventRequest,
     Facility,
+    Registration,
+    Role,
     RoomLayout,
     Venue,
     VenueBlock,
@@ -157,6 +159,31 @@ def make_clarification(*, event, message, reply=None, asked_by="coord1", replied
         replied_by=account(replied_by) if reply is not None else None,
         replied_at=now if reply is not None else None,
         ended_at=now if ended else None,
+    )
+    db.session.add(row)
+    db.session.commit()
+    return row
+
+
+def make_attendee(username):
+    """Store one more Attendee account (the seed has only att1) and return it."""
+    row = Account(username=username)
+    row.set_password("Passw0rd!")
+    row.roles = [db.session.query(Role).filter_by(name="Attendee").one()]
+    db.session.add(row)
+    db.session.commit()
+    return row
+
+
+def make_registration(*, event, attendee="att1", status="Registered"):
+    """Store one registration of the Attendee for the event (SCRUM-55)."""
+    now = datetime.now(timezone.utc)
+    row = Registration(
+        event_request=event,
+        attendee=account(attendee),
+        status=status,
+        registered_at=now,
+        withdrawn_at=now if status == "Withdrawn" else None,
     )
     db.session.add(row)
     db.session.commit()
