@@ -1,7 +1,17 @@
 import { Fragment, useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useParams } from 'react-router'
 import { useAuth } from '../../app/auth'
-import { formatDateTime, formatDateTimePeriod, formatPeriod, formatTime, statusBadgeClass } from '../../app/format'
+import {
+  TIMING_MISMATCH,
+  TIMING_MISMATCH_BADGE,
+  TOO_SMALL,
+  TOO_SMALL_BADGE,
+  formatDateTime,
+  formatDateTimePeriod,
+  formatPeriod,
+  formatTime,
+  statusBadgeClass,
+} from '../../app/format'
 import {
   approveBooking,
   blockVenue,
@@ -345,6 +355,8 @@ export default function VenueDetailPage() {
       setRow(updated)
       setOpenForm(null)
       setSuccess('Venue updated')
+      // SCRUM-61: a new capacity can set or clear Too small on the booking requests.
+      refreshLists()
     } catch (error) {
       setBanner(error.message)
     } finally {
@@ -1411,8 +1423,30 @@ export default function VenueDetailPage() {
                             <td data-testid={`venue-detail-booking-facilities-${booking.id}`}>
                               {list(booking.facilities)}
                             </td>
-                            <td data-testid={`venue-detail-booking-status-${booking.id}`}>
-                              <span className={statusBadgeClass(booking.status)}>{booking.status}</span>
+                            <td>
+                              <span
+                                className={statusBadgeClass(booking.status)}
+                                data-testid={`venue-detail-booking-status-${booking.id}`}
+                              >
+                                {booking.status}
+                              </span>
+                              {/* SCRUM-61: derived by the API at every read. */}
+                              {booking.too_small && (
+                                <span
+                                  className={`${TOO_SMALL_BADGE} ml-2`}
+                                  data-testid={`venue-detail-booking-too-small-${booking.id}`}
+                                >
+                                  {TOO_SMALL}
+                                </span>
+                              )}
+                              {booking.timing_mismatch && (
+                                <span
+                                  className={`${TIMING_MISMATCH_BADGE} ml-2`}
+                                  data-testid={`venue-detail-booking-timing-mismatch-${booking.id}`}
+                                >
+                                  {TIMING_MISMATCH}
+                                </span>
+                              )}
                             </td>
                             <td
                               className="whitespace-pre-wrap"

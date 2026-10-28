@@ -79,7 +79,8 @@ def test_full_quantity_snapshot_persistence_review_lock_and_release(client, stag
     record = response.json['reservation']
     assert record == {'id': record['id'], 'event_request_id': event.id, 'equipment_type_id': equipment.id,
         'equipment_type_name': equipment.name, 'quantity': 4, 'date': event.date,
-        'start_time': '10:00', 'end_time': '12:00', 'status': 'Reserved'}
+        'start_time': '10:00', 'end_time': '12:00', 'status': 'Reserved',
+        'timing_mismatch': False}  # SCRUM-61: the event's own period, so not flagged
     assert response.json['requirement']['has_unreleased_reservation'] is True
     assert available(client, event, equipment)['available_units'] == 6
     assert client.get(read_path(event)).json == [record]

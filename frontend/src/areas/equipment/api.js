@@ -84,6 +84,7 @@ export const updateEquipmentArrangementNote = (id, requirementId, data) =>
 // SCRUM-51: scoped reservation history; same read access as equipment context.
 // GET /api/requests/:id/equipment/reservations -> Reservation[]; 401/403/404.
 // The equipment context also includes reservations: Reservation[].
+// SCRUM-61: each Reservation carries timing_mismatch, derived at every read; true only while Reserved.
 // Reservation = {id,event_request_id,equipment_type_id,equipment_type_name,
 //                quantity,date,start_time,end_time,status:'Reserved'|'Released'}.
 export const listEquipmentReservations = (id) =>

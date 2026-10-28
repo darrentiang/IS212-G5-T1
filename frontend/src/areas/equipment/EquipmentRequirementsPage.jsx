@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import Banner from '../../app/Banner'
 import { useAuth } from '../../app/auth'
-import { formatDateTime, formatPeriod, STATUS, statusBadgeClass } from '../../app/format'
+import { formatDateTime, formatPeriod, STATUS, statusBadgeClass, TIMING_MISMATCH, TIMING_MISMATCH_BADGE } from '../../app/format'
 import { useReveal, useRevealError } from '../../app/reveal'
 import { addEquipmentRequirement, checkAvailability, decideEquipmentRequirement, getEquipmentRequirements, listEquipment, removeEquipmentRequirement, releaseEquipment, reserveEquipment, updateEquipmentArrangementNote, updateEquipmentRequirement } from './api'
 
@@ -248,7 +248,9 @@ function RequirementForm({ id }) {
           <ul className="space-y-4">{(event.reservations || []).map((row) => <li className="space-y-2" key={row.id} data-testid={`equipment-requirements-reservation-${row.id}`}>
             <p><strong>{row.equipment_type_name}</strong> × {row.quantity}</p>
             <p data-testid={`equipment-requirements-reservation-period-${row.id}`}>{formatPeriod(row.date, row.start_time, row.end_time)}</p>
-            <p data-testid={`equipment-requirements-reservation-status-${row.id}`}>{row.status}</p>
+            <p><span data-testid={`equipment-requirements-reservation-status-${row.id}`}>{row.status}</span>
+              {/* SCRUM-61: the reservation's period is not the event's; derived by the API. */}
+              {row.timing_mismatch && <span className={`${TIMING_MISMATCH_BADGE} ml-2`} data-testid={`equipment-requirements-reservation-timing-mismatch-${row.id}`}>{TIMING_MISMATCH}</span>}</p>
             {canReserve && row.status === STATUS.RESERVATION.RESERVED && <button className="btn btn-secondary" disabled={busy} data-testid={`equipment-requirements-release-${row.id}`} onClick={() => open('release', row)}>Release</button>}
             {action?.mode === 'release' && action.row.id === row.id && form}
           </li>)}</ul>

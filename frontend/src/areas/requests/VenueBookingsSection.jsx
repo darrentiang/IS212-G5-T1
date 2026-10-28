@@ -1,5 +1,14 @@
 import { useReveal } from '../../app/reveal'
-import { STATUS, VENUE_UNAVAILABLE, VENUE_UNAVAILABLE_BADGE, statusBadgeClass } from '../../app/format'
+import {
+  STATUS,
+  TIMING_MISMATCH,
+  TIMING_MISMATCH_BADGE,
+  TOO_SMALL,
+  TOO_SMALL_BADGE,
+  VENUE_UNAVAILABLE,
+  VENUE_UNAVAILABLE_BADGE,
+  statusBadgeClass,
+} from '../../app/format'
 import { occupiedText } from './occupied'
 
 // SCRUM-83: every venue booking request raised for the event, inside the
@@ -117,6 +126,17 @@ function BookingRows({
           {booking.venue_unavailable && (
             <span className={`${VENUE_UNAVAILABLE_BADGE} ml-2`} data-testid={`request-detail-booking-unavailable-${id}`}>
               {VENUE_UNAVAILABLE}
+            </span>
+          )}
+          {/* SCRUM-61: derived by the API at every read. */}
+          {booking.too_small && (
+            <span className={`${TOO_SMALL_BADGE} ml-2`} data-testid={`request-detail-booking-too-small-${id}`}>
+              {TOO_SMALL}
+            </span>
+          )}
+          {booking.timing_mismatch && (
+            <span className={`${TIMING_MISMATCH_BADGE} ml-2`} data-testid={`request-detail-booking-timing-mismatch-${id}`}>
+              {TIMING_MISMATCH}
             </span>
           )}
           {booking.status === STATUS.BOOKING.CANCELLED && (

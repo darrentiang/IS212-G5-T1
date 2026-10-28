@@ -1,4 +1,4 @@
-import { STATUS, formatDateTime, statusBadgeClass } from '../../app/format'
+import { STATUS, TOO_SMALL, TOO_SMALL_BADGE, formatDateTime, statusBadgeClass } from '../../app/format'
 import { occupiedText } from './occupied'
 
 // SCRUM-84: the event's venue holds, inside the request page's Venues section
@@ -36,8 +36,16 @@ export default function VenueHoldsSection({ holds, canRelease, submitting, onRel
                     <td data-testid={`request-detail-hold-venue-${hold.id}`}>{hold.venue_name}</td>
                     <td data-testid={`request-detail-hold-period-${hold.id}`}>{occupiedText(hold)}</td>
                     <td data-testid={`request-detail-hold-expiry-${hold.id}`}>{formatDateTime(hold.expires_at)}</td>
-                    <td data-testid={`request-detail-hold-status-${hold.id}`}>
-                      <span className={statusBadgeClass(hold.status)}>{hold.status}</span>
+                    <td>
+                      <span className={statusBadgeClass(hold.status)} data-testid={`request-detail-hold-status-${hold.id}`}>
+                        {hold.status}
+                      </span>
+                      {/* SCRUM-61: derived by the API at every read. */}
+                      {hold.too_small && (
+                        <span className={`${TOO_SMALL_BADGE} ml-2`} data-testid={`request-detail-hold-too-small-${hold.id}`}>
+                          {TOO_SMALL}
+                        </span>
+                      )}
                     </td>
                     {canRelease && (
                       <td>

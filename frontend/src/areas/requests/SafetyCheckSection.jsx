@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { formatDate, formatDateTime, formatTime } from '../../app/format'
+import { TOO_SMALL, TOO_SMALL_BADGE, formatDate, formatDateTime, formatTime } from '../../app/format'
 
 // SCRUM-89: what the Safety Officer reviews on an event in Safety Check, the
 // decisions already made on it, and the one form that approves or rejects it
@@ -183,8 +183,19 @@ export default function SafetyCheckSection({
                         </div>
                         <div>
                           <dt>Maximum capacity</dt>
-                          <dd data-testid={`request-detail-safety-booking-${booking.id}-capacity`}>
-                            {booking.venue.max_capacity}
+                          <dd>
+                            <span data-testid={`request-detail-safety-booking-${booking.id}-capacity`}>
+                              {booking.venue.max_capacity}
+                            </span>
+                            {/* SCRUM-61: the event's attendance is above this capacity. */}
+                            {booking.too_small && (
+                              <span
+                                className={`${TOO_SMALL_BADGE} ml-2`}
+                                data-testid={`request-detail-safety-booking-${booking.id}-too-small`}
+                              >
+                                {TOO_SMALL}
+                              </span>
+                            )}
                           </dd>
                         </div>
                         <div>
