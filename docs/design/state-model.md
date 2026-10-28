@@ -29,7 +29,8 @@ Every acceptance criterion that changes a status uses a value from these tables.
 | 1.22 | — | Atomic whole-event cancellation, preserved history and cancellation metadata; schema 26 | SCRUM-65; date pending team review |
 | 1.23 | 23-10-2026 | Event request: the clarification requested flag clears also when the request is approved or rejected, and is shown while a clarification is open; the clarifications and replies are kept with the request (a Clarification record: message, replier, times; an open one has no reply and no end) | SCRUM-45 (this story's slice of `target/state-model.md` v1.3, which already has the flag; the target says it clears only when the Organiser responds) |
 | 1.24 | 25-10-2026 | No change to any status or transition. Event request: the assigned Event Coordinator edits it after submission; an edit never changes its status or its arrangements, and each significant change is kept in a change record (an EventChange record: field, old and new value, who, when); schema 28 | SCRUM-47 |
-| 1.25 | 28-10-2026 | No change to any status or transition. Registration: Registered → Withdrawn is built (the Attendee withdraws their own registration until the event starts; never for a Cancelled event); a Withdrawn registration never goes back, so registering again makes a new row | SCRUM-55 AC1 to AC4 |
+| 1.25 | 27-10-2026 | No change to any status or transition. Two flags, not statuses, derived at every read and never stored: **too small** on a Requested or Approved venue booking request and a Held hold, and **timing mismatch** on a Requested or Approved venue booking request and a Reserved equipment reservation | SCRUM-61 |
+| 1.26 | 28-10-2026 | No change to any status or transition. Registration: Registered → Withdrawn is built (the Attendee withdraws their own registration until the event starts; never for a Cancelled event); a Withdrawn registration never goes back, so registering again makes a new row | SCRUM-55 AC1 to AC4 |
 
 The front end holds these words in `frontend/src/app/format.js` (`STATUS`); a change here changes that file in the same pull request. v1.12 adds Held and Released (`STATUS.HOLD`); v1.18 adds Expired (`STATUS.HOLD.EXPIRED`); v1.14 adds Cancelled to a venue booking request's words (`STATUS.BOOKING.CANCELLED`); v1.15's Venue unavailable is a flag, held there as `VENUE_UNAVAILABLE`.
 
@@ -351,3 +352,27 @@ value, changed_by, changed_at in UTC), shown to the assigned coordinator as
 The edit never changes the event's status or its flags, and never moves,
 cancels or releases a booking request, hold or equipment reservation: each
 keeps the date, times and attendance it was made with.
+
+## SCRUM-61 — Flags on arrangements affected by an event change
+
+Two flags, not statuses. Both are derived at every read and never stored
+(`backend/arrangement_flags.py`), so each goes by itself when its cause goes,
+and neither ever changes a status, cancels, withdraws or releases anything.
+
+**Too small**, on a Requested or Approved venue booking request and on a Held
+hold: the event's expected attendance is more than that venue's maximum
+capacity. Each venue is compared on its own; attendance equal to the capacity
+fits (the SCRUM-42 suitability rule). It follows a change to either number:
+the event's attendance (SCRUM-47) or the venue's capacity. Shown to the
+assigned Event Coordinator on the event, to Venue Staff on the venue's booking
+requests, and to the Safety Officer on the Safety check card.
+
+**Timing mismatch**, on a Requested or Approved venue booking request and on a
+Reserved equipment reservation: its date, start time or end time is not the
+event's. Bookings and reservations keep the period they were made with
+(SCRUM-47), so a change to the event's period flags them, and putting it back
+clears the flag. A hold keeps no period of its own: it covers the event's
+current one, and SCRUM-47 refuses a change to the date or times while it is
+Held, so a hold is never flagged for timing. A reservation's flag is shown to
+the assigned Event Coordinator and to Technical Support Staff on the event's
+equipment page.

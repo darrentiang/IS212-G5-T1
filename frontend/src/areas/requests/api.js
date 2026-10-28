@@ -148,6 +148,7 @@ export const listVenues = () => request('GET', '/api/venues')
 //              status, date, start_time, end_time, occupied_start, occupied_end,
 //              expires_at, placed_by, placed_at, released_at } ]
 //          status: 'Held' | 'Released'; oldest first
+//          too_small (SCRUM-61): derived at every read; true only on a Held hold
 // 403/404: { message }
 export const listHolds = (id) => request('GET', `/api/requests/${id}/holds`)
 
@@ -172,6 +173,8 @@ export const releaseHold = (id, holdId) => request('POST', `/api/requests/${id}/
 //          every booking request raised for the event, oldest first; status is one of
 //          Requested, Approved, Rejected, Withdrawn, Cancelled; the cancel fields are
 //          null until the booking is cancelled
+//          too_small, timing_mismatch (SCRUM-61): derived at every read, never stored;
+//          true only on a Requested or Approved row
 // 403/404: { message }
 export const listBookings = (id) => request('GET', `/api/requests/${id}/bookings`)
 

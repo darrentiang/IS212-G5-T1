@@ -59,7 +59,8 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | 1.49 | 23-10-2026 | §7 the request page's Clarifications section (the Request clarification button and form, the reply form, the history, the flag beside the status and on the Requests page) with their test ids, messages and banners; the Notifications page texts for a clarification requested and a reply | SCRUM-45 AC1–8: the assigned Event Coordinator asks the Event Organiser what is missing on a Submitted request, and the Organiser replies |
 | 1.50 | 25-10-2026 | SCRUM-47 section: Edit event on Request detail (button, inline form, refusal) and the Change record, with their test ids and messages | SCRUM-47 AC1–7: the assigned Event Coordinator edits an event after submission and sees its record of significant changes |
 | 1.51 | 26-10-2026 | §7 the request page's Arrangements section for the Event Organiser (the in-progress sentence before Confirmed; the Approved venue bookings and equipment once Confirmed or Completed; none for a Draft, Rejected or Cancelled event) and the `No coordinator assigned yet.` line, with their test ids | SCRUM-46 AC1 to AC4 |
-| 1.52 | 28-10-2026 | §1 `/registrations`; §12 Registered is Success; a SCRUM-55 section: the My registrations page with its Withdraw button, banner texts and test ids | SCRUM-55 AC1, AC3, AC5 |
+| 1.52 | 27-10-2026 | SCRUM-61 section: the Too small and Timing mismatch badges on the request page's bookings and holds, the venue page's booking requests, the Safety check card and the equipment page's reservations, with their test ids; the status test ids on a hold row and a venue booking-request row move from the cell to the status badge, so each holds the status alone | SCRUM-61 AC1, AC3, AC6: flags beside each affected arrangement |
+| 1.53 | 28-10-2026 | §1 `/registrations`; §12 Registered is Success; a SCRUM-55 section: the My registrations page with its Withdraw button, banner texts and test ids | SCRUM-55 AC1, AC3, AC5 |
 
 ## 1. Pages
 
@@ -885,6 +886,32 @@ or Confirmed needs an accepted change request.`; `Release the held venue before
 changing the event's date or times.`; `Only a Submitted, Approved, Planning, Safety
 Check or Confirmed event can be edited.`; protected write `Event request not
 found.`; wrong role `You do not have permission to perform this action.`
+
+## SCRUM-61 — Too small and Timing mismatch
+
+Two flags (state-model.md, SCRUM-61), each a badge beside the status badge,
+never in its place: **Too small** (`TOO_SMALL`, Danger) and **Timing mismatch**
+(`TIMING_MISMATCH`, Warning), from `app/format.js`. The API derives both at every
+read; the page shows a badge only when the row's flag is true, and the status
+badge beside it keeps its own text.
+
+A change that can set or clear a flag reads the affected list again, so the flag
+shows without a reload: a saved Edit event (SCRUM-47) reads the request page's
+Venue bookings and Venue holds again, and a saved Update venue reads the venue
+page's booking requests again (with its clashes, as a duration save does).
+
+| Where | Element | data-testid |
+|---|---|---|
+| Request page, Venue bookings row | Too small, Timing mismatch | request-detail-booking-too-small-<id>, request-detail-booking-timing-mismatch-<id> |
+| Request page, Venue holds row | Too small | request-detail-hold-too-small-<id> |
+| Venue page, Booking requests row | Too small, Timing mismatch | venue-detail-booking-too-small-<id>, venue-detail-booking-timing-mismatch-<id> |
+| Safety check card, an Approved booking | Too small, beside its maximum capacity | request-detail-safety-booking-<id>-too-small |
+| Equipment page, a reservation | Timing mismatch | equipment-requirements-reservation-timing-mismatch-<id> |
+
+`request-detail-hold-status-<id>`, `venue-detail-booking-status-<id>`,
+`request-detail-safety-booking-<id>-capacity` and
+`equipment-requirements-reservation-status-<id>` are on the status (or capacity)
+text itself, so they read the status alone whatever badge is beside it.
 
 ## SCRUM-55 — My registrations and Withdraw
 

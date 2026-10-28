@@ -138,3 +138,11 @@ export function statusBadgeClass(status) {
 // badge (Success) beside it (ui-guidelines.md §12).
 export const VENUE_UNAVAILABLE = 'Venue unavailable'
 export const VENUE_UNAVAILABLE_BADGE = 'badge badge-danger'
+
+// SCRUM-61: two more flags, not statuses (state-model.md): the event's attendance
+// is above the venue's capacity, or an arrangement's period is not the event's.
+// Danger and Warning, so each reads apart from the status badge beside it.
+export const TOO_SMALL = 'Too small'
+export const TOO_SMALL_BADGE = 'badge badge-danger'
+export const TIMING_MISMATCH = 'Timing mismatch'
+export const TIMING_MISMATCH_BADGE = 'badge badge-warning'
