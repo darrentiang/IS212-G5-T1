@@ -51,7 +51,8 @@ from db import db
 # SCRUM-45 adds the Clarification table (a request's clarifications and replies), so 27.
 # SCRUM-47 adds the EventChange table (the record of significant changes), so 28.
 # SCRUM-55 adds the Registration table (an Attendee's registration for an event), so 29.
-SCHEMA_VERSION = 29
+# SCRUM-92 adds an event's registration capacity and closing time, so 30.
+SCHEMA_VERSION = 30
 
 
 account_roles = db.Table(
@@ -163,6 +164,11 @@ class EventRequest(db.Model):
     registration_needs = db.Column(db.Text)
 
     registration_enabled = db.Column(db.Boolean, nullable=False, default=False)
+    # SCRUM-92: set by the assigned coordinator (areas/registration/settings.py).
+    # The closing time is naive local wall-clock time, like the event's own date
+    # and start_time, never UTC. Both are kept when registration is turned off.
+    registration_capacity = db.Column(db.Integer, nullable=True)
+    registration_closes_at = db.Column(db.DateTime, nullable=True)
     completed_at = db.Column(db.DateTime, nullable=True)  # UTC, SCRUM-66
     completed_by_id = db.Column(db.Integer, db.ForeignKey("accounts.id"), nullable=True)
     completed_by = db.relationship("Account", foreign_keys=[completed_by_id])

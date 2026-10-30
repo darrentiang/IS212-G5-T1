@@ -289,6 +289,19 @@ export const cancelRequest = (id, reason) => request('POST', `/api/requests/${id
 // A refusal changes nothing.
 export const editEvent = (id, data) => request('PATCH', `/api/requests/${id}`, data)
 
+// PUT /api/requests/:id/registration (SCRUM-92), the assigned Event Coordinator only.
+// body:    { enabled (true/false), capacity, closing_date (YYYY-MM-DD), closing_time (HH:MM) };
+//          a blank capacity or closing time keeps the stored one, or when turning on with none
+//          stored, the event's expected attendance and its start
+// 200:     the request detail, with registration { enabled, capacity, closes_at (local), can_edit }
+// 400:     { message }   on/off missing; capacity not a whole number of at least 1; a closing date
+//          without a time or the reverse; not a valid date and time; after the event starts
+// 403/404: { message }   no registration.manage; not the assigned coordinator, a Draft or unknown
+// 409:     { message }   not Approved/Planning/Safety Check/Confirmed; capacity below the people
+//          registered; turning off while people are registered
+// A refusal changes nothing.
+export const setRegistration = (id, data) => request('PUT', `/api/requests/${id}/registration`, data)
+
 // GET /api/venue-options   (SCRUM-47: the edit form's lists; a coordinator does not hold requests.edit)
 // 200:     { layouts: [name], facilities: [name], accessibility_features: [name] }   in list order
 // A thin wrapper of the call the venues area makes, each area owning its own (frontend.md §1).

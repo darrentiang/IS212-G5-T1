@@ -8,7 +8,8 @@ through an accepted change request (SCRUM-59/60), never here. While the event
 has a Held venue its date and times stay as they are. Each significant change
 is kept as an EventChange row. An edit never changes the status and never
 touches a booking request, hold or reservation: they keep the period and
-attendance they were made with.
+attendance they were made with. SCRUM-92: a registration closing time after
+the new start moves to it, in the same commit, with no change-record line.
 
 Same lock as SCRUM-65: the event row, so a hold placed or a status changed
 while this edit runs is seen before it is checked.
@@ -106,6 +107,12 @@ def edit_event(account, request_id, body):
             raise ApiRefusal(409, NEEDS_CHANGE_REQUEST)
         if any(field in changed for field in PERIOD_FIELDS) and _has_held_venue(event):
             raise ApiRefusal(409, RELEASE_HOLD_FIRST)
+
+        if any(field in changed for field in PERIOD_FIELDS):
+            # Imported here: the registration settings reuse this module's lock.
+            from areas.registration.settings import close_by_start
+
+            close_by_start(event)
 
         instant = clock.now_local().replace(tzinfo=clock.SINGAPORE).astimezone(timezone.utc).replace(tzinfo=None)
         for field in changed:

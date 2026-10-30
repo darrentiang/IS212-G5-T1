@@ -31,6 +31,7 @@ Every acceptance criterion that changes a status uses a value from these tables.
 | 1.24 | 25-10-2026 | No change to any status or transition. Event request: the assigned Event Coordinator edits it after submission; an edit never changes its status or its arrangements, and each significant change is kept in a change record (an EventChange record: field, old and new value, who, when); schema 28 | SCRUM-47 |
 | 1.25 | 27-10-2026 | No change to any status or transition. Two flags, not statuses, derived at every read and never stored: **too small** on a Requested or Approved venue booking request and a Held hold, and **timing mismatch** on a Requested or Approved venue booking request and a Reserved equipment reservation | SCRUM-61 |
 | 1.26 | 28-10-2026 | No change to any status or transition. Registration: Registered → Withdrawn is built (the Attendee withdraws their own registration until the event starts; never for a Cancelled event); a Withdrawn registration never goes back, so registering again makes a new row | SCRUM-55 AC1 to AC4 |
+| 1.27 | 30-10-2026 | No change to any status or transition. Registration: an event's registration has an on/off switch, a capacity and a closing time, set by its assigned Event Coordinator while it is Approved, Planning, Safety Check or Confirmed; "within the window and capacity" means at or before the closing time and while the Registered count is below the capacity. A SCRUM-47 edit that moves the start before the closing time moves the closing time to the new start; schema 30 | SCRUM-92 AC1 to AC5 (the Registration table copied from `target/state-model.md`, which has no wording for the settings themselves) |
 
 The front end holds these words in `frontend/src/app/format.js` (`STATUS`); a change here changes that file in the same pull request. v1.12 adds Held and Released (`STATUS.HOLD`); v1.18 adds Expired (`STATUS.HOLD.EXPIRED`); v1.14 adds Cancelled to a venue booking request's words (`STATUS.BOOKING.CANCELLED`); v1.15's Venue unavailable is a flag, held there as `VENUE_UNAVAILABLE`.
 
@@ -176,6 +177,21 @@ stateDiagram-v2
     [*] --> Registered: Register within the window and capacity
     Registered --> Withdrawn: Withdraw
 ```
+
+**The window and capacity (SCRUM-92).** They are settings on the event, not
+statuses: registration on or off, a capacity, and a closing date and time. The
+event's assigned Event Coordinator sets them while the event is Approved,
+Planning, Safety Check or Confirmed. The capacity is a whole number of at
+least 1 and never below the number of Registered registrations (Withdrawn ones
+never count); the closing time has a date and a time, is never after the
+event's start (exactly at the start is allowed) and is kept as local
+wall-clock time, like the event's own date and times. Turning registration on
+with none stored takes the expected attendance and the event's start;
+registration cannot be turned off while anyone is Registered, and turning it
+off keeps both values. A SCRUM-47 edit that moves the event's start before the
+closing time moves the closing time to the new start, in the same save,
+without a change-record line. Registering itself (SCRUM-54) enforces the
+window and capacity.
 
 ## Notification
 

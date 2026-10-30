@@ -180,6 +180,8 @@
       "status": "Confirmed",
       "created_by": "org1",
       "registration_enabled": true,
+      "registration_capacity": 250,
+      "registration_closes_at": "2026-10-03T10:00",
       "coordinator_notes": "Internal: do not publish staff roster.",
       "description": "Public open house showcasing the ConnectSphere venues",
       "date": "2026-10-03",

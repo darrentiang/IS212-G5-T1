@@ -9,6 +9,7 @@ import CompletionSection from './CompletionSection'
 import CancellationSection from './CancellationSection'
 import EventEditSection from './EventEditSection'
 import PlaceHoldForm from './PlaceHoldForm'
+import RegistrationSection from './RegistrationSection'
 import VenueBookingsSection from './VenueBookingsSection'
 import VenueHoldsSection from './VenueHoldsSection'
 import VenuesSection from './VenuesSection'
@@ -82,6 +83,8 @@ import { useReveal, useRevealError } from '../../app/reveal'
 // Requested one withdraws it (SCRUM-77).
 // SCRUM-47: the assigned coordinator edits the event after submission and sees
 // its record of significant changes (EventEditSection).
+// SCRUM-92: the assigned coordinator sees and sets the event's registration
+// (RegistrationSection); a refusal shows in the banner and the request is read again.
 
 // Same order and labels as RequestNewPage's form (ui-guidelines.md §7): FIELDS
 // come before the Venue requirements and Accessibility needs groups,
@@ -814,6 +817,26 @@ const openDecision = (action) => {
               setBanner(null)
               setSuccessBanner('Event updated')
               setEdits((count) => count + 1)
+            }}
+            activeAction={openAction}
+            onActionChange={setOpenAction}
+          />
+          <RegistrationSection
+            event={row}
+            onSaved={(updated) => {
+              setRow(updated)
+              setBanner(null)
+              setSuccessBanner('Registration updated')
+            }}
+            onRefused={async (message) => {
+              setBanner(message)
+              setSuccessBanner(null)
+              // The count may have moved (someone registered): show the settings as they now stand.
+              try {
+                setRow(await getRequest(id))
+              } catch (reloadError) {
+                setBanner(reloadError.message)
+              }
             }}
             activeAction={openAction}
             onActionChange={setOpenAction}

@@ -61,6 +61,7 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | 1.51 | 26-10-2026 | §7 the request page's Arrangements section for the Event Organiser (the in-progress sentence before Confirmed; the Approved venue bookings and equipment once Confirmed or Completed; none for a Draft, Rejected or Cancelled event) and the `No coordinator assigned yet.` line, with their test ids | SCRUM-46 AC1 to AC4 |
 | 1.52 | 27-10-2026 | SCRUM-61 section: the Too small and Timing mismatch badges on the request page's bookings and holds, the venue page's booking requests, the Safety check card and the equipment page's reservations, with their test ids; the status test ids on a hold row and a venue booking-request row move from the cell to the status badge, so each holds the status alone | SCRUM-61 AC1, AC3, AC6: flags beside each affected arrangement |
 | 1.53 | 28-10-2026 | §1 `/registrations`; §12 Registered is Success; a SCRUM-55 section: the My registrations page with its Withdraw button, banner texts and test ids | SCRUM-55 AC1, AC3, AC5 |
+| 1.54 | 30-10-2026 | A SCRUM-92 section: the request page's Registration section (On/Off, Capacity, Closes), its Edit control and inline form, banner texts and test ids | SCRUM-92 AC1 to AC5 |
 
 ## 1. Pages
 
@@ -926,3 +927,46 @@ Withdraw acts at once, with no confirmation form, because registering again is p
 | Its event, period, event status, registration status | `registrations-event-<id>`, `-period-<id>`, `-event-status-<id>`, `-status-<id>` |
 | Withdraw button | `registrations-withdraw-button-<id>` |
 | Banner and its dismiss control | `registrations-banner`, `registrations-banner-dismiss` |
+
+## SCRUM-92 — Registration on Request detail
+
+The event's assigned Event Coordinator sees a **Registration** section on the
+request page; nobody else does (the API sends `registration` to the assigned
+coordinator only). It lists **Registration** (`On` or `Off`), **Capacity** (a
+number, or `None`) and **Closes** (`05 Dec 2026, 18:00`, §9, local time as
+set; `None` when there is none). An **Edit** button shows only when the API
+says the account may edit (`registration.can_edit`: Approved, Planning, Safety
+Check or Confirmed); a Submitted, Cancelled or Completed event shows the
+section read-only.
+
+Edit opens an inline form (§5, §13 pattern A) filled with the current values:
+**Registration** (a select, On or Off), **Capacity** (number), **Closing date**
+(date) and **Closing time** (time), then **Cancel** and **Save**. noValidate,
+no required fields: a blank capacity or closing time keeps the stored one, or
+when registration is turned on with none stored, the API uses the expected
+attendance and the event's start. Success closes the form, shows the section
+as saved and the success banner `Registration updated`. A refusal shows the
+API's message in the page banner (§4), keeps the form open with the values
+entered, and reads the request again. The form shares Request detail's
+openAction with the other inline forms.
+
+| Element | data-testid |
+|---|---|
+| Section | request-detail-registration |
+| On/Off, Capacity, Closes | request-detail-registration-enabled, request-detail-registration-capacity, request-detail-registration-closes |
+| Edit | request-detail-registration-edit-button |
+| Inline form | request-detail-registration-form |
+| Fields | request-detail-registration-enabled-input, request-detail-registration-capacity-input, request-detail-registration-closing-date-input, request-detail-registration-closing-time-input |
+| Cancel, Save | request-detail-registration-cancel-button, request-detail-registration-save-button |
+
+Messages: `Registration updated`; `Capacity must be a whole number of at least
+1.`; `Capacity cannot be less than the <n> people registered.` (`… the 1 person
+registered.` when the count is 1); `The closing
+time needs both a date and a time.`; `Registration cannot close after the event
+starts.`; `Registration cannot be turned off while <n> people are registered.`
+(`… while 1 person is registered.` when the count is 1);
+`Registration can be set only while the event is Approved, Planning, Safety
+Check or Confirmed.`; `The closing date and time must be a valid date and
+time.`; `Registration must be turned on or off.`; protected write `Event
+request not found.`; wrong role `You do not have permission to perform this
+action.`
