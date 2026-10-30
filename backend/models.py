@@ -50,7 +50,8 @@ from db import db
 # SCRUM-65 adds the event's cancellation actor, timestamp and reason, so 26.
 # SCRUM-45 adds the Clarification table (a request's clarifications and replies), so 27.
 # SCRUM-47 adds the EventChange table (the record of significant changes), so 28.
-SCHEMA_VERSION = 28
+# SCRUM-55 adds the Registration table (an Attendee's registration for an event), so 29.
+SCHEMA_VERSION = 29
 
 
 account_roles = db.Table(
@@ -790,3 +791,31 @@ class EquipmentRequirement(db.Model):
             "has_unreleased_reservation": self.has_unreleased_reservation,
             "status": self.status,
         }
+
+
+class Registration(db.Model):
+    """An Attendee's registration for an event (docs/design/state-model.md, 'Registration').
+
+    A registration is Registered or Withdrawn and never goes back: an Attendee
+    who withdraws and registers again gets a new row, so the Withdrawn one
+    stays on record (SCRUM-55 AC4). ``registered_at`` and ``withdrawn_at`` are
+    UTC, like the other decision timestamps. SCRUM-55 withdraws; SCRUM-54
+    registers.
+    """
+
+    __tablename__ = "registrations"
+
+    STATUSES = ("Registered", "Withdrawn")
+
+    id = db.Column(db.Integer, primary_key=True)
+    event_request_id = db.Column(db.Integer, db.ForeignKey("event_requests.id"), nullable=False)
+    attendee_id = db.Column(db.Integer, db.ForeignKey("accounts.id"), nullable=False)
+    status = db.Column(db.String(32), nullable=False, default="Registered")
+    registered_at = db.Column(db.DateTime, nullable=False)
+    withdrawn_at = db.Column(db.DateTime, nullable=True)
+
+    event_request = db.relationship("EventRequest", backref="registrations")
+    attendee = db.relationship("Account", foreign_keys=[attendee_id])
+
+    def __repr__(self):
+        return f"<Registration {self.id} {self.status}>"
