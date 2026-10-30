@@ -94,16 +94,16 @@ jobs:
           name: vitest-json
           path: frontend/vitest-report.json
 
-  # The specs are split across four runners. Each shard starts its own
+  # The specs are split across six runners. Each shard starts its own
   # backend and frontend through the webServer config, so each seeds its own
   # database; inside a shard the specs still run one at a time (workers: 1).
   functional-shards:
-    name: Functional shard ${{ matrix.shard }}/4
+    name: Functional shard ${{ matrix.shard }}/6
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1, 2, 3, 4, 5, 6]
     steps:
       - uses: actions/checkout@v4
 
@@ -144,7 +144,7 @@ jobs:
         run: cd functional && npx playwright install chromium --with-deps
 
       - name: Run functional tests
-        run: cd functional && npx playwright test --shard=${{ matrix.shard }}/4
+        run: cd functional && npx playwright test --shard=${{ matrix.shard }}/6
 
       - name: Upload blob report
         if: always()
