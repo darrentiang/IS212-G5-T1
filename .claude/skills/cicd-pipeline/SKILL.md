@@ -25,7 +25,7 @@ description: How the CI/CD pipeline works for this project — branch model, wha
 | 3 | Functional | Playwright | Browser tests (`functional/tests/`) |
 | 4 | Log to Sheet | Node.js | Appends every Playwright result to the Executions tab of the team test sheet |
 
-Jobs 1–3 run in parallel. Within job 3, Playwright runs the spec files serially (`workers: 1`): every spec shares one SQLite database, seeded once per run. All must pass for merge. Job 4 runs after and logs the Playwright results against their TC IDs. It never edits the Test cases tab; those rows are written by the team before the story is built (see `docs/test-cases/PROMPT.md`). Unit test results are visible in the CI log and artifacts only.
+Jobs 1–3 run in parallel. Job 3 splits the spec files across six runners (`Functional shard 1/6` … `6/6`, `--shard=n/6`); each shard starts its own servers and seeds its own SQLite database, and within a shard Playwright runs the spec files serially (`workers: 1`). So a spec must never depend on data another spec creates. The `Functional` job then merges the six shards' blob reports into one HTML report and one `functional-results.json`, and fails unless every shard passed; it is the check branch protection requires. All must pass for merge. Job 4 runs after and logs the Playwright results against their TC IDs. It never edits the Test cases tab; those rows are written by the team before the story is built (see `docs/test-cases/PROMPT.md`). Unit test results are visible in the CI log and artifacts only.
 
 ## Reports on every PR
 

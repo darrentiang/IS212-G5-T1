@@ -1,5 +1,6 @@
+import { StrictMode } from 'react'
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import * as api from '../api'
@@ -49,6 +50,41 @@ function renderPage() {
       </Routes>
     </MemoryRouter>,
   )
+}
+
+// As in development (main.jsx): StrictMode runs the load effect twice, so two
+// list requests are in flight and their replies can land in either order.
+function renderStrictPage() {
+  render(
+    <StrictMode>
+      <MemoryRouter initialEntries={['/notifications']}>
+        <Routes>
+          <Route path="/notifications" element={<NotificationsPage />} />
+        </Routes>
+      </MemoryRouter>
+    </StrictMode>,
+  )
+}
+
+function deferred() {
+  let resolve
+  let reject
+  const promise = new Promise((res, rej) => {
+    resolve = res
+    reject = rej
+  })
+  return { promise, resolve, reject }
+}
+
+// Each list request gets its own deferred reply, in the order they are made.
+function deferListReplies() {
+  const replies = []
+  api.listNotifications.mockImplementation(() => {
+    const reply = deferred()
+    replies.push(reply)
+    return reply.promise
+  })
+  return replies
 }
 
 afterEach(() => {
@@ -254,5 +290,65 @@ describe('NotificationsPage', () => {
     await userEvent.click(await screen.findByTestId('notifications-mark-all-button'))
 
     expect(await screen.findByTestId('notifications-banner')).toHaveTextContent('refused')
+  })
+
+  // @story: SCRUM-58
+  // @ac: 5
+  it('a list reply that lands after Mark all as read does not turn rows back to Unread', async () => {
+    signInWith()
+    api.markAllNotificationsRead.mockResolvedValue({ unread_count: 0 })
+    const replies = deferListReplies()
+
+    renderStrictPage()
+    await waitFor(() => expect(replies).toHaveLength(2))
+    await act(async () => replies[1].resolve([UNREAD, HIDDEN_EVENT]))
+    await userEvent.click(await screen.findByTestId('notifications-mark-all-button'))
+    await waitFor(() => {
+      expect(screen.getByTestId('notifications-status-1')).toHaveTextContent('Read')
+    })
+
+    await act(async () => replies[0].resolve([UNREAD, HIDDEN_EVENT]))
+
+    expect(screen.getByTestId('notifications-status-1')).toHaveTextContent('Read')
+    expect(screen.getByTestId('notifications-status-3')).toHaveTextContent('Read')
+  })
+
+  // @story: SCRUM-58
+  // @ac: 4
+  it('a list reply that lands after a notification is opened does not undo that read', async () => {
+    signInWith()
+    api.markNotificationRead.mockResolvedValue({ ...HIDDEN_EVENT, read: true })
+    const replies = deferListReplies()
+
+    renderStrictPage()
+    await waitFor(() => expect(replies).toHaveLength(2))
+    await act(async () => replies[1].resolve([HIDDEN_EVENT]))
+    await userEvent.click(await screen.findByTestId('notifications-open-button-3'))
+    await waitFor(() => {
+      expect(screen.getByTestId('notifications-status-3')).toHaveTextContent('Read')
+    })
+
+    await act(async () => replies[0].resolve([HIDDEN_EVENT]))
+
+    expect(screen.getByTestId('notifications-status-3')).toHaveTextContent('Read')
+  })
+
+  // @story: SCRUM-58
+  it('a reply for a load that has since been unmounted sets nothing, and React warns of nothing', async () => {
+    signInWith()
+    const consoleError = vi.spyOn(console, 'error')
+    const replies = deferListReplies()
+
+    renderStrictPage()
+    await waitFor(() => expect(replies).toHaveLength(2))
+    await act(async () => replies[1].resolve([READ]))
+    await screen.findByTestId('notifications-row-2')
+
+    // The discarded first mount's reply arrives last, here as a refusal.
+    await act(async () => replies[0].reject(new Error('Not logged in')))
+
+    expect(screen.getByTestId('notifications-row-2')).toBeInTheDocument()
+    expect(screen.queryByTestId('notifications-banner')).not.toBeInTheDocument()
+    expect(consoleError).not.toHaveBeenCalled()
   })
 })

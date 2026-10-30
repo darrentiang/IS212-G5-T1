@@ -12,6 +12,8 @@ export default defineConfig({
   testDir: './tests',
   // Every spec shares one SQLite file, seeded once per run by the backend
   // webServer command below, so specs must never run at the same time.
+  // CI splits the specs across shards (--shard=n/6); each shard is its own
+  // run on its own runner, with its own servers and freshly seeded database.
   workers: 1,
   fullyParallel: false,
   timeout: 30_000,
@@ -20,9 +22,12 @@ export default defineConfig({
   // flaky test fails the run. The retry also records the trace (below).
   retries: 1,
   failOnFlakyTests: !!process.env.CI,
+  // In CI each shard also writes a blob report; the Functional job merges
+  // the six into one HTML report and one functional-results.json.
   reporter: [
     ['html', { open: 'never' }],
     ['json', { outputFile: 'test-results/functional-results.json' }],
+    ...(process.env.CI ? [['blob']] : []),
   ],
   use: {
     baseURL: 'http://localhost:5173',
