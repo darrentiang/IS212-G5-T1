@@ -94,9 +94,16 @@ jobs:
           name: vitest-json
           path: frontend/vitest-report.json
 
-  functional-tests:
-    name: Functional
+  # The specs are split across six runners. Each shard starts its own
+  # backend and frontend through the webServer config, so each seeds its own
+  # database; inside a shard the specs still run one at a time (workers: 1).
+  functional-shards:
+    name: Functional shard ${{ matrix.shard }}/6
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6]
     steps:
       - uses: actions/checkout@v4
 
@@ -121,11 +128,62 @@ jobs:
       - name: Install functional dependencies
         run: cd functional && npm ci
 
+      - name: Read Playwright version
+        id: playwright
+        run: cd functional && echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+
+      # Still run on a cache hit: the browser download is skipped, but
+      # --with-deps installs the system packages, which are not cached.
       - name: Install Playwright browsers
         run: cd functional && npx playwright install chromium --with-deps
 
       - name: Run functional tests
-        run: cd functional && npx playwright test
+        run: cd functional && npx playwright test --shard=${{ matrix.shard }}/6
+
+      - name: Upload blob report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: blob-report-${{ matrix.shard }}
+          path: functional/blob-report/
+          retention-days: 1
+
+  # Branch protection requires a check named Functional: this job merges the
+  # shards' reports and fails unless every shard passed.
+  functional-tests:
+    name: Functional
+    runs-on: ubuntu-latest
+    needs: functional-shards
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: functional/package-lock.json
+
+      - name: Install functional dependencies
+        run: cd functional && npm ci
+
+      - name: Download blob reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: blob-report-*
+          merge-multiple: true
+          path: functional/all-blob-reports
+
+      - name: Merge reports
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_FILE: test-results/functional-results.json
+        run: cd functional && npx playwright merge-reports --reporter=html,json all-blob-reports
 
       - name: Upload Playwright report
         if: always()
@@ -140,6 +198,12 @@ jobs:
         with:
           name: functional-json
           path: functional/test-results/functional-results.json
+
+      - name: Fail unless every shard passed
+        if: always() && needs.functional-shards.result != 'success'
+        run: |
+          echo "Functional shards result: ${{ needs.functional-shards.result }}"
+          exit 1
 
   log-to-sheet:
     name: Log to Sheet
