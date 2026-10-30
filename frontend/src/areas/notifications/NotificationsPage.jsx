@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { useAuth } from '../../app/auth'
 import { formatDateTime } from '../../app/format'
@@ -14,12 +14,25 @@ export default function NotificationsPage() {
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
   const [banner, setBanner] = useState(null)
+  // A list reply is applied only if nothing newer happened since it was
+  // requested: no unmount (StrictMode runs this effect twice in development,
+  // so two requests are in flight), no later load, and no Mark all as read or
+  // open — otherwise a late reply would put back rows those already read.
+  const generation = useRef(0)
 
   useEffect(() => {
+    const token = ++generation.current
     listNotifications()
-      .then((data) => setRows(data))
-      .catch((error) => setBanner(error.message))
-      .finally(() => setLoading(false))
+      .then((data) => {
+        if (token === generation.current) setRows(data)
+      })
+      .catch((error) => {
+        if (token === generation.current) setBanner(error.message)
+      })
+      .finally(() => {
+        if (token === generation.current) setLoading(false)
+      })
+    return () => { generation.current += 1 }
   }, [])
 
   // Opening is the only thing that marks a notification read (AC4); an
@@ -32,6 +45,7 @@ export default function NotificationsPage() {
       if (path) navigate(path)
       return
     }
+    generation.current += 1
     try {
       const updated = await markNotificationRead(row.id)
       setRows((current) => current.map((item) => (item.id === updated.id ? updated : item)))
@@ -43,6 +57,7 @@ export default function NotificationsPage() {
   }
 
   async function handleMarkAllRead() {
+    generation.current += 1
     try {
       await markAllNotificationsRead()
       setRows((current) => current.map((item) => ({ ...item, read: true })))

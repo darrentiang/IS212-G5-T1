@@ -11,6 +11,7 @@ How the React front end is built: folders, routing and the permission guard, the
 | 1.4 | 06-10-2026 | `formatDateTimePeriod` in `app/format.js` | `ui-guidelines.md` v1.5 (SCRUM-40) |
 | 1.5 | 15-10-2026 | `app/Banner.jsx`, the one shared page banner; Layout measures its header into `--topbar-height` for it | `ui-guidelines.md` v1.31: the banner must stay in view, and thirteen hand-written copies would each need the same sticky, live-region and dismiss behaviour |
 | 1.6 | 15-10-2026 | `app/reveal.js` (`useReveal`, `useRevealError`) and the `scroll-padding-top` that keeps what it reveals clear of the header | `ui-guidelines.md` v1.32 §13 |
+| 1.7 | 31-10-2026 | §7 and §10 check 9: an `[]` effect needs a stale-response guard when the page also changes the loaded rows itself | SCRUM-58 defect: StrictMode runs an `[]` effect twice in development, and a list reply landing after Mark all as read put the old Unread rows back |
 
 ## 1. Folders
 
@@ -150,7 +151,7 @@ The story author commits this first and opens a draft pull request, so a Develop
   - In Vitest, `Element.prototype.scrollIntoView` is a `vi.fn()` from `app/__tests__/setup.js`; assert focus with `toHaveFocus()` and the revealed element with `scrollIntoView.mock.contexts`.
 - Dates, times and status words come from `app/format.js`: `formatDate(iso)` → `03 Oct 2026`, `formatTime('14:30')` → `14:30`, `formatPeriod(date, start, end)` → `03 Oct 2026, 14:30–16:00`, `formatDateTime('2026-10-03T14:30:00')` → `03 Oct 2026, 14:30`, `formatDateTimePeriod('2026-10-20T09:00', '2026-10-21T18:00')` → `20 Oct 2026, 09:00 to 21 Oct 2026, 18:00`; `STATUS.SUBMITTED === 'Submitted'` and so on for every status in `state-model.md`, grouped per record (`STATUS.REQUEST`, `STATUS.BOOKING`, `STATUS.RESERVATION`, `STATUS.UNIT`, `STATUS.REGISTRATION`). A page never formats a date or types a status string itself.
 - While loading, a page renders its title row only (`ui-guidelines.md` §3): keep a `loading` state, initially true, cleared in `finally`.
-- An effect with no dependencies (`[]`) fetches once and needs no stale-response guard: there is no second fetch to race, and React ignores a state update on an unmounted component. An effect keyed to a route parameter (`[id]`) does need one (`let active = true`, `if (active)` in each callback, `active = false` in the cleanup), because a reply for the record the user has left can arrive after the current one. The guard is proved by a test that changes the id and resolves the first reply last.
+- An effect keyed to a route parameter (`[id]`) needs a stale-response guard (`let active = true`, `if (active)` in each callback, `active = false` in the cleanup), because a reply for the record the user has left can arrive after the current one. The guard is proved by a test that changes the id and resolves the first reply last.
 - A page reads the account with `const { can } = useAuth()`, with no fallback such as `?? {}` or `can?.()`: `App.jsx` always wraps the pages in `AuthProvider`. A test that renders a page reading the account stubs `useAuth`.
 
 ## 8. When two stories share a file
@@ -175,5 +176,5 @@ Some stories share a page (SCRUM-28 Submit and SCRUM-30 Save Draft both change `
 6. Every `ApiError` reaches a field message or the banner.
 7. No dependency added beyond `react-router`.
 8. Elements, text and test ids match `ui-guidelines.md`; dates and status words come from `app/format.js`.
-9. A stale-response guard appears only in an effect keyed to a route parameter, with a test that changes the id and resolves the first reply last (§7). No fallback or guard for a state the app cannot reach.
+9. A stale-response guard appears only in an effect keyed to a route parameter, or in an `[]` effect whose rows the page also changes itself, each with the test §7 names. No fallback or guard for a state the app cannot reach.
 10. No hand-written button, input, table, badge or banner styling where a shared class exists (§9); utilities only for layout.
