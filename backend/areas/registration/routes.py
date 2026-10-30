@@ -2,15 +2,17 @@
 
 SCRUM-27: list confirmed events with registration enabled (read-only).
 SCRUM-55: an Attendee lists their own registrations and withdraws one.
+SCRUM-92: the assigned Event Coordinator sets an event's registration.
 Internal planning fields are never included in this payload.
 """
 
-from flask import Blueprint, g, jsonify
+from flask import Blueprint, g, jsonify, request as flask_request
 
-from areas.registration import services
+from areas.registration import services, settings
+from areas.requests.services import request_detail_dict
 from db import db
 from models import EventRequest
-from permissions import REGISTRATION_VIEW, REGISTRATION_WITHDRAW, require
+from permissions import REGISTRATION_MANAGE, REGISTRATION_VIEW, REGISTRATION_WITHDRAW, require
 
 bp = Blueprint("registration", __name__, url_prefix="/api")
 
@@ -50,3 +52,11 @@ def list_my_registrations():
 @require(REGISTRATION_WITHDRAW)
 def withdraw_registration(registration_id):
     return jsonify(services.withdraw(g.account, registration_id)), 200
+
+
+@bp.put("/requests/<int:request_id>/registration")
+@require(REGISTRATION_MANAGE)
+def set_registration(request_id):
+    """SCRUM-92: on or off, capacity and closing time, saved together."""
+    row = settings.set_registration(g.account, request_id, flask_request.get_json(silent=True))
+    return jsonify(request_detail_dict(row, g.account)), 200

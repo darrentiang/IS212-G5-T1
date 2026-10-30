@@ -1,4 +1,4 @@
-"""Role → feature matrix — SCRUM-27, SCRUM-31, SCRUM-29, SCRUM-36, SCRUM-33, SCRUM-37, SCRUM-49, SCRUM-89, SCRUM-53, SCRUM-50, SCRUM-86, SCRUM-87 (ADR-002).
+"""Role → feature matrix — SCRUM-27, SCRUM-31, SCRUM-29, SCRUM-36, SCRUM-33, SCRUM-37, SCRUM-49, SCRUM-89, SCRUM-53, SCRUM-50, SCRUM-86, SCRUM-87, SCRUM-92 (ADR-002).
 
 Direct transcription of docs/design/permissions.md. An account may hold
 several roles (Q-06, D-09); it may do anything any of its roles allows.
@@ -35,6 +35,7 @@ EQUIPMENT_RESERVE = "equipment.reserve"  # SCRUM-51: Technical Support Staff onl
 EQUIPMENT_EDIT = "equipment.edit"  # SCRUM-49: change an equipment type's total units
 REGISTRATION_VIEW = "registration.view"
 REGISTRATION_WITHDRAW = "registration.withdraw"  # SCRUM-55: an Attendee lists their own registrations and withdraws one
+REGISTRATION_MANAGE = "registration.manage"  # SCRUM-92: set an event's registration, assigned Coordinator only
 INTERNAL_NOTES_VIEW = "internal_notes.view"
 NOTIFICATIONS_VIEW = "notifications.view"
 ASSIGNMENTS_MANAGE = "assignments.manage"  # SCRUM-86: view the unassigned queue and assign from it (Event Coordinator Lead)
@@ -65,6 +66,7 @@ ALL_FEATURES = frozenset(
         EQUIPMENT_EDIT,
         REGISTRATION_VIEW,
         REGISTRATION_WITHDRAW,
+        REGISTRATION_MANAGE,
         INTERNAL_NOTES_VIEW,
         NOTIFICATIONS_VIEW,
         ASSIGNMENTS_MANAGE,
@@ -95,6 +97,7 @@ ROLE_FEATURES = {
         EQUIPMENT_REQUIREMENTS_EDIT,
         EQUIPMENT_VIEW,  # SCRUM-49 AC1: view the inventory and its totals
         REGISTRATION_VIEW,
+        REGISTRATION_MANAGE,  # SCRUM-92: only the assigned coordinator (service rule)
         INTERNAL_NOTES_VIEW,
         NOTIFICATIONS_VIEW,
     },

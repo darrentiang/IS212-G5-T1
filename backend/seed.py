@@ -154,6 +154,10 @@ def seed_database(db, data_path=DEFAULT_DATA_PATH, standing_bookings=True):
                 status=entry["status"],
                 created_by=owner,
                 registration_enabled=bool(entry.get("registration_enabled", False)),
+                # SCRUM-92: the registration capacity and closing time; the
+                # closing time is written without an offset (local wall-clock).
+                registration_capacity=entry.get("registration_capacity"),
+                registration_closes_at=parse_datetime(entry.get("registration_closes_at")),
                 coordinator_notes=entry.get("coordinator_notes"),
                 submitted_at=parse_datetime(entry.get("submitted_at")),
                 # SCRUM-43: standing events already assigned to a coordinator,

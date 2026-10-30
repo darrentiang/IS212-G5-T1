@@ -13,7 +13,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'backend'))
 from app import create_app
 from db import db
-from models import Account, EventRequest, Registration, Role
+from models import Account, EventRequest, Registration, Role, account_roles
 
 PREFIX = 'SCRUM-55 TC'
 DAY = '2027-12-20'  # every event starts at 10:00 on this day
@@ -23,6 +23,10 @@ def clear():
     ids = [row.id for row in db.session.query(EventRequest).filter(EventRequest.name.like(f'{PREFIX}%'))]
     db.session.query(Registration).filter(Registration.event_request_id.in_(ids)).delete(synchronize_session=False)
     db.session.query(EventRequest).filter(EventRequest.id.in_(ids)).delete(synchronize_session=False)
+    # The role link first: a bulk delete skips it, and SQLite reuses the id for the
+    # next account, which then collides with the stale link (found by SCRUM-92).
+    second = db.session.query(Account.id).filter(Account.username == 'att2').scalar_subquery()
+    db.session.execute(account_roles.delete().where(account_roles.c.account_id == second))
     db.session.query(Account).filter(Account.username == 'att2').delete(synchronize_session=False)
     db.session.commit()
 
