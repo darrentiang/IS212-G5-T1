@@ -2,9 +2,12 @@
 
 Every event is named "SCRUM-55 TCnn ..." and every registration belongs to att1
 (or to att2, the second Attendee account TC-SCRUM-55-07 and 09 need, which the
-seed does not have). --clear removes exactly what this file stages. Nothing in
-the app can register an Attendee yet (SCRUM-54), so the registrations are
-inserted directly, as SCRUM-50 does for reservations.
+seed does not have). --clear removes exactly what this file stages. The
+registrations a row starts with are inserted directly, as SCRUM-50 does for
+reservations (att1's for row 08's event already Withdrawn); rows 07 and 08 then
+register through the page (SCRUM-54). Every
+event has registration on with a capacity (one place on row 07's, so it is
+full) and closes at its start (SCRUM-92).
 """
 import sys
 from datetime import datetime, timezone
@@ -44,16 +47,18 @@ def seed():
         db.session.add(second)
         now = datetime.now(timezone.utc).replace(tzinfo=None)
 
-        def registered(label, status='Confirmed'):
+        def registered(label, status='Confirmed', capacity=40, registration='Registered'):
             event = EventRequest(
                 name=f'{PREFIX}{label}', status=status, date=DAY, start_time='10:00', end_time='12:00', attendance=40,
                 purpose='Registration test', description='Functional fixture', equipment_requirements='None',
-                registration_needs='None', registration_enabled=True, created_by=accounts['org1'],
+                registration_needs='None', registration_enabled=True, registration_capacity=capacity,
+                registration_closes_at=datetime.fromisoformat(f'{DAY}T10:00'), created_by=accounts['org1'],
                 assigned_coordinator=accounts['coord1'])
             db.session.add(event)
             db.session.flush()
-            db.session.add(Registration(event_request=event, attendee=accounts['att1'], status='Registered',
-                                        registered_at=now))
+            db.session.add(Registration(event_request=event, attendee=accounts['att1'], status=registration,
+                                        registered_at=now,
+                                        withdrawn_at=now if registration == 'Withdrawn' else None))
 
         registered('01 Withdraw Gala')
         registered('02 Withdraw Gala')
@@ -61,6 +66,8 @@ def seed():
         registered('04 Started Gala')
         registered('05 Twice Gala')
         registered('06 Cancelled Gala', status='Cancelled')
+        registered('07 Full Gala', capacity=1)
+        registered('08 Again Gala', registration='Withdrawn')
         registered('09 Open Gala')
         registered('10 Open Gala')
         db.session.commit()
