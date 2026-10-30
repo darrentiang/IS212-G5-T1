@@ -51,7 +51,7 @@ Rule: "Assigned coordinator" and "Assigned only" mean the Event Coordinator the 
 
 ## Feature keys
 
-Keys used in `backend/permissions.py` and on API routes / `features` from `/api/me`. A pytest asserts this table matches `ROLE_FEATURES` in code (ADR-002). Object rules ("own only", "all except Draft", "events in Safety Check") stay in services, not in this table.
+Keys used in `backend/permissions.py` and on API routes / `features` from `/api/me`. A pytest asserts this table matches `ROLE_FEATURES` in code (ADR-002). Object rules ("own only", "all except Draft", "events in Safety Check") stay in services, not in this table. `equipment.edit` covers changing a type's total units (SCRUM-49) and withdrawing units from service and returning them (SCRUM-52).
 
 | Key | Event Organiser | Event Coordinator | Event Coordinator Lead | Venue Staff | Technical Support Staff | Safety Officer | Attendee |
 |---|---|---|---|---|---|---|---|
@@ -122,6 +122,7 @@ Keys used in `backend/permissions.py` and on API routes / `features` from `/api/
 | 1.33 | 26-10-2026 | New row "View the arrangements of an event" for the Event Organiser, own request only, enforced in the service; it is read with the existing `requests.view` key, so there is no new key. Coordinators and staff see an event's arrangements through the planning information they already have | SCRUM-46 AC2, AC5, AC6 |
 | 1.34 | 28-10-2026 | New key `registration.withdraw` for the Attendee and new row "View my registrations" (own only, enforced in the service): an Attendee lists their own registrations and withdraws one; asking for a registration that is not theirs answers 404. Registering stays under its own story | SCRUM-55 AC1, AC3, AC5 |
 | 1.35 | 30-10-2026 | New row "Set registration for an event" and key `registration.manage` for Event Coordinators (assigned only, enforced in the service, answering 404 to anyone else as a write; 409 outside Approved, Planning, Safety Check and Confirmed). The settings are read on the event's detail by its assigned coordinator only | SCRUM-92 AC1, AC5 (`target/permissions.md` has no wording for this row) |
+| 1.36 | 31-10-2026 | `equipment.edit` also covers withdrawing units from service and returning them (the existing row "Maintain equipment inventory; withdraw from service", Technical Support Staff only); no new key or role | SCRUM-52 AC8 |
 
 SCRUM-81: Technical Support may decide or correct a requirement only while the event is Approved or Planning and no reservation for the same event/type is Reserved. Released history does not block a decision. Arrangement notes remain editable in those event stages even with a Reserved reservation. These mutations grant no general event-request access.
 

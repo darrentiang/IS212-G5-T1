@@ -109,7 +109,9 @@ def test_tech_sees_inventory_with_totals(client):
     by_name = {row["name"]: row for row in rows}
     assert by_name["Projector"]["total_units"] == 10
     assert by_name["Microphones"]["total_units"] == 20
-    assert set(by_name["Projector"]) == {"id", "name", "description", "location", "total_units"}
+    assert set(by_name["Projector"]) == {
+        "id", "name", "description", "location", "total_units", "out_of_service_units",  # SCRUM-52
+    }
     assert by_name["Projector"]["description"] == "Portable projector"
     assert by_name["Projector"]["location"] == "Equipment Store A"
 
@@ -181,6 +183,7 @@ def test_tech_changes_total_and_it_persists(client):
         "description": "",
         "location": "",
         "total_units": 8,
+        "out_of_service_units": 0,  # SCRUM-52
     }
     client.post("/api/logout")
     _login(client, "tech1")
@@ -852,7 +855,7 @@ def test_stock_edit_cannot_change_read_only_catalogue_metadata(client):
     expected = {
         "id": projector.id, "name": "Projector",
         "description": "Portable projector", "location": "Equipment Store A",
-        "total_units": 8,
+        "total_units": 8, "out_of_service_units": 0,  # SCRUM-52
     }
     assert resp.get_json() == expected
     db.session.expire_all()

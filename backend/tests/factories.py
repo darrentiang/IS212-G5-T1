@@ -16,9 +16,11 @@ from models import (
     AccessibilityFeature,
     Account,
     Clarification,
+    EquipmentType,
     EventRequest,
     Facility,
     Registration,
+    Reservation,
     Role,
     RoomLayout,
     Venue,
@@ -142,6 +144,30 @@ def make_equipment_requirement(*, event, equipment, quantity, status="Requested"
     row = EquipmentRequirement(event_request=event, equipment_type=equipment,
                                quantity=quantity, status=status,
                                technical_requirements=technical_requirements)
+    db.session.add(row)
+    db.session.commit()
+    return row
+
+
+def make_equipment_type(*, name, total_units, out_of_service_units=0):
+    """Store one equipment type of the test's own (the seeded types are reference data)."""
+    row = EquipmentType(name=name, total_units=total_units, out_of_service_units=out_of_service_units)
+    db.session.add(row)
+    db.session.commit()
+    return row
+
+
+def make_reservation(*, event, equipment, quantity, status="Reserved"):
+    """Store one reservation of the type for the event, its period copied from the event (SCRUM-51)."""
+    row = Reservation(
+        event_request=event,
+        equipment_type=equipment,
+        quantity=quantity,
+        date=event.date,
+        start_time=event.start_time,
+        end_time=event.end_time,
+        status=status,
+    )
     db.session.add(row)
     db.session.commit()
     return row

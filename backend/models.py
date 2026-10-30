@@ -52,7 +52,9 @@ from db import db
 # SCRUM-47 adds the EventChange table (the record of significant changes), so 28.
 # SCRUM-55 adds the Registration table (an Attendee's registration for an event), so 29.
 # SCRUM-92 adds an event's registration capacity and closing time, so 30.
-SCHEMA_VERSION = 30
+# SCRUM-52 adds an equipment type's out_of_service_units and the
+# EquipmentServiceChange table (every withdrawal and return), so 31.
+SCHEMA_VERSION = 31
 
 
 account_roles = db.Table(
@@ -533,7 +535,9 @@ class EquipmentType(db.Model):
     and "Maintain equipment inventory"). An edit changes only total_units —
     never the name or any other attribute. Zero is a valid total and keeps
     the type listed; per-event availability is SCRUM-50 and reserving is
-    SCRUM-51. No permission logic here — see backend/permissions.py.
+    SCRUM-51. SCRUM-52 counts units out of service per type, not one by
+    one: in service is total_units − out_of_service_units. No permission
+    logic here — see backend/permissions.py.
     """
 
     __tablename__ = "equipment_types"
@@ -545,6 +549,7 @@ class EquipmentType(db.Model):
     description = db.Column(db.Text, nullable=False, default="")
     location = db.Column(db.String(200), nullable=False, default="")
     total_units = db.Column(db.Integer, nullable=False)
+    out_of_service_units = db.Column(db.Integer, nullable=False, default=0)
 
     reservations = db.relationship("Reservation", backref="equipment_type")
 
@@ -555,10 +560,36 @@ class EquipmentType(db.Model):
             "description": self.description,
             "location": self.location,
             "total_units": self.total_units,
+            "out_of_service_units": self.out_of_service_units,
         }
 
     def __repr__(self):
         return f"<EquipmentType {self.id} {self.name}>"
+
+
+class EquipmentServiceChange(db.Model):
+    """One withdrawal from, or return to, service of units of a type (SCRUM-52).
+
+    A row per withdrawal or return, never changed afterwards. ``action`` is
+    Withdrawn or Returned; ``reason`` is required for a withdrawal and null
+    for a return. ``changed_at`` is UTC, like the other decision timestamps.
+    Stored, not shown, in SCRUM-52.
+    """
+
+    __tablename__ = "equipment_service_changes"
+
+    ACTIONS = ("Withdrawn", "Returned")
+
+    id = db.Column(db.Integer, primary_key=True)
+    equipment_type_id = db.Column(db.Integer, db.ForeignKey("equipment_types.id"), nullable=False)
+    action = db.Column(db.String(16), nullable=False)
+    quantity = db.Column(db.Integer, nullable=False)
+    reason = db.Column(db.Text, nullable=True)
+    changed_by_id = db.Column(db.Integer, db.ForeignKey("accounts.id"), nullable=False)
+    changed_at = db.Column(db.DateTime, nullable=False)
+
+    equipment_type = db.relationship("EquipmentType", backref="service_changes")
+    changed_by = db.relationship("Account", foreign_keys=[changed_by_id])
 
 
 class Reservation(db.Model):

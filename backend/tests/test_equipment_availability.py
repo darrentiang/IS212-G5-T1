@@ -2,7 +2,7 @@
 Support Staff read how many units of a type are free for a period.
 
 The check is read-only and uses SCRUM-49's committed peak (commitments.py).
-Units out of service are SCRUM-52's and show 0 until it exists (pending test).
+Units out of service are SCRUM-52's, withdrawn through its endpoint.
 These tests build their equipment types, events and reservations with
 tests/factories.py and this file's own small helpers.
 """
@@ -500,6 +500,18 @@ def test_peak_units_can_leave_one_events_reservation_out(app):
 
 # @story: SCRUM-50
 # @ac: 3, 4
-@pytest.mark.skip(reason="PENDING SCRUM-52: no units can be withdrawn from service yet")
 def test_units_out_of_service_are_taken_off_what_is_available(client, app):
-    raise AssertionError("withdraw units with SCRUM-52 and prove available falls by that number")
+    projector = make_type("Withdrawn Projector", 10)
+    reserve(projector, "10:00", "12:00", 4)
+    login_as(client, "tech1")
+    withdrawn = client.post(f"/api/equipment/{projector.id}/withdraw",
+                            json={"quantity": "3", "reason": "Lamp failed"})
+    assert withdrawn.status_code == 200
+
+    body = check(client, projector, "10:00", "12:00").get_json()
+
+    # 10 total - 4 reserved - 3 out of service = 3
+    assert body["total_units"] == 10
+    assert body["reserved_units"] == 4
+    assert body["out_of_service_units"] == 3
+    assert body["available_units"] == 3
