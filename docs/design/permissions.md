@@ -73,6 +73,7 @@ Keys used in `backend/permissions.py` and on API routes / `features` from `/api/
 | equipment.reserve | No | No | No | No | Yes | No | No |
 | equipment.edit | No | No | No | No | Yes | No | No |
 | registration.view | No | Yes | No | No | No | No | Yes |
+| registration.register | No | No | No | No | No | No | Yes |
 | registration.withdraw | No | No | No | No | No | No | Yes |
 | registration.manage | No | Yes | No | No | No | No | No |
 | internal_notes.view | No | Yes | Yes | No | No | No | No |
@@ -123,6 +124,7 @@ Keys used in `backend/permissions.py` and on API routes / `features` from `/api/
 | 1.34 | 28-10-2026 | New key `registration.withdraw` for the Attendee and new row "View my registrations" (own only, enforced in the service): an Attendee lists their own registrations and withdraws one; asking for a registration that is not theirs answers 404. Registering stays under its own story | SCRUM-55 AC1, AC3, AC5 |
 | 1.35 | 30-10-2026 | New row "Set registration for an event" and key `registration.manage` for Event Coordinators (assigned only, enforced in the service, answering 404 to anyone else as a write; 409 outside Approved, Planning, Safety Check and Confirmed). The settings are read on the event's detail by its assigned coordinator only | SCRUM-92 AC1, AC5 (`target/permissions.md` has no wording for this row) |
 | 1.36 | 31-10-2026 | `equipment.edit` also covers withdrawing units from service and returning them (the existing row "Maintain equipment inventory; withdraw from service", Technical Support Staff only); no new key or role | SCRUM-52 AC8 |
+| 1.37 | 31-10-2026 | New key `registration.register` for the Attendee, under the existing row "Register or withdraw registration" (no new action row): an Attendee registers themselves for a Confirmed event with registration on, before its closing time and while places are left. A missing event, or one an Attendee could never have seen listed (Draft, Submitted, Approved, Planning, Safety Check, Rejected), answers 404, a write never confirming a record the account may not read; a Confirmed event with registration off, a Cancelled or Completed event, or one that is closed, full or already registered for answers 409 with the reason. The list each event is registered from gives only its name, purpose, date, time, venues and the account's state | SCRUM-54 AC1 to AC6 |
 
 SCRUM-81: Technical Support may decide or correct a requirement only while the event is Approved or Planning and no reservation for the same event/type is Reserved. Released history does not block a decision. Arrangement notes remain editable in those event stages even with a Reserved reservation. These mutations grant no general event-request access.
 

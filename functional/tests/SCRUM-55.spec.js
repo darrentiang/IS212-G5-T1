@@ -8,15 +8,12 @@ import { pinClock, clearClock } from './helpers/clock.js'
 //
 // The events and registrations each row opens are staged by
 // fixtures/scrum55.py, named "SCRUM-55 TCnn ...", together with att2, the second
-// Attendee account rows 07 and 09 need. Nothing in the app can register an
-// Attendee yet (SCRUM-54), so the registrations are inserted directly. Rows 02
-// to 04 pin the app's clock to the minute the row names.
+// Attendee account rows 07 and 09 need. The registrations each row starts with are
+// inserted directly. Rows 02 to 04, 07 and 08 pin the app's clock to a minute
+// before the events start (and close).
 //
-// Rows 07 and 08 need SCRUM-54's Register action and SCRUM-92's capacity and
-// closing time, so they are test.fixme: reported as skipped, never as passed.
-// The same rules are proved at the API in backend/tests/test_registration_withdraw.py
-// as far as withdrawing goes. They run for real in a regression PR once 54 and
-// 92 are merged, as SCRUM-53's waiting rows did (#62).
+// Rows 07 and 08 register through the Registration page, SCRUM-54's Register,
+// on events with SCRUM-92's capacity and closing time.
 
 const BASE_URL = 'http://localhost:5173'
 const fixtureScript = fileURLToPath(new URL('../fixtures/scrum55.py', import.meta.url))
@@ -38,6 +35,14 @@ async function openMyRegistrations(page) {
   await page.getByTestId('layout-nav-registrations').click()
   await expect(page.getByTestId('registrations-title')).toHaveText('My registrations')
 }
+
+async function openRegistration(page) {
+  await page.getByTestId('layout-nav-registration').click()
+  await expect(page.getByTestId('registration-title')).toHaveText('Registration')
+}
+
+// A staged event's row on the Registration page (SCRUM-54); its test id carries the event's id.
+const eventRowOf = (page, eventName) => page.getByTestId(/^registration-row-/).filter({ hasText: eventName })
 
 // The row of a staged event on the page; its test id carries the registration's id.
 const rowOf = (page, eventName) => page.getByTestId(/^registrations-row-/).filter({ hasText: eventName })
@@ -181,16 +186,50 @@ test('a registration for a Cancelled event cannot be withdrawn', async ({ page }
 // @test: a withdrawn place goes back to the event, so the next Attendee can take it
 // @story: SCRUM-55
 // @ac: 2
-test.fixme('a withdrawn place goes back to the event, so the next Attendee can take it', async () => {
-  // PENDING SCRUM-54 and SCRUM-92: nothing registers an Attendee or sets a capacity yet.
+test('a withdrawn place goes back to the event, so the next Attendee can take it', async ({ page }) => {
+  pinClock('2027-12-20T09:00')
+  const name = 'SCRUM-55 TC07 Full Gala'
+  await login(page, 'att2')
+  await openRegistration(page)
+  await expect(eventRowOf(page, name).getByTestId(/^registration-action-/)).toHaveText('Full')
+  await page.getByTestId('layout-logout-button').click()
+  await login(page, 'att1')
+  await openMyRegistrations(page)
+
+  await rowOf(page, name).getByRole('button', { name: 'Withdraw' }).click()
+  await expect(rowOf(page, name).getByTestId(/^registrations-status-/)).toHaveText('Withdrawn')
+  await page.getByTestId('layout-logout-button').click()
+  await login(page, 'att2')
+  await openRegistration(page)
+  await eventRowOf(page, name).getByRole('button', { name: 'Register' }).click()
+
+  await expect(page.getByTestId('registration-banner')).toHaveText(
+    // No venue is booked for the staged events, so the confirmation names none.
+    `Registered for ${name}: 20 Dec 2027, 10:00–12:00.`,
+  )
+  await expect(eventRowOf(page, name).getByTestId(/^registration-action-/)).toHaveText('Registered')
+  await page.getByTestId('layout-logout-button').click()
+  await login(page, 'att1')
+  await openMyRegistrations(page)
+  await expect(rowOf(page, name).getByTestId(/^registrations-status-/)).toHaveText('Withdrawn')
 })
 
 // @tc: TC-SCRUM-55-08
 // @test: registering again after withdrawing makes a new registration, and the Withdrawn one stays
 // @story: SCRUM-55
 // @ac: 4
-test.fixme('registering again after withdrawing makes a new registration, and the Withdrawn one stays', async () => {
-  // PENDING SCRUM-54 and SCRUM-92: nothing registers an Attendee or sets the closing time yet.
+test('registering again after withdrawing makes a new registration, and the Withdrawn one stays', async ({ page }) => {
+  pinClock('2027-12-20T09:00')
+  const name = 'SCRUM-55 TC08 Again Gala'
+  await login(page, 'att1')
+  await openRegistration(page)
+
+  await eventRowOf(page, name).getByRole('button', { name: 'Register' }).click()
+  await expect(eventRowOf(page, name).getByTestId(/^registration-action-/)).toHaveText('Registered')
+
+  await openMyRegistrations(page)
+  await expect(rowOf(page, name)).toHaveCount(2)
+  await expect(rowOf(page, name).getByTestId(/^registrations-status-/)).toHaveText(['Withdrawn', 'Registered'])
 })
 
 // @tc: TC-SCRUM-55-09

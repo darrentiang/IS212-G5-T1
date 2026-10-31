@@ -107,7 +107,7 @@ test('an Attendee does not see internal planning information', async ({ page }) 
   await login(page, 'att1')
   await page.getByTestId('layout-nav-registration').click()
 
-  await expect(page.getByText('Open House')).toBeVisible()
+  await expect(page.getByText('Open House', { exact: true })).toBeVisible()
   await expect(page.getByText(/roster|internal|coordinator notes/i)).not.toBeVisible()
 })
 
@@ -120,6 +120,6 @@ test('an Attendee can view a confirmed event that has registration enabled', asy
   await page.getByTestId('layout-nav-registration').click()
 
   await expect(page.getByTestId('registration-title')).toBeVisible()
-  await expect(page.getByText('Open House')).toBeVisible()
+  await expect(page.getByText('Open House', { exact: true })).toBeVisible()
   await expect(page.getByTestId('layout-roles')).toHaveText('Attendee')
 })

@@ -1,6 +1,8 @@
 """Attendee registration — Jira area(s) 18.
 
 SCRUM-27: list confirmed events with registration enabled (read-only).
+SCRUM-54: an Attendee registers for one; each listed event says whether the
+account may register, is registered, or it is closed or full.
 SCRUM-55: an Attendee lists their own registrations and withdraws one.
 SCRUM-92: the assigned Event Coordinator sets an event's registration.
 Internal planning fields are never included in this payload.
@@ -10,9 +12,13 @@ from flask import Blueprint, g, jsonify, request as flask_request
 
 from areas.registration import services, settings
 from areas.requests.services import request_detail_dict
-from db import db
-from models import EventRequest
-from permissions import REGISTRATION_MANAGE, REGISTRATION_VIEW, REGISTRATION_WITHDRAW, require
+from permissions import (
+    REGISTRATION_MANAGE,
+    REGISTRATION_REGISTER,
+    REGISTRATION_VIEW,
+    REGISTRATION_WITHDRAW,
+    require,
+)
 
 bp = Blueprint("registration", __name__, url_prefix="/api")
 
@@ -20,26 +26,14 @@ bp = Blueprint("registration", __name__, url_prefix="/api")
 @bp.get("/registration/events")
 @require(REGISTRATION_VIEW)
 def list_open_events():
-    rows = (
-        db.session.query(EventRequest)
-        .filter(
-            EventRequest.status == "Confirmed",
-            EventRequest.registration_enabled.is_(True),
-        )
-        .all()
-    )
-    return jsonify(
-        [
-            {
-                "id": row.id,
-                "name": row.name,
-                "purpose": row.purpose,
-                "status": row.status,
-                "registration_enabled": True,
-            }
-            for row in rows
-        ]
-    )
+    return jsonify(services.list_open(g.account))
+
+
+@bp.post("/registration/events/<int:event_id>/register")
+@require(REGISTRATION_REGISTER)
+def register_for_event(event_id):
+    """SCRUM-54: — -> Registered; the reply is the event as listed, for the confirmation."""
+    return jsonify(services.register(g.account, event_id)), 201
 
 
 @bp.get("/registrations/mine")

@@ -63,6 +63,7 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | 1.53 | 28-10-2026 | §1 `/registrations`; §12 Registered is Success; a SCRUM-55 section: the My registrations page with its Withdraw button, banner texts and test ids | SCRUM-55 AC1, AC3, AC5 |
 | 1.54 | 30-10-2026 | A SCRUM-92 section: the request page's Registration section (On/Off, Capacity, Closes), its Edit control and inline form, banner texts and test ids | SCRUM-92 AC1 to AC5 |
 | 1.55 | 31-10-2026 | §7 equipment inventory gains an Out of service column; a SCRUM-52 section: Withdraw and Return on each row with their inline forms, banners, the list of events no longer covered, the notification text and their test ids | SCRUM-52 AC1, AC2, AC4, AC6, AC8 |
+| 1.56 | 31-10-2026 | §1 `/registration`; a SCRUM-54 section: the Registration page's Purpose, Date and time, Venues and Action columns beside Event and Status, the event name a link only with `requests.view`, the Register button and the Registered, Registration closed and Full words, the confirmation banner, the refusals and their test ids | SCRUM-54 AC1 to AC6 |
 
 ## 1. Pages
 
@@ -84,6 +85,7 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | `/equipment-requirements` | `equipment-requests` (nav: Equipment requests) | `equipment.requirements.view`; the API returns only the events this account may read |
 | `/requests/:id/equipment` | `equipment-requirements` (no nav) | `equipment.requirements.view`; the API returns only the events this account may read |
 | `/notifications` | `notifications` | Logged in; every role holds `notifications.view` |
+| `/registration` | `registration` (nav: Registration) | `registration.view` (the Attendee, and the Event Coordinator read-only); the API returns only Confirmed events with registration on |
 | `/registrations` | `registrations` (nav: My registrations) | `registration.withdraw` (the Attendee); the API returns only the account's own registrations |
 | — (shown in place of a refused page) | `not-permitted` | Anyone whose account lacks the page's feature |
 
@@ -928,6 +930,23 @@ Withdraw acts at once, with no confirmation form, because registering again is p
 | Its event, period, event status, registration status | `registrations-event-<id>`, `-period-<id>`, `-event-status-<id>`, `-status-<id>` |
 | Withdraw button | `registrations-withdraw-button-<id>` |
 | Banner and its dismiss control | `registrations-banner`, `registrations-banner-dismiss` |
+
+## SCRUM-54 — Register on the Registration page
+
+**Registration** (`/registration`, page `registration`, nav link `Registration`) lists the Confirmed events with registration on in a table per §6, by date and time. Each row shows the event's name (a link to its request page only for an account with `requests.view`; plain text for an Attendee, who cannot open it), its purpose, its date and time as `10 Dec 2026, 19:00–21:00`, its venues (the names of its Approved venue bookings, comma-separated, in name order), its status as a badge, and an Action cell. Nothing else about the event is shown: never coordinator notes, requests, reasons, capacity or counts. With no events the page says `No events open for registration.` in place of the table.
+
+The Action cell says what this account may do, as the server decides it (`state`), never the browser's clock: a **Register** button; **Registered** as a badge (Success, §12), when the account holds a Registered registration for the event; or the plain text **Registration closed** (from the closing time) or **Full** (no place left). When several apply the cell shows Registered, then Registration closed, then Full. Register is shown only to an account with `registration.register` (the Attendee); for anyone else that cell is empty.
+
+Register acts at once, with no confirmation form. On success the banner (§4) says `Registered for <event>: <date>, <start>–<end>, <venues>.` (e.g. `Registered for Reg Concert: 10 Dec 2026, 19:00–21:00, Seminar Room 1.`; an event with no Approved venue booking names none: `… 19:00–21:00.`) and the list is read again, so the row shows Registered. A refused registration shows the API's message in the banner and the list is read again, so a place taken or a closing time passed meanwhile shows on the row: `This event is not open for registration.`, `Registration for this event has closed.`, `You are already registered for this event.` or `This event is full.`; an event that does not exist, or one an Attendee could never have seen listed (Draft, Submitted, Approved, Planning, Safety Check or Rejected), answers `Event not found.` (404), and an account without `registration.register` is refused with `You do not have permission to perform this action.` (403).
+
+| Element | `data-testid` |
+|---|---|
+| Title, empty sentence | `registration-title`, `registration-empty` |
+| An event row | `registration-row-<id>` |
+| Its event, purpose, period, venues, status | `registration-event-<id>`, `-purpose-<id>`, `-period-<id>`, `-venues-<id>`, `-status-<id>` |
+| Its Action cell (Registered, Registration closed or Full) | `registration-action-<id>` |
+| Register button | `registration-register-button-<id>` |
+| Banner and its dismiss control | `registration-banner`, `registration-banner-dismiss` |
 
 ## SCRUM-92 — Registration on Request detail
 
