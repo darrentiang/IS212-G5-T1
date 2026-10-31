@@ -33,7 +33,8 @@ Every acceptance criterion that changes a status uses a value from these tables.
 | 1.26 | 28-10-2026 | No change to any status or transition. Registration: Registered → Withdrawn is built (the Attendee withdraws their own registration until the event starts; never for a Cancelled event); a Withdrawn registration never goes back, so registering again makes a new row | SCRUM-55 AC1 to AC4 |
 | 1.27 | 30-10-2026 | No change to any status or transition. Registration: an event's registration has an on/off switch, a capacity and a closing time, set by its assigned Event Coordinator while it is Approved, Planning, Safety Check or Confirmed; "within the window and capacity" means at or before the closing time and while the Registered count is below the capacity. A SCRUM-47 edit that moves the start before the closing time moves the closing time to the new start; schema 30 | SCRUM-92 AC1 to AC5 (the Registration table copied from `target/state-model.md`, which has no wording for the settings themselves) |
 | 1.28 | 31-10-2026 | No change to any status or transition. Equipment unit is built: In Service → Out of Service (withdraw, reason required) and Out of Service → In Service (return) by Technical Support Staff. Units are counted per type, not tracked one by one: a type keeps its units out of service, and in service is its total less those; every withdrawal and return is kept (an EquipmentServiceChange record: action, quantity, reason, who, when in UTC). Out-of-service units are not available to the availability check or to reserving, and a total cannot go below them plus the reserved peak from now on | SCRUM-52 (table copied from `target/state-model.md` earlier; this story builds it); schema 31 |
-| 1.29 | 31-10-2026 | New: Change request (Open; Accepted and Declined are SCRUM-60's; Closed when the event becomes Rejected, Cancelled or Completed), what a change affects and what then needs reviewing; raising a request never changes the event's status | Week 7 customer change; SCRUM-59 (the take note's slice) |
+| 1.29 | 31-10-2026 | No change to any status or transition. Registration: — → Registered is built (the Attendee registers for a Confirmed event with registration on, before its closing time and while the Registered count is below the capacity; one Registered registration per Attendee per event; checked under the event's write lock). "Within the window" is before the closing time: from the closing time registration is closed, correcting v1.27's "at or before". A Withdrawn registration never counts and never blocks, so registering again makes a new row | SCRUM-54 AC1 to AC3, AC6 (the Registration table as in `target/state-model.md`) |
+| 1.30 | 31-10-2026 | New: Change request (Open; Accepted and Declined are SCRUM-60's; Closed when the event becomes Rejected, Cancelled or Completed), what a change affects and what then needs reviewing; raising a request never changes the event's status | Week 7 customer change; SCRUM-59 (the take note's slice) |
 
 The front end holds these words in `frontend/src/app/format.js` (`STATUS`); a change here changes that file in the same pull request. v1.12 adds Held and Released (`STATUS.HOLD`); v1.18 adds Expired (`STATUS.HOLD.EXPIRED`); v1.14 adds Cancelled to a venue booking request's words (`STATUS.BOOKING.CANCELLED`); v1.15's Venue unavailable is a flag, held there as `VENUE_UNAVAILABLE`.
 
@@ -192,8 +193,17 @@ with none stored takes the expected attendance and the event's start;
 registration cannot be turned off while anyone is Registered, and turning it
 off keeps both values. A SCRUM-47 edit that moves the event's start before the
 closing time moves the closing time to the new start, in the same save,
-without a change-record line. Registering itself (SCRUM-54) enforces the
-window and capacity.
+without a change-record line.
+
+**Registering (SCRUM-54).** An Attendee registers for an event that is
+Confirmed with registration on, before its closing time (from the closing time
+it is closed) and while the Registered count is below the capacity, so the
+last place can be taken and no more. An Attendee holds at most one Registered
+registration per event; a Withdrawn one never counts and never blocks, and
+registering again makes a new row. Every check is read under the event's
+write lock, the one SCRUM-92 saves the settings under, so places go first come,
+first served. A refusal changes nothing. An event an Attendee could never have
+seen listed (before Confirmed, or Rejected) is answered as not found.
 
 ## Change request
 

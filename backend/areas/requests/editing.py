@@ -58,16 +58,24 @@ def _shown(event, field):
     return None if value is None else str(value)
 
 
-def _lock(account, request_id):
-    """The event under its write lock, else refuse 404 (a write never confirms
-    a record that is not the account's, permissions.md)."""
+def lock_event(request_id):
+    """The event under its write lock (a no-op UPDATE of its row), or None when
+    there is no such event. Who may act on it is the caller's rule (SCRUM-54
+    registers an Attendee under the same lock)."""
     event = db.session.get(EventRequest, request_id)
     if event is None:
-        raise ApiRefusal(404, "Event request not found.")
+        return None
     db.session.execute(update(EventRequest).where(EventRequest.id == request_id)
                        .values(id=EventRequest.id))
     db.session.refresh(event)
-    if event.status == "Draft" or event.assigned_coordinator_id != account.id:
+    return event
+
+
+def _lock(account, request_id):
+    """The event under its write lock, else refuse 404 (a write never confirms
+    a record that is not the account's, permissions.md)."""
+    event = lock_event(request_id)
+    if event is None or event.status == "Draft" or event.assigned_coordinator_id != account.id:
         raise ApiRefusal(404, "Event request not found.")
     return event
 
