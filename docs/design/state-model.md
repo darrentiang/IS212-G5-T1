@@ -33,6 +33,7 @@ Every acceptance criterion that changes a status uses a value from these tables.
 | 1.26 | 28-10-2026 | No change to any status or transition. Registration: Registered → Withdrawn is built (the Attendee withdraws their own registration until the event starts; never for a Cancelled event); a Withdrawn registration never goes back, so registering again makes a new row | SCRUM-55 AC1 to AC4 |
 | 1.27 | 30-10-2026 | No change to any status or transition. Registration: an event's registration has an on/off switch, a capacity and a closing time, set by its assigned Event Coordinator while it is Approved, Planning, Safety Check or Confirmed; "within the window and capacity" means at or before the closing time and while the Registered count is below the capacity. A SCRUM-47 edit that moves the start before the closing time moves the closing time to the new start; schema 30 | SCRUM-92 AC1 to AC5 (the Registration table copied from `target/state-model.md`, which has no wording for the settings themselves) |
 | 1.28 | 31-10-2026 | No change to any status or transition. Equipment unit is built: In Service → Out of Service (withdraw, reason required) and Out of Service → In Service (return) by Technical Support Staff. Units are counted per type, not tracked one by one: a type keeps its units out of service, and in service is its total less those; every withdrawal and return is kept (an EquipmentServiceChange record: action, quantity, reason, who, when in UTC). Out-of-service units are not available to the availability check or to reserving, and a total cannot go below them plus the reserved peak from now on | SCRUM-52 (table copied from `target/state-model.md` earlier; this story builds it); schema 31 |
+| 1.29 | 31-10-2026 | New: Change request (Open; Accepted and Declined are SCRUM-60's; Closed when the event becomes Rejected, Cancelled or Completed), what a change affects and what then needs reviewing; raising a request never changes the event's status | Week 7 customer change; SCRUM-59 (the take note's slice) |
 
 The front end holds these words in `frontend/src/app/format.js` (`STATUS`); a change here changes that file in the same pull request. v1.12 adds Held and Released (`STATUS.HOLD`); v1.18 adds Expired (`STATUS.HOLD.EXPIRED`); v1.14 adds Cancelled to a venue booking request's words (`STATUS.BOOKING.CANCELLED`); v1.15's Venue unavailable is a flag, held there as `VENUE_UNAVAILABLE`.
 
@@ -193,6 +194,27 @@ off keeps both values. A SCRUM-47 edit that moves the event's start before the
 closing time moves the closing time to the new start, in the same save,
 without a change-record line. Registering itself (SCRUM-54) enforces the
 window and capacity.
+
+## Change request
+
+A change request (SCRUM-59) is the Event Organiser's request, after submitting, for a change to their event or for its withdrawal. It belongs to one event, which keeps its own status: raising, deciding or closing a request never changes the event's status (SCRUM-60 may return the event to Planning when it accepts one).
+
+| From | To | Action | Who |
+|---|---|---|---|
+| — | Open | Raise a change request (a description and what it affects) or a withdrawal request (optional text) while the event is Submitted, Approved, Planning, Safety Check or Confirmed | Event Organiser (own event) |
+| Open | Accepted | Accept (SCRUM-60) | Assigned Event Coordinator |
+| Open | Declined | Decline, reason required (SCRUM-60) | Assigned Event Coordinator |
+| Open | Closed | The event becomes Rejected, Cancelled or Completed; closed without a decision | System |
+
+Only one request is Open on an event at a time. A change affects one or more of date or time, expected attendance, venue requirements and equipment, or other: date or time means the venue bookings and the equipment reservations need reviewing, attendance or venue requirements mean the venue bookings do, equipment means the equipment reservations do, other needs neither. With no coordinator assigned the request waits, and the coordinator is told when assigned (SCRUM-86).
+
+```mermaid
+stateDiagram-v2
+    [*] --> Open: Raise a change or withdrawal request
+    Open --> Accepted: Accept (SCRUM-60)
+    Open --> Declined: Decline (SCRUM-60)
+    Open --> Closed: Event Rejected, Cancelled or Completed
+```
 
 ## Notification
 

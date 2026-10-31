@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import { useAuth } from '../../app/auth'
 import { STATUS, formatDate, formatDateTime, formatTime, statusBadgeClass } from '../../app/format'
+import ChangeRequestSection, { CHANGE, RaiseChangeRequestForm, WITHDRAWAL } from './ChangeRequestSection'
 import ClarificationSection, { AskClarificationForm } from './ClarificationSection'
 import SafetyCheckSection from './SafetyCheckSection'
 import ArrangementsSection from './ArrangementsSection'
@@ -25,6 +26,7 @@ import {
   listVenues,
   placeHold,
   rejectRequest,
+  raiseChangeRequest,
   releaseHold,
   rejectSafetyCheck,
   replyToClarification,
@@ -108,6 +110,15 @@ const DECISIONS = {
   approve: { label: 'Approve', send: approveRequest, banner: 'Request approved', reasonRequired: false },
   reject: { label: 'Reject', send: rejectRequest, banner: 'Request rejected', reasonRequired: true },
 }
+
+// SCRUM-59 AC1: the statuses an Organiser may still ask for a change or a withdrawal in.
+const RAISABLE = [
+  STATUS.REQUEST.SUBMITTED,
+  STATUS.REQUEST.APPROVED,
+  STATUS.REQUEST.PLANNING,
+  STATUS.REQUEST.SAFETY_CHECK,
+  STATUS.REQUEST.CONFIRMED,
+]
 
 const testId = (name) => `request-detail-${name.replaceAll('_', '-')}`
 
@@ -328,6 +339,37 @@ const openDecision = (action) => {
     }
   }
   const handleAskClarification = handleClarification(requestClarification, 'Clarification requested')
+
+  // SCRUM-59: the Organiser who wrote the request asks for a change or a withdrawal while it is
+  // Submitted, Approved, Planning, Safety Check or Confirmed and none is open. The API refuses
+  // anything else.
+  const canRaiseChange =
+    Boolean(can?.('changes.raise')) &&
+    row?.created_by === account?.username &&
+    RAISABLE.includes(row?.status) &&
+    !row?.change_requests?.some((item) => item.status === STATUS.CHANGE.OPEN)
+
+  const handleRaiseChange = async (body) => {
+    setSubmitting(true)
+    try {
+      setRow(await raiseChangeRequest(id, body))
+      setBanner(null)
+      setSuccessBanner(body.kind === WITHDRAWAL ? 'Withdrawal request raised' : 'Change request raised')
+      return true
+    } catch (error) {
+      setBanner(error.message)
+      setSuccessBanner(null)
+      // The refusal may mean one was raised in another tab: show the request as it now stands.
+      try {
+        setRow(await getRequest(id))
+      } catch (reloadError) {
+        setBanner(reloadError.message)
+      }
+      return false
+    } finally {
+      setSubmitting(false)
+    }
+  }
   const handleReplyToClarification = handleClarification(replyToClarification, 'Reply sent')
 
   const handleSend = async () => {
@@ -1013,6 +1055,30 @@ const openDecision = (action) => {
             </div>
           )}
 
+          {/* SCRUM-59: the Organiser asks for a change or a withdrawal, in the card's action row. */}
+          {canRaiseChange && (
+            <div className="flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={() => openDecision('withdrawal')}
+                className="btn btn-secondary"
+                data-testid="request-detail-withdrawal-request-button"
+              >
+                Request withdrawal
+              </button>
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={() => openDecision('change')}
+                className="btn btn-secondary"
+                data-testid="request-detail-change-request-button"
+              >
+                Request a change
+              </button>
+            </div>
+          )}
+
           {/* SCRUM-29: approve or reject a Submitted request, in the card's action row (§7). */}
           {canDecide && (
             <div className="flex flex-wrap justify-end gap-2">
@@ -1057,6 +1123,16 @@ const openDecision = (action) => {
           submitting={submitting}
           onClose={() => setOpenAction(null)}
           onAsk={handleAskClarification}
+        />
+      )}
+
+      {/* SCRUM-59: the change or withdrawal the Organiser sends the coordinator. */}
+      {canRaiseChange && ['change', 'withdrawal'].includes(openAction) && (
+        <RaiseChangeRequestForm
+          kind={openAction === 'withdrawal' ? WITHDRAWAL : CHANGE}
+          submitting={submitting}
+          onClose={() => setOpenAction(null)}
+          onRaise={handleRaiseChange}
         />
       )}
 
@@ -1215,6 +1291,9 @@ const openDecision = (action) => {
       {/* SCRUM-46: the Organiser's view of the event's arrangements (the server sends
           them to the Organiser who wrote the request only). */}
       {!loading && row && <ArrangementsSection arrangements={row.arrangements} />}
+
+      {/* SCRUM-59: what the Organiser asked for after submitting, and where it stands. */}
+      {!loading && row?.change_requests?.length > 0 && <ChangeRequestSection changeRequests={row.change_requests} />}
 
       {/* SCRUM-45: what the coordinator asked and the Organiser answered. */}
       {!loading && row?.clarifications?.length > 0 && (

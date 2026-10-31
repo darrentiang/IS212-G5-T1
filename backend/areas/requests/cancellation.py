@@ -11,6 +11,7 @@ from datetime import timezone
 from sqlalchemy import update
 
 import clock
+from change_requests import close_open_change_request
 from db import db
 from errors import ApiRefusal
 from models import EquipmentType, EventRequest, Reservation, VenueBookingRequest, VenueHold
@@ -72,6 +73,8 @@ def cancel_event(account, request_id, body):
             hold.released_at = instant
         for reservation in db.session.query(Reservation).filter_by(event_request_id=event.id, status="Reserved"):
             reservation.status = "Released"
+        # SCRUM-59 AC7: the event has ended, so its open change request closes undecided.
+        close_open_change_request(event)
         db.session.commit()
     except Exception:
         db.session.rollback()

@@ -63,6 +63,7 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | 1.53 | 28-10-2026 | §1 `/registrations`; §12 Registered is Success; a SCRUM-55 section: the My registrations page with its Withdraw button, banner texts and test ids | SCRUM-55 AC1, AC3, AC5 |
 | 1.54 | 30-10-2026 | A SCRUM-92 section: the request page's Registration section (On/Off, Capacity, Closes), its Edit control and inline form, banner texts and test ids | SCRUM-92 AC1 to AC5 |
 | 1.55 | 31-10-2026 | §7 equipment inventory gains an Out of service column; a SCRUM-52 section: Withdraw and Return on each row with their inline forms, banners, the list of events no longer covered, the notification text and their test ids | SCRUM-52 AC1, AC2, AC4, AC6, AC8 |
+| 1.56 | 31-10-2026 | §7 the request page's Change requests section (the Request a change and Request withdrawal buttons and forms, the list with its status, what it affects and what needs reviewing) with their test ids, messages and banners; §12 the Open, Closed and Accepted badge colours; the Notifications page texts for a change or withdrawal request and for a waiting request at assignment | SCRUM-59 AC1–8: the Event Organiser asks for a change to their event, or for its withdrawal, after submitting it |
 
 ## 1. Pages
 
@@ -223,6 +224,16 @@ While the page is waiting for the API it renders the title row and nothing below
 | Reply form, Your reply field, message under it, Send reply | `request-detail-clarification-reply-form`, `request-detail-clarification-reply-input`, `request-detail-clarification-reply-error`, `request-detail-clarification-reply-button` |
 | An entry, its message, who and when, its reply, who replied and when | `request-detail-clarification-row-<id>`, `request-detail-clarification-message-<id>`, `request-detail-clarification-by-<id>`, `request-detail-clarification-reply-<id>`, `request-detail-clarification-reply-by-<id>` |
 | The flag beside the status (request page, Requests page) | `request-detail-clarification-flag`, `requests-clarification-flag-<id>` |
+
+**Change requests (SCRUM-59).** While the event is Submitted, Approved, Planning, Safety Check or Confirmed and no request is open, the Event Organiser who wrote it sees Request withdrawal and Request a change in the card's action row; each opens an inline form directly below the card (§13). The change form has a Description field and a What it affects group of five checkboxes (Date or time, Expected attendance, Venue requirements, Equipment, Other), and Send and Cancel buttons; a blank description shows `Describe the change.` and nothing ticked shows `Choose what the change affects.`, each under its field, and nothing is sent. The withdrawal form has one optional Text field and no checkboxes. Sending shows the banner `Change request raised` or `Withdrawal request raised`, leaves the event as it was, and removes both buttons while the request is open. A refusal (one already open, no longer an allowed status) shows in the banner and the page shows the event as it now stands. A Change requests section below the details then lists every request, oldest first, to the Organiser, the event's assigned coordinator and the Lead (read-only): its kind (Change request or Withdrawal request), its status (Open, or Closed with `Closed without a decision` when the event became Rejected, Cancelled or Completed), its text, for a change what it affects (`Affects: Date or time, Equipment`) and what needs reviewing (`Venue bookings`, `Equipment reservations`, both with `and`, or `Nothing needs reviewing`), and `<username>, <moment>` (§9). With nothing raised there is no section. Accepting or declining is SCRUM-60's.
+
+| Element | `data-testid` |
+|---|---|
+| Request a change and Request withdrawal buttons (action row) | `request-detail-change-request-button`, `request-detail-withdrawal-request-button` |
+| Form (below the card), Description or Text field, message under it | `request-detail-change-form`, `request-detail-change-description-input`, `request-detail-change-description-error` |
+| A checkbox (`date-time`, `attendance`, `venue-requirements`, `equipment`, `other`), message under the group, Send, Cancel | `request-detail-change-affects-<key>-input`, `request-detail-change-affects-error`, `request-detail-change-send-button`, `request-detail-change-cancel-button` |
+| Section | `request-detail-change-requests` |
+| An entry, its kind, status, closed note, text, what it affects, what needs reviewing, who and when | `request-detail-change-row-<id>`, `request-detail-change-kind-<id>`, `request-detail-change-status-<id>`, `request-detail-change-closed-<id>`, `request-detail-change-description-<id>`, `request-detail-change-affects-<id>`, `request-detail-change-review-<id>`, `request-detail-change-raised-<id>` |
 
 **Where the request page's forms open (§13).** Approve and Reject (SCRUM-29) sit in the request card's action row, under the fields, like the Draft's Delete, Edit and Submit. The forms those rows open (Edit draft, the Delete draft confirmation, and the Approve or Reject reason form) open directly below the card, above Venue holds and the safety sections, so they appear next to the button that opened them.
 
@@ -645,6 +656,7 @@ How pages look (tokens, type, spacing and the shared classes) is in `visual-styl
 | Held | Warning |
 | Released | Neutral |
 | Expired | Danger |
+| Open, Accepted (a change request's, SCRUM-59; Declined reuses the Danger above, Closed is neutral) | Info, Success |
 | Venue unavailable (a flag on an Approved booking, not a status) | Danger |
 
 A status not in this table is neutral until a story adds its row here. Requested and Withdrawn are a venue booking request's own statuses (state-model.md); its Approved, Rejected and Cancelled (SCRUM-83) reuse the colours already above. Held and Released are a venue hold's (SCRUM-84): Held is Warning so that a hold reads apart from an Approved booking (Success) and a Pending one (Info) on the availability page. Expired (SCRUM-85) is Danger, so a lapsed hold reads apart from Held and Released. Venue unavailable (SCRUM-82) is a flag, shown beside the Approved badge with `VENUE_UNAVAILABLE_BADGE` from `app/format.js`; Danger so it reads apart from Approved's Success.
@@ -778,10 +790,13 @@ uses the new one.
 | Rejected | `Your request "Annual Gala" was rejected. Reason: <reason>` |
 | Clarification requested (SCRUM-45; told to the Organiser) | `Clarification was requested on your request "Annual Gala".` |
 | The Organiser replied (SCRUM-45; told to the request's assigned coordinator) | `org2 replied to your clarification request on "Annual Gala".` |
+| A change or withdrawal was requested (SCRUM-59; told to the event's assigned coordinator) | `org2 has asked for a change to "Annual Gala".` or `org2 has asked for "Annual Gala" to be withdrawn.` |
+| A coordinator was assigned an event with a request waiting (SCRUM-59, beside SCRUM-86's assignment notice) | `A change request is waiting on your event "Annual Gala".` or `A withdrawal request is waiting on your event "Annual Gala".` |
 
 Saving or editing a Draft and any refused action tell nobody. The two clarification
 notices are SCRUM-45's; the reply notice goes to the coordinator the request is
-assigned to when the Organiser replies.
+assigned to when the Organiser replies. With no coordinator assigned a change or withdrawal
+request tells nobody; the coordinator is told when assigned (SCRUM-59).
 
 ## SCRUM-66 — Completion on Request detail
 
