@@ -1,7 +1,8 @@
 import { Fragment, useEffect, useState } from 'react'
 import { useAuth } from '../../app/auth'
-import { checkAvailability, listEquipment, updateTotalUnits } from './api'
+import { checkAvailability, listEquipment, returnToService, updateTotalUnits, withdrawFromService } from './api'
 import Banner from '../../app/Banner'
+import { formatPeriod } from '../../app/format'
 import { useReveal } from '../../app/reveal'
 
 // SCRUM-49: the equipment inventory — every recognised type, description,
@@ -15,6 +16,10 @@ import { useReveal } from '../../app/reveal'
 // The save's acknowledgment never depends on the list refresh that follows
 // it: a refused refresh replaces the table with an unavailable notice rather
 // than leaving previous rows looking current.
+// SCRUM-52: every reader sees each type's units out of service; an account
+// with equipment.edit also has Withdraw and Return on a row, each an inline
+// form like Change total's. After a withdrawal the events the units in
+// service no longer cover are listed under the banner.
 export default function EquipmentPage() {
   const { can } = useAuth()
   const [rows, setRows] = useState([])
@@ -29,11 +34,20 @@ export default function EquipmentPage() {
   // Set when the refresh after a successful save refused: the table is then
   // shown as unavailable instead of as if its rows were current.
   const [stale, setStale] = useState(false)
+  // SCRUM-52: the open Withdraw or Return form ({ kind, id }); opening it
+  // closes Change total and the other way round, one form at a time (§7).
+  const [service, setService] = useState(null)
+  const [quantity, setQuantity] = useState('')
+  const [reason, setReason] = useState('')
+  const [serviceErrors, setServiceErrors] = useState({})
+  // The events a withdrawal left short, shown under its banner.
+  const [shortfalls, setShortfalls] = useState([])
 
   const canEdit = can('equipment.edit')
   // The Change total form opens as the row below its button, brought into
   // view with its field focused (ui-guidelines.md §13).
   const editRef = useReveal(canEdit && editingId)
+  const serviceRef = useReveal(canEdit && service)
 
   const canCheck = can('equipment.check')
 
@@ -50,6 +64,7 @@ export default function EquipmentPage() {
     event.preventDefault()
     setBanner(null)
     setSuccess(null)
+    setShortfalls([])
     setCheckResult(null)
     setChecking(true)
     try {
@@ -83,11 +98,41 @@ export default function EquipmentPage() {
   }, [])
 
   const openEdit = (row) => {
+    setService(null)
     setEditingId(row.id)
     setEditValue(String(row.total_units))
     setEditError(null)
     setBanner(null)
     setSuccess(null)
+    setShortfalls([])
+  }
+
+  const openService = (kind, row) => {
+    setEditingId(null)
+    setService({ kind, id: row.id })
+    setQuantity('')
+    setReason('')
+    setServiceErrors({})
+    setBanner(null)
+    setSuccess(null)
+    setShortfalls([])
+  }
+
+  const closeService = () => {
+    setService(null)
+    setServiceErrors({})
+  }
+
+  // After a successful save the list is read again; a refused read shows the
+  // unavailable notice rather than rows that may no longer be current.
+  const refresh = async () => {
+    try {
+      const fresh = await listEquipment()
+      setRows(fresh)
+      setStale(false)
+    } catch {
+      setStale(true)
+    }
   }
 
   const closeEdit = () => {
@@ -114,13 +159,39 @@ export default function EquipmentPage() {
       closeEdit()
       // The acknowledgment is given here and never depends on the refresh.
       setSuccess('Total units updated')
-      try {
-        const fresh = await listEquipment()
-        setRows(fresh)
-        setStale(false)
-      } catch {
-        setStale(true)
+      await refresh()
+    } catch (error) {
+      setBanner(error.message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  // SCRUM-52: the page checks the required fields and sends nothing; the
+  // quantity's range is the API's rule, and its refusal goes to the banner
+  // with the form left open.
+  const handleService = async (event) => {
+    event.preventDefault()
+    setBanner(null)
+    setSuccess(null)
+    const withdrawing = service.kind === 'withdraw'
+    const errors = {}
+    if (!quantity.trim()) errors.quantity = 'Quantity is required'
+    if (withdrawing && !reason.trim()) errors.reason = 'Reason is required'
+    setServiceErrors(errors)
+    if (Object.keys(errors).length > 0) return
+    setSubmitting(true)
+    try {
+      if (withdrawing) {
+        const result = await withdrawFromService(service.id, { quantity: quantity.trim(), reason })
+        setShortfalls(result.shortfalls)
+        setSuccess('Equipment withdrawn from service')
+      } else {
+        await returnToService(service.id, { quantity: quantity.trim() })
+        setSuccess('Equipment returned to service')
       }
+      closeService()
+      await refresh()
     } catch (error) {
       setBanner(error.message)
     } finally {
@@ -158,8 +229,43 @@ export default function EquipmentPage() {
         onDismiss={() => {
           setBanner(null)
           setSuccess(null)
+          setShortfalls([])
         }}
       />
+
+      {shortfalls.length > 0 && (
+        <div className="card space-y-3" data-testid="equipment-shortfalls">
+          <h2 className="section-title">Events no longer covered</h2>
+          <div className="overflow-x-auto">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Event</th>
+                  <th>Date and time</th>
+                  <th>Reserved</th>
+                  <th>Event Coordinator</th>
+                </tr>
+              </thead>
+              <tbody>
+                {shortfalls.map((entry) => (
+                  <tr key={entry.event_request_id} data-testid={`equipment-shortfall-${entry.event_request_id}`}>
+                    <td data-testid={`equipment-shortfall-name-${entry.event_request_id}`}>{entry.name}</td>
+                    <td data-testid={`equipment-shortfall-period-${entry.event_request_id}`}>
+                      {formatPeriod(entry.date, entry.start_time, entry.end_time)}
+                    </td>
+                    <td data-testid={`equipment-shortfall-reserved-${entry.event_request_id}`}>
+                      {entry.reserved_units}
+                    </td>
+                    <td data-testid={`equipment-shortfall-coordinator-${entry.event_request_id}`}>
+                      {entry.coordinator || 'None'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {!loading && !stale && canCheck && rows.length > 0 && (
         <form
@@ -287,6 +393,7 @@ export default function EquipmentPage() {
                   <th>Description</th>
                   <th>Storage location</th>
                   <th>Total units</th>
+                  <th>Out of service</th>
                   <th>Action</th>
                 </tr>
               </thead>
@@ -300,23 +407,117 @@ export default function EquipmentPage() {
                       <td data-testid={`equipment-units-${row.id}`}>
                         {row.total_units} {row.total_units === 1 ? 'unit' : 'units'}
                       </td>
+                      <td data-testid={`equipment-out-of-service-${row.id}`}>
+                        {row.out_of_service_units} out of service
+                      </td>
                       <td>
-                        {canEdit && editingId !== row.id && (
-                          <button
-                            type="button"
-                            className="btn btn-secondary"
-                            data-testid={`equipment-edit-button-${row.id}`}
-                            onClick={() => openEdit(row)}
-                            disabled={submitting}
-                          >
-                            Change total
-                          </button>
+                        {canEdit && (
+                          <div className="flex flex-wrap gap-2">
+                            {editingId !== row.id && (
+                              <button
+                                type="button"
+                                className="btn btn-secondary"
+                                data-testid={`equipment-edit-button-${row.id}`}
+                                onClick={() => openEdit(row)}
+                                disabled={submitting}
+                              >
+                                Change total
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              className="btn btn-secondary"
+                              data-testid={`equipment-withdraw-button-${row.id}`}
+                              onClick={() => openService('withdraw', row)}
+                              disabled={submitting}
+                            >
+                              Withdraw
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-secondary"
+                              data-testid={`equipment-return-button-${row.id}`}
+                              onClick={() => openService('return', row)}
+                              disabled={submitting}
+                            >
+                              Return
+                            </button>
+                          </div>
                         )}
                       </td>
                     </tr>
+                    {canEdit && service?.id === row.id && (
+                      <tr>
+                        <td colSpan={6}>
+                          <form ref={serviceRef} onSubmit={handleService} noValidate className="space-y-4">
+                            <div>
+                              <label htmlFor="equipment-service-quantity" className="label">
+                                Quantity *
+                              </label>
+                              <input
+                                id="equipment-service-quantity"
+                                type="number"
+                                value={quantity}
+                                onChange={(event) => setQuantity(event.target.value)}
+                                aria-required="true"
+                                className="input"
+                                data-testid={`equipment-${service.kind}-quantity-input`}
+                                disabled={submitting}
+                              />
+                              {serviceErrors.quantity && (
+                                <p className="field-error" data-testid={`equipment-${service.kind}-quantity-error`}>
+                                  {serviceErrors.quantity}
+                                </p>
+                              )}
+                            </div>
+                            {service.kind === 'withdraw' && (
+                              <div>
+                                <label htmlFor="equipment-service-reason" className="label">
+                                  Reason *
+                                </label>
+                                <input
+                                  id="equipment-service-reason"
+                                  type="text"
+                                  value={reason}
+                                  onChange={(event) => setReason(event.target.value)}
+                                  aria-required="true"
+                                  className="input"
+                                  data-testid="equipment-withdraw-reason-input"
+                                  disabled={submitting}
+                                />
+                                {serviceErrors.reason && (
+                                  <p className="field-error" data-testid="equipment-withdraw-reason-error">
+                                    {serviceErrors.reason}
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                            <div className="flex justify-end gap-2">
+                              <button
+                                type="button"
+                                className="btn btn-secondary"
+                                data-testid={`equipment-${service.kind}-cancel-button`}
+                                onClick={closeService}
+                                disabled={submitting}
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                type="submit"
+                                className="btn btn-primary"
+                                data-testid={`equipment-${service.kind}-save-button`}
+                                disabled={submitting}
+                              >
+                                Save
+                              </button>
+                            </div>
+                          </form>
+                        </td>
+                      </tr>
+                    )}
                     {canEdit && editingId === row.id && (
                       <tr>
-                        <td colSpan={5}>
+                        <td colSpan={6}>
                           <form ref={editRef} onSubmit={handleSave} noValidate className="space-y-4">
                             <label htmlFor="equipment-edit-units" className="label">
                               Total units *
