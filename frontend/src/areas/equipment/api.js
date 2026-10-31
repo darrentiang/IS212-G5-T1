@@ -17,6 +17,27 @@ export const listEquipment = () => request('GET', '/api/equipment')
 // 400/401/403/404: { message }   400 identifies the problem; editing is
 //          equipment.edit (Technical Support Staff only)
 export const updateTotalUnits = (id, data) => request('PATCH', `/api/equipment/${id}`, data)
+// SCRUM-52: every type above also carries out_of_service_units, and a total
+// below out of service plus the reserved peak from now on is refused (AC7).
+
+// POST /api/equipment/:id/withdraw   (SCRUM-52)
+// body:    { quantity, reason }   quantity a whole number from 1 to the units in
+//          service (sent as a string, as total_units is); reason required, not blank.
+//          Allowed even when fewer units are left in service than are reserved;
+//          no reservation changes.
+// 200:     { equipment: <type as above>, shortfalls: [ { event_request_id, name, date,
+//            start_time, end_time, reserved_units, coordinator } ] }   every event
+//          not yet started its units in service no longer cover; coordinator is the
+//          assigned Event Coordinator's username or null. Each coordinator is notified.
+// 400/401/403/404: { message }   equipment.edit — Technical Support Staff only;
+//          a refusal changes nothing
+export const withdrawFromService = (id, data) => request('POST', `/api/equipment/${id}/withdraw`, data)
+
+// POST /api/equipment/:id/return   (SCRUM-52)
+// body:    { quantity }   a whole number from 1 to the units out of service
+// 200:     the updated type, as above
+// 400/401/403/404: { message }   equipment.edit — Technical Support Staff only
+export const returnToService = (id, data) => request('POST', `/api/equipment/${id}/return`, data)
 
 // GET /api/equipment/:id/availability   (SCRUM-50)
 // query:   start, end   'YYYY-MM-DDTHH:MM'; both required, the start before the end

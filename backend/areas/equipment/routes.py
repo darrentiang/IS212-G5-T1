@@ -11,6 +11,10 @@ is frontend/src/areas/equipment/api.js.
 SCRUM-50: check how many units of a type are free for a period. A read, so
 GET, and equipment.check (Technical Support Staff only; an Event Coordinator
 holds equipment.view and still may not run it).
+
+SCRUM-52: withdraw units of a type from service and return them, both
+equipment.edit (Technical Support Staff only, permissions.md "Maintain
+equipment inventory; withdraw from service").
 """
 
 from flask import Blueprint, g, jsonify, request
@@ -36,6 +40,21 @@ def list_equipment():
 def update_total(equipment_id):
     body = request.get_json(silent=True)
     equipment = services.update_total_units(equipment_id, body)
+    return jsonify(equipment.to_dict()), 200
+
+
+@bp.post("/equipment/<int:equipment_id>/withdraw")
+@require(EQUIPMENT_EDIT)
+def withdraw(equipment_id):
+    """SCRUM-52: the updated type and every event its units in service no longer cover."""
+    equipment, shortfalls = services.withdraw(g.account, equipment_id, request.get_json(silent=True))
+    return jsonify({"equipment": equipment.to_dict(), "shortfalls": shortfalls}), 200
+
+
+@bp.post("/equipment/<int:equipment_id>/return")
+@require(EQUIPMENT_EDIT)
+def return_to_service(equipment_id):
+    equipment = services.return_to_service(g.account, equipment_id, request.get_json(silent=True))
     return jsonify(equipment.to_dict()), 200
 
 

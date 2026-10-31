@@ -14,18 +14,27 @@ differences: zero is allowed (AC3) and blank is refused rather than read as
 zero. JSON numbers have already been parsed to float by the framework: a
 fraction the parser rounded away cannot be recovered, which is why the form
 sends the field as a string — the exact wire path (docs in the plan §4).
+
+SCRUM-52 (Withdraw Equipment from Service), also equipment.edit: units are
+withdrawn from and returned to service per type, counted, never one by one.
+Each takes the same type lock as a total change before reading the counts.
+A withdrawal never touches a reservation; it lists the events not yet
+started that the units in service can no longer cover and tells their
+coordinators. A total cannot go below the units out of service plus the
+committed peak from now on (AC7).
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 
 from sqlalchemy import update
 
 import clock
-from areas.equipment.commitments import peak_units
+from areas.equipment.commitments import _period, peak_units
 from db import db
 from errors import ApiRefusal
-from models import EquipmentType, EventRequest
+from models import EquipmentServiceChange, EquipmentType, EventRequest, Reservation
+from notifications import create_notification
 
 # Beyond this, JSON numbers cannot round-trip exactly through the browser
 # (Number.MAX_SAFE_INTEGER): a representational limit, not a business maximum.
@@ -74,6 +83,18 @@ def _parse_total_units(value):
     return int(number)
 
 
+def _lock(equipment):
+    """Take the type's write lock, then read its counts again.
+
+    A no-op UPDATE takes a write lock even on SQLite (SELECT FOR UPDATE does
+    not), so a total change, a withdrawal, a return and a reservation of the
+    same type cannot pass a check made on stale counts.
+    """
+    db.session.execute(update(EquipmentType).where(EquipmentType.id == equipment.id)
+                       .values(id=EquipmentType.id))
+    db.session.refresh(equipment)
+
+
 def update_total_units(equipment_id, body):
     """Change one type's total units (AC2-AC7), or refuse without writing.
 
@@ -90,16 +111,24 @@ def update_total_units(equipment_id, body):
 
     # SCRUM-51 now creates commitments concurrently: acquire the same type
     # write lock before checking the minimum, not after reading stale stock.
-    db.session.execute(update(EquipmentType).where(EquipmentType.id == equipment.id)
-                       .values(id=EquipmentType.id))
-    db.session.refresh(equipment)
-    minimum = peak_units(equipment.id, clock.now_local(), None)
+    _lock(equipment)
+    # SCRUM-52 AC7: units out of service count towards the minimum too.
+    reserved = peak_units(equipment.id, clock.now_local(), None)
+    out = equipment.out_of_service_units
+    minimum = reserved + out
     if total < minimum:
         db.session.rollback()
+        if out == 0:
+            raise ApiRefusal(
+                400,
+                f"Total units cannot be reduced below {minimum} units: "
+                f"{minimum} units are reserved.",
+            )
         raise ApiRefusal(
             400,
             f"Total units cannot be reduced below {minimum} units: "
-            f"{minimum} units are reserved.",
+            f"{reserved} {'is' if reserved == 1 else 'are'} reserved at the same time and "
+            f"{out} {'is' if out == 1 else 'are'} out of service.",
         )
 
     equipment.total_units = total
@@ -113,14 +142,8 @@ MOMENT_FORMAT = "%Y-%m-%dT%H:%M"
 
 
 def _units_out_of_service(equipment):
-    """Units of this type withdrawn from service (SCRUM-50 AC3).
-
-    STUB, replaced when SCRUM-52 (Withdraw Equipment from Service) adds a way
-    to withdraw units: return how many are out of service now. Until then
-    none can be, so none is. Prove the replacement with the pending test in
-    tests/test_equipment_availability.py.
-    """
-    return 0
+    """Units of this type withdrawn from service now (SCRUM-50 AC3, SCRUM-52 AC3)."""
+    return equipment.out_of_service_units
 
 
 def _parse_moment(value):
@@ -211,3 +234,138 @@ def check_availability(equipment_id, args):
         result["covered"] = quantity <= available
         result["short_by"] = max(0, quantity - available)
     return result
+
+
+# ---- SCRUM-52: withdraw from and return to service ---------------------------
+
+REASON_REQUIRED = "A reason is required."
+
+
+def _parse_quantity(value, most):
+    """A whole number from 1 to ``most``, else refuse 400 (AC2, AC6).
+
+    Read as a Decimal, never a float, as _parse_total_units does: booleans,
+    blanks, fractions and non-numbers are refused, while 2, "2" and 2.0 are 2.
+    """
+    refusal = ApiRefusal(400, f"Quantity must be a whole number from 1 to {most}.")
+    if isinstance(value, bool) or value is None:
+        raise refusal
+    try:
+        number = Decimal(str(value).strip())
+    except InvalidOperation:
+        raise refusal from None
+    if not number.is_finite() or number != number.to_integral_value() or not 1 <= number <= most:
+        raise refusal
+    return int(number)
+
+
+def _record(equipment, account, action, quantity, reason=None):
+    db.session.add(EquipmentServiceChange(
+        equipment_type=equipment, action=action, quantity=quantity, reason=reason,
+        changed_by=account, changed_at=datetime.now(timezone.utc)))
+
+
+def _shortfalls(equipment):
+    """Every event not yet started whose reserved units of this type the units
+    in service can no longer cover (AC4), in order of its reservation's period.
+
+    A Reserved reservation is short when the most units held at the same time
+    over its own period, itself counted, is more than the units in service.
+    Released reservations and requirements with nothing reserved never commit.
+    """
+    now = clock.now_local()
+    in_service = equipment.total_units - equipment.out_of_service_units
+    reservations = (
+        db.session.query(Reservation)
+        .filter_by(equipment_type_id=equipment.id, status="Reserved")
+        .order_by(Reservation.date, Reservation.start_time, Reservation.id)
+        .all()
+    )
+    short = {}
+    for reservation in reservations:
+        event = reservation.event_request
+        if _period_of_event(event)[0] <= now:
+            continue
+        start, end = _period(reservation)
+        if peak_units(equipment.id, start, end) <= in_service:
+            continue
+        entry = short.setdefault(event.id, {
+            "event_request_id": event.id,
+            "name": event.name,
+            "date": event.date,
+            "start_time": event.start_time,
+            "end_time": event.end_time,
+            "reserved_units": 0,
+            "coordinator": event.assigned_coordinator.username if event.assigned_coordinator else None,
+        })
+        entry["reserved_units"] += reservation.quantity
+    return list(short.values())
+
+
+def _tell_coordinators(equipment, shortfalls):
+    """One notification per assigned coordinator, naming each of their short
+    events (AC4); an event with no assigned coordinator tells nobody."""
+    by_coordinator = {}
+    for entry in shortfalls:
+        event = db.session.get(EventRequest, entry["event_request_id"])
+        if event.assigned_coordinator is not None:
+            by_coordinator.setdefault(event.assigned_coordinator, []).append(event)
+    for coordinator, events in by_coordinator.items():
+        named = ", ".join(
+            f"{event.name} ({datetime.strptime(event.date, '%Y-%m-%d').strftime('%d %b %Y')}, "
+            f"{event.start_time}–{event.end_time})"
+            for event in events
+        )
+        create_notification(
+            coordinator,
+            f"Equipment withdrawn from service: {equipment.name}. "
+            f"Reserved units may no longer be covered for {named}.",
+            events[0] if len(events) == 1 else None,
+        )
+
+
+def withdraw(account, equipment_id, body):
+    """Take units of a type out of service, with a reason (AC1, AC2, AC4, AC5).
+
+    Allowed even when fewer units are left in service than are reserved; no
+    reservation is released or changed. Returns the type and the events left
+    short, whose coordinators are told in the same commit.
+    """
+    equipment = get_equipment(equipment_id)
+    body = body if isinstance(body, dict) else {}
+    reason = body.get("reason")
+    if not isinstance(reason, str) or not reason.strip():
+        raise ApiRefusal(400, REASON_REQUIRED)
+    _lock(equipment)
+    try:
+        in_service = equipment.total_units - equipment.out_of_service_units
+        if in_service == 0:
+            raise ApiRefusal(400, f"No units of {equipment.name} are in service to withdraw.")
+        quantity = _parse_quantity(body.get("quantity"), in_service)
+    except ApiRefusal:
+        db.session.rollback()
+        raise
+    equipment.out_of_service_units += quantity
+    _record(equipment, account, "Withdrawn", quantity, reason.strip())
+    shortfalls = _shortfalls(equipment)
+    _tell_coordinators(equipment, shortfalls)
+    db.session.commit()
+    return equipment, shortfalls
+
+
+def return_to_service(account, equipment_id, body):
+    """Put units of a type back in service, no reason (AC6)."""
+    equipment = get_equipment(equipment_id)
+    body = body if isinstance(body, dict) else {}
+    _lock(equipment)
+    try:
+        if equipment.out_of_service_units == 0:
+            raise ApiRefusal(400, f"No units of {equipment.name} are out of service to return.")
+        quantity = _parse_quantity(body.get("quantity"), equipment.out_of_service_units)
+    except ApiRefusal:
+        db.session.rollback()
+        raise
+    equipment.out_of_service_units -= quantity
+    _record(equipment, account, "Returned", quantity)
+    db.session.commit()
+    return equipment
