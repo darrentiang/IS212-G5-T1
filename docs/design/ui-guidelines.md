@@ -64,6 +64,7 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | 1.54 | 30-10-2026 | A SCRUM-92 section: the request page's Registration section (On/Off, Capacity, Closes), its Edit control and inline form, banner texts and test ids | SCRUM-92 AC1 to AC5 |
 | 1.55 | 31-10-2026 | §7 equipment inventory gains an Out of service column; a SCRUM-52 section: Withdraw and Return on each row with their inline forms, banners, the list of events no longer covered, the notification text and their test ids | SCRUM-52 AC1, AC2, AC4, AC6, AC8 |
 | 1.56 | 31-10-2026 | §1 `/registration`; a SCRUM-54 section: the Registration page's Purpose, Date and time, Venues and Action columns beside Event and Status, the event name a link only with `requests.view`, the Register button and the Registered, Registration closed and Full words, the confirmation banner, the refusals and their test ids | SCRUM-54 AC1 to AC6 |
+| 1.57 | 01-11-2026 | The SCRUM-92 section extended for SCRUM-57: the Event Organiser who created the event sees the Registration section read-only; with registration on, Registered, Places remaining and a Registered attendees table (Attendee, Registered at), `No one has registered yet.` when empty; with it off, `Registration is not on for this event.`; their test ids | SCRUM-57 AC1 to AC4 |
 
 ## 1. Pages
 
@@ -950,14 +951,27 @@ Register acts at once, with no confirmation form. On success the banner (§4) sa
 
 ## SCRUM-92 — Registration on Request detail
 
-The event's assigned Event Coordinator sees a **Registration** section on the
-request page; nobody else does (the API sends `registration` to the assigned
-coordinator only). It lists **Registration** (`On` or `Off`), **Capacity** (a
+The event's assigned Event Coordinator and, read-only, the Event Organiser who
+created it (SCRUM-57) see a **Registration** section on the request page;
+nobody else does, the Event Coordinator Lead's read-only view included (the API
+sends `registration` to those two only). It lists **Registration** (`On` or `Off`), **Capacity** (a
 number, or `None`) and **Closes** (`05 Dec 2026, 18:00`, §9, local time as
 set; `None` when there is none). An **Edit** button shows only when the API
 says the account may edit (`registration.can_edit`: Approved, Planning, Safety
 Check or Confirmed); a Submitted, Cancelled or Completed event shows the
-section read-only.
+section read-only. The Organiser never has Edit.
+
+**SCRUM-57.** With registration on, under the settings the section lists
+**Registered** (the number of Registered registrations) and **Places
+remaining** (capacity minus Registered, never below 0), then a **Registered
+attendees** table, one row per Registered Attendee, oldest registration first
+(then by registration id): **Attendee** (username) and **Registered at**
+(`20 Nov 2026, 10:00`, §9, as the API sends it, UTC). Withdrawn registrations
+are neither listed nor counted. With nobody registered, Registered reads `0`
+and `No one has registered yet.` is shown in place of the table. With
+registration off, the section shows `Registration is not on for this event.`
+under the settings, with no counts or table. A Cancelled or Completed event
+keeps the section, counts and table, read-only.
 
 Edit opens an inline form (§5, §13 pattern A) filled with the current values:
 **Registration** (a select, On or Off), **Capacity** (number), **Closing date**
@@ -978,6 +992,10 @@ openAction with the other inline forms.
 | Inline form | request-detail-registration-form |
 | Fields | request-detail-registration-enabled-input, request-detail-registration-capacity-input, request-detail-registration-closing-date-input, request-detail-registration-closing-time-input |
 | Cancel, Save | request-detail-registration-cancel-button, request-detail-registration-save-button |
+| Registered, Places remaining (SCRUM-57) | request-detail-registration-registered, request-detail-registration-places-remaining |
+| Registered attendees table; its empty sentence | request-detail-registration-attendees, request-detail-registration-attendees-empty |
+| Attendee row, Attendee, Registered at | request-detail-registration-attendee-<username>, request-detail-registration-attendee-name-<username>, request-detail-registration-attendee-registered-at-<username> |
+| Registration is not on for this event. | request-detail-registration-not-on |
 
 Messages: `Registration updated`; `Capacity must be a whole number of at least
 1.`; `Capacity cannot be less than the <n> people registered.` (`… the 1 person

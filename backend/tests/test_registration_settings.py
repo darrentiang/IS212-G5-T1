@@ -78,6 +78,7 @@ def test_assigned_coordinator_sets_registration_in_each_allowed_status(client, s
     assert reply.status_code == 200
     assert reply.get_json()["registration"] == {
         "enabled": True, "capacity": 80, "closes_at": "2026-12-04T23:59", "can_edit": True,
+        "registered": 0, "places_remaining": 80, "attendees": [],  # SCRUM-57
     }
     assert stored(event) == (True, 80, datetime(2026, 12, 4, 23, 59))
 
@@ -191,8 +192,9 @@ def test_a_multi_role_account_sets_registration_only_when_assigned(client, usern
 
 # @story: SCRUM-92
 # @ac: 5
-@pytest.mark.parametrize("username", ["org1", "lead1"])
-def test_only_the_assigned_coordinator_reads_the_settings(client, username):
+# SCRUM-57 shows them to the creating Organiser too (test_registration_view.py).
+@pytest.mark.parametrize("username", ["lead1"])
+def test_the_lead_does_not_read_the_settings(client, username):
     event = gala(registration_enabled=True, registration_capacity=50,
                  registration_closes_at=START)
     login(client, username)
