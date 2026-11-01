@@ -20,6 +20,8 @@ const REGISTERED = {
   date: '2027-12-20',
   start_time: '10:00',
   end_time: '12:00',
+  venues: 'Auditorium',
+  venue_state: 'confirmed',
   status: 'Registered',
   can_withdraw: true,
 }
@@ -45,6 +47,35 @@ describe('MyRegistrationsPage', () => {
     expect(screen.getByTestId('registrations-event-status-7')).toHaveTextContent('Confirmed')
     expect(screen.getByTestId('registrations-status-7')).toHaveTextContent('Registered')
     expect(screen.getByTestId('registrations-status-8')).toHaveTextContent('Withdrawn')
+  })
+
+  // @story: SCRUM-56
+  // @ac: 2, 3
+  it('shows the venue names, that the venue is not yet confirmed, or a dash for a Cancelled event', async () => {
+    api.listMyRegistrations.mockResolvedValue([
+      { ...REGISTERED, venues: 'Auditorium, Seminar Room 1' },
+      { ...REGISTERED, id: 8, event_status: 'Planning', venues: null, venue_state: 'not_confirmed' },
+      { ...REGISTERED, id: 9, event_status: 'Cancelled', venues: null, venue_state: 'none' },
+    ])
+    renderPage()
+
+    expect(await screen.findByTestId('registrations-venue-7')).toHaveTextContent('Auditorium, Seminar Room 1')
+    expect(screen.getByTestId('registrations-venue-8')).toHaveTextContent('Venue not yet confirmed')
+    expect(screen.getByTestId('registrations-venue-9')).toHaveTextContent('—')
+    expect(screen.getByTestId('registrations-venue-9')).not.toHaveTextContent('Venue not yet confirmed')
+  })
+
+  // @story: SCRUM-56
+  // @ac: 2
+  it('shows a dash for a Confirmed or Completed event with no Approved venue', async () => {
+    api.listMyRegistrations.mockResolvedValue([
+      { ...REGISTERED, venues: '' },
+      { ...REGISTERED, id: 8, event_status: 'Completed', venues: '' },
+    ])
+    renderPage()
+
+    expect(await screen.findByTestId('registrations-venue-7')).toHaveTextContent(/^—$/)
+    expect(screen.getByTestId('registrations-venue-8')).toHaveTextContent(/^—$/)
   })
 
   // @story: SCRUM-55

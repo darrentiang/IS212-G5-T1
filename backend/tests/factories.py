@@ -201,14 +201,17 @@ def make_attendee(username):
     return row
 
 
-def make_registration(*, event, attendee="att1", status="Registered"):
-    """Store one registration of the Attendee for the event (SCRUM-55)."""
+def make_registration(*, event, attendee="att1", status="Registered", registered_at=None):
+    """Store one registration of the Attendee for the event (SCRUM-55).
+
+    registered_at is UTC, as the API stores it; left out, it is now (SCRUM-57).
+    """
     now = datetime.now(timezone.utc)
     row = Registration(
         event_request=event,
         attendee=account(attendee),
         status=status,
-        registered_at=now,
+        registered_at=registered_at or now,
         withdrawn_at=now if status == "Withdrawn" else None,
     )
     db.session.add(row)

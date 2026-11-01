@@ -34,8 +34,8 @@ function Probe() {
 }
 
 describe('AuthProvider', () => {
-  // @story: SCRUM-26
-  // @ac: 2
+  // @story: SCRUM-26, SCRUM-58
+  // @ac: SCRUM-26 2
   it('holds the account from /api/me and answers can()', async () => {
     api.me.mockResolvedValue({
       username: 'org1',
@@ -55,7 +55,6 @@ describe('AuthProvider', () => {
     })
     expect(screen.getByTestId('loading')).toHaveTextContent('false')
     expect(screen.getByTestId('can-view')).toHaveTextContent('true')
-    // @story: SCRUM-58
     await waitFor(() => {
       expect(screen.getByTestId('unread-count')).toHaveTextContent('2')
     })
@@ -113,8 +112,8 @@ describe('AuthProvider', () => {
     expect(screen.getByTestId('can-view')).toHaveTextContent('false')
   })
 
-  // @story: SCRUM-26
-  // @ac: 2
+  // @story: SCRUM-26, SCRUM-58
+  // @ac: SCRUM-26 2
   it('stores the account from login and clears it on logout', async () => {
     api.me.mockRejectedValue(new Error('Not logged in'))
     api.login.mockResolvedValue({
@@ -138,7 +137,6 @@ describe('AuthProvider', () => {
     await waitFor(() => {
       expect(screen.getByTestId('username')).toHaveTextContent('org1')
     })
-    // @story: SCRUM-58
     await waitFor(() => expect(screen.getByTestId('unread-count')).toHaveTextContent('4'))
     await userEvent.click(screen.getByTestId('do-logout'))
     await waitFor(() => {

@@ -375,6 +375,8 @@ describe('an account that cannot decide', () => {
 
 // SCRUM-90 AC1, AC2: the Safety Officer sends the event back with the areas to change.
 describe('requesting changes', () => {
+  // @story: SCRUM-90
+  // @ac: 2
   it('needs a reason and at least one area before anything is sent', async () => {
     signInWith(SAFETY_OFFICER)
     api.getRequest.mockResolvedValue(EVENT)
@@ -392,6 +394,8 @@ describe('requesting changes', () => {
     expect(api.requestSafetyChanges).not.toHaveBeenCalled()
   })
 
+  // @story: SCRUM-90
+  // @ac: 1
   it('sends the reason, the areas ticked and the notes, then returns to the list', async () => {
     signInWith(SAFETY_OFFICER)
     api.getRequest.mockResolvedValue(EVENT)
@@ -415,6 +419,8 @@ describe('requesting changes', () => {
     expect(screen.getByTestId('list-stub')).toHaveTextContent('Harbour Gala: changes requested, back in Planning')
   })
 
+  // @story: SCRUM-90
+  // @ac: 1
   it('lets a ticked area be unticked again', async () => {
     signInWith(SAFETY_OFFICER)
     api.getRequest.mockResolvedValue(EVENT)
@@ -433,6 +439,8 @@ describe('requesting changes', () => {
     )
   })
 
+  // @story: SCRUM-90
+  // @ac: 8
   it('shows a refused request in the banner and stays on the event', async () => {
     signInWith(SAFETY_OFFICER)
     api.getRequest.mockResolvedValue(EVENT)
@@ -450,6 +458,8 @@ describe('requesting changes', () => {
     expect(screen.queryByTestId('list-stub')).not.toBeInTheDocument()
   })
 
+  // @story: SCRUM-90
+  // @ac: 9
   it('offers an Event Coordinator no way to request changes', async () => {
     signInWith(['requests.view', 'requests.decide', 'notifications.view'], 'coord1')
     api.getRequest.mockResolvedValue(EVENT)
@@ -478,6 +488,8 @@ describe('requested changes', () => {
     },
   }
 
+  // @story: SCRUM-90
+  // @ac: 5
   it('shows the Event Coordinator the reason, areas and notes while the event is in Planning', async () => {
     signInWith(['requests.view', 'requests.decide', 'notifications.view'], 'coord1')
     api.getRequest.mockResolvedValue(PLANNING)
@@ -498,6 +510,8 @@ describe('requested changes', () => {
     )
   })
 
+  // @story: SCRUM-90
+  // @ac: 5
   it('shows nothing when no changes are outstanding', async () => {
     signInWith(['requests.view', 'requests.decide', 'notifications.view'], 'coord1')
     api.getRequest.mockResolvedValue({ ...PLANNING, requested_changes: null })
@@ -507,6 +521,8 @@ describe('requested changes', () => {
     expect(screen.queryByTestId('request-detail-requested-changes')).not.toBeInTheDocument()
   })
 
+  // @story: SCRUM-90
+  // @ac: 7
   it('lists a request for changes among the earlier decisions with its areas', async () => {
     signInWith(SAFETY_OFFICER)
     api.getRequest.mockResolvedValue({

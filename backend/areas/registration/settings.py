@@ -1,4 +1,5 @@
 """SCRUM-92: the assigned Event Coordinator sets an event's registration.
+SCRUM-57: they and the Event Organiser who created the event see who registered.
 
 Registration is on or off, with a capacity and a closing date and time. The
 closing time is naive local wall-clock time, the same convention as the
@@ -78,15 +79,40 @@ def _closes_at(body):
         raise ApiRefusal(400, BAD_CLOSING)
 
 
-def settings_to_dict(event, account):
-    """The registration settings as the assigned coordinator sees them."""
+def _registered_rows(event):
+    """Registered rows, oldest first, then by id (SCRUM-57 AC2); never a Withdrawn one."""
+    return (
+        db.session.query(Registration)
+        .filter_by(event_request_id=event.id, status="Registered")
+        .order_by(Registration.registered_at, Registration.id)
+        .all()
+    )
+
+
+def settings_to_dict(event, account, may_edit=True):
+    """The registration settings as the assigned coordinator sees them (SCRUM-92).
+
+    SCRUM-57: the Event Organiser who created the event sees the same, with
+    may_edit False. While registration is on, both see the Registered count,
+    the places remaining and who registered (AC1, AC2); while it is off, none
+    of these (AC3).
+    """
     closes_at = event.registration_closes_at
-    return {
+    payload = {
         "enabled": bool(event.registration_enabled),
         "capacity": event.registration_capacity,
         "closes_at": closes_at.strftime("%Y-%m-%dT%H:%M") if closes_at else None,
-        "can_edit": event.status in SETTABLE_STATUSES and can(account, REGISTRATION_MANAGE),
+        "can_edit": may_edit and event.status in SETTABLE_STATUSES and can(account, REGISTRATION_MANAGE),
     }
+    if event.registration_enabled:
+        rows = _registered_rows(event)
+        payload["registered"] = len(rows)
+        payload["places_remaining"] = max(event.registration_capacity - len(rows), 0)
+        payload["attendees"] = [
+            {"username": row.attendee.username, "registered_at": row.registered_at.isoformat() + "Z"}
+            for row in rows
+        ]
+    return payload
 
 
 def set_registration(account, request_id, body):
