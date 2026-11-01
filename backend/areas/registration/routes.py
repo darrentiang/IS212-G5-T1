@@ -4,6 +4,7 @@ SCRUM-27: list confirmed events with registration enabled (read-only).
 SCRUM-54: an Attendee registers for one; each listed event says whether the
 account may register, is registered, or it is closed or full.
 SCRUM-55: an Attendee lists their own registrations and withdraws one.
+SCRUM-56: each listed registration says where the event is, by its status.
 SCRUM-92: the assigned Event Coordinator sets an event's registration.
 Internal planning fields are never included in this payload.
 """
