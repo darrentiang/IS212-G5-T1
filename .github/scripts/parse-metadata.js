@@ -13,6 +13,7 @@
  *
  * Outputs a JSON array of { tcId, test, story, ac, file } to stdout.
  * Warns on stderr when @test does not match the test('…') name that follows.
+ * traceability.js requires extractBlocks() to index the same headers.
  */
 
 const fs = require('fs');
@@ -23,7 +24,7 @@ const SCAN_DIR = path.join(ROOT, 'functional', 'tests');
 const COMMENT = '//';
 const FIELDS = ['tc', 'test', 'story', 'ac'];
 
-function extractBlocks(filePath) {
+function extractBlocks(filePath, warn = console.error) {
   const content = fs.readFileSync(filePath, 'utf-8');
   const lines = content.split('\n');
   const blocks = [];
@@ -50,7 +51,7 @@ function extractBlocks(filePath) {
         if (!current.test) {
           current.test = actual;
         } else if (current.test !== actual) {
-          console.error(`WARNING ${rel}: @test "${current.test}" does not match test('${actual}')`);
+          warn(`WARNING ${rel}: @test "${current.test}" does not match test('${actual}')`);
         }
       }
       blocks.push(current);
@@ -87,4 +88,6 @@ function main() {
   console.log(JSON.stringify(out, null, 2));
 }
 
-main();
+if (require.main === module) main();
+
+module.exports = { extractBlocks, SCAN_DIR };

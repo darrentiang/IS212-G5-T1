@@ -613,6 +613,9 @@ def test_venues_edit_belongs_to_venue_staff_only(app):
 # are not otherwise exercised by the venue test subset.
 
 
+# @story: coverage
+# @ac: n/a
+# Keeps models.py at 100% coverage; proves no AC.
 def test_role_repr_names_itself(app):
     from models import Role
 
@@ -621,6 +624,9 @@ def test_role_repr_names_itself(app):
         assert repr(role) == "<Role Venue Staff>"
 
 
+# @story: coverage
+# @ac: n/a
+# Keeps models.py at 100% coverage; proves no AC.
 def test_account_repr_role_names_and_has_role(app):
     from models import Account
 
@@ -632,6 +638,9 @@ def test_account_repr_role_names_and_has_role(app):
         assert account.has_role("Event Coordinator") is False
 
 
+# @story: coverage
+# @ac: n/a
+# Keeps models.py at 100% coverage; proves no AC.
 def test_event_request_repr_and_methods(app):
     from models import Account, EventRequest
 
@@ -661,6 +670,9 @@ def test_event_request_repr_and_methods(app):
         assert as_dict["status"] == "Draft"
 
 
+# @story: coverage
+# @ac: n/a
+# Keeps models.py at 100% coverage; proves no AC.
 def test_venue_block_repr(app):
     from models import VenueBlock
 
@@ -680,6 +692,9 @@ def test_venue_block_repr(app):
         assert repr(block) == f"<VenueBlock {block.id} venue 1>"
 
 
+# @story: coverage
+# @ac: n/a
+# Keeps models.py at 100% coverage; proves no AC.
 def test_venue_booking_request_repr(app):
     from models import VenueBookingRequest
 
@@ -704,6 +719,9 @@ def test_venue_booking_request_repr(app):
         )
 
 
+# @story: coverage
+# @ac: n/a
+# Keeps models.py at 100% coverage; proves no AC.
 def test_schema_meta_repr(app):
     from models import SchemaMeta
 

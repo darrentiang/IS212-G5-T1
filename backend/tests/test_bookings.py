@@ -812,6 +812,8 @@ def test_deciding_one_booking_leaves_the_events_other_bookings_unchanged(client)
 # --- AC1: the raising Coordinator can withdraw a booking awaiting a decision ---
 
 
+# @story: SCRUM-77
+# @ac: 1
 def test_coordinator_withdraws_their_own_requested_booking(client):
     _, booking_id = raise_and_get_id(client)
     # raise_and_get_id already logs in as coord1, who raised it.
@@ -827,6 +829,8 @@ def test_coordinator_withdraws_their_own_requested_booking(client):
 # --- AC2: a Withdrawn request no longer awaits a decision, and cannot be decided ---
 
 
+# @story: SCRUM-77
+# @ac: 2
 def test_a_withdrawn_booking_no_longer_lists_as_requested(client):
     _, booking_id = raise_and_get_id(client)
     decide(client, venue_id(), booking_id, "withdraw")
@@ -838,6 +842,8 @@ def test_a_withdrawn_booking_no_longer_lists_as_requested(client):
     assert row["status"] == "Withdrawn"
 
 
+# @story: SCRUM-77
+# @ac: 2
 def test_a_withdrawn_booking_cannot_then_be_approved(client):
     _, booking_id = raise_and_get_id(client)
     decide(client, venue_id(), booking_id, "withdraw")
@@ -849,6 +855,8 @@ def test_a_withdrawn_booking_cannot_then_be_approved(client):
     assert db.session.get(VenueBookingRequest, booking_id).status == "Withdrawn"
 
 
+# @story: SCRUM-77
+# @ac: 2
 def test_a_withdrawn_booking_cannot_then_be_rejected(client):
     _, booking_id = raise_and_get_id(client)
     decide(client, venue_id(), booking_id, "withdraw")
@@ -863,6 +871,8 @@ def test_a_withdrawn_booking_cannot_then_be_rejected(client):
 # --- AC3: an already-decided request cannot be withdrawn ---
 
 
+# @story: SCRUM-77
+# @ac: 3
 def test_an_approved_booking_cannot_be_withdrawn(client):
     _, booking_id = raise_and_get_id(client)
     login(client, "venue1")
@@ -876,6 +886,8 @@ def test_an_approved_booking_cannot_be_withdrawn(client):
     assert db.session.get(VenueBookingRequest, booking_id).status == "Approved"
 
 
+# @story: SCRUM-77
+# @ac: 3
 def test_a_rejected_booking_cannot_be_withdrawn(client):
     _, booking_id = raise_and_get_id(client)
     login(client, "venue1")
@@ -891,6 +903,8 @@ def test_a_rejected_booking_cannot_be_withdrawn(client):
 # --- AC4: only the raising Coordinator may withdraw ---
 
 
+# @story: SCRUM-77
+# @ac: 4
 def test_a_different_coordinator_cannot_withdraw(client):
     _, booking_id = raise_and_get_id(client)  # raised by coord1
     login(client, "coord2")
@@ -901,6 +915,8 @@ def test_a_different_coordinator_cannot_withdraw(client):
     assert db.session.get(VenueBookingRequest, booking_id).status == "Requested"
 
 
+# @story: SCRUM-77
+# @ac: 4
 @pytest.mark.parametrize("username", ["org1", "venue1", "tech1", "att1"])
 def test_an_account_without_event_coordinator_cannot_withdraw(client, username):
     _, booking_id = raise_and_get_id(client)
@@ -912,6 +928,8 @@ def test_an_account_without_event_coordinator_cannot_withdraw(client, username):
     assert db.session.get(VenueBookingRequest, booking_id).status == "Requested"
 
 
+# @story: SCRUM-77
+# @ac: 4
 def test_the_role_check_comes_before_the_withdraw_lookup(client):
     login(client, "org1")
 
@@ -920,6 +938,8 @@ def test_the_role_check_comes_before_the_withdraw_lookup(client):
     assert resp.status_code == 403
 
 
+# @story: SCRUM-77
+# @ac: 4
 def test_not_logged_in_cannot_withdraw(client):
     _, booking_id = raise_and_get_id(client)
     client.post("/api/logout")
@@ -929,6 +949,8 @@ def test_not_logged_in_cannot_withdraw(client):
     assert resp.status_code == 401
 
 
+# @story: SCRUM-77
+# @ac: 4
 def test_withdrawing_an_unknown_booking_is_refused(client):
     login(client, "coord1")
 
@@ -938,6 +960,8 @@ def test_withdrawing_an_unknown_booking_is_refused(client):
     assert resp.get_json()["message"] == "Booking request not found."
 
 
+# @story: SCRUM-77
+# @ac: 1
 def test_withdrawing_a_booking_that_belongs_to_another_venue_is_refused(client):
     _, booking_id = raise_and_get_id(client, venue=venue_id("Seminar Room 1"))
 
@@ -946,6 +970,8 @@ def test_withdrawing_a_booking_that_belongs_to_another_venue_is_refused(client):
     assert resp.status_code == 404
 
 
+# @story: SCRUM-77
+# @ac: 1
 def test_an_account_holding_event_coordinator_among_its_roles_can_withdraw(client):
     # multi1 is Event Coordinator and Venue Staff: any role allowing it is enough (D-09).
     login(client, "multi1")
@@ -961,6 +987,8 @@ def test_an_account_holding_event_coordinator_among_its_roles_can_withdraw(clien
 # --- AC5: withdrawing one booking leaves an event's other booking requests unchanged ---
 
 
+# @story: SCRUM-77
+# @ac: 5
 def test_withdrawing_one_booking_leaves_the_events_other_bookings_unchanged(client):
     login(client, "coord1")
     event_id = make_event()
@@ -973,6 +1001,9 @@ def test_withdrawing_one_booking_leaves_the_events_other_bookings_unchanged(clie
     assert auditorium_booking.status == "Requested"
 
 
+# @story: coverage
+# @ac: n/a
+# Keeps models.py at 100% coverage; proves no AC.
 def test_venue_booking_request_repr_shows_venue_event_and_status(app):
     with app.app_context():
         booking = VenueBookingRequest(

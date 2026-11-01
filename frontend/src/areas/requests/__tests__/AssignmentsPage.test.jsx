@@ -11,7 +11,6 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-// @story: SCRUM-88
 const PLANNING = { id: 7, name: 'Planning Gala', date: '2026-12-12', status: 'Planning', assigned_coordinator: 'coord1' }
 const SUBMITTED = { id: 8, name: 'Queued Fair', date: '2026-12-20', status: 'Submitted', assigned_coordinator: null }
 const WORKLOADS = [
