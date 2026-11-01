@@ -1,4 +1,6 @@
-"""SCRUM-55: an Attendee withdraws their own registration until the event starts."""
+"""SCRUM-55: an Attendee withdraws their own registration until the event starts.
+SCRUM-56: each registration in the list shows the event's venue by its status.
+"""
 
 from datetime import datetime
 
@@ -6,7 +8,7 @@ import pytest
 
 import clock
 from db import db
-from factories import account, make_attendee, make_event, make_registration
+from factories import account, make_attendee, make_booking, make_event, make_registration, make_venue
 from models import Registration
 
 EVENT_DAY = "2027-12-20"  # the event starts at 10:00 on this day
@@ -232,6 +234,8 @@ def test_my_registrations_lists_only_the_attendees_own_with_whether_they_can_wit
         "date": EVENT_DAY,
         "start_time": "10:00",
         "end_time": "12:00",
+        "venues": "",  # Confirmed, but no venue booked for it
+        "venue_state": "confirmed",
         "status": "Registered",
         "can_withdraw": True,
     }
@@ -278,3 +282,89 @@ def test_a_registration_reads_as_its_id_and_status(client):
     registration = make_registration(event=event_in())
 
     assert repr(registration) == f"<Registration {registration.id} Registered>"
+
+
+# --- SCRUM-56: the venue, by the event's status -------------------------------
+
+
+def mine(client, registration):
+    login(client)
+    rows = client.get("/api/registrations/mine").get_json()
+    return next(row for row in rows if row["id"] == registration.id)
+
+
+@pytest.mark.parametrize(
+    "event_status,venues,venue_state",
+    [
+        ("Confirmed", "Test Hall", "confirmed"),
+        ("Completed", "Test Hall", "confirmed"),
+        ("Cancelled", None, "none"),
+        # Not yet confirmed, although the Approved booking is still held (TC-SCRUM-56-02).
+        ("Planning", None, "not_confirmed"),
+        ("Approved", None, "not_confirmed"),
+        ("Safety Check", None, "not_confirmed"),
+        ("Submitted", None, "not_confirmed"),
+    ],
+)
+# @story: SCRUM-56
+# @ac: 2, 3
+def test_the_venue_is_shown_only_while_the_event_is_confirmed_or_completed(
+    client, event_status, venues, venue_state
+):
+    event = event_in(event_status)
+    make_booking(event=event, venue=make_venue(name="Test Hall"), status="Approved")
+    registration = make_registration(event=event)
+
+    row = mine(client, registration)
+
+    assert (row["venues"], row["venue_state"], row["event_status"]) == (venues, venue_state, event_status)
+
+
+@pytest.mark.parametrize("event_status", ["Confirmed", "Completed"])
+# @story: SCRUM-56
+# @ac: 2
+def test_a_confirmed_or_completed_event_without_an_approved_booking_names_no_venue(client, event_status):
+    event = event_in(event_status)
+    make_booking(event=event, venue=make_venue(name="Test Requested"), status="Requested")
+    registration = make_registration(event=event)
+
+    row = mine(client, registration)
+
+    # Still confirmed by status: the page shows a dash, never "Venue not yet confirmed".
+    assert (row["venues"], row["venue_state"]) == ("", "confirmed")
+
+
+# @story: SCRUM-56
+# @ac: 2
+def test_several_approved_venues_are_named_comma_separated_in_name_order(client):
+    event = event_in()
+    make_booking(event=event, venue=make_venue(name="Test Hall B"), status="Approved")
+    make_booking(event=event, venue=make_venue(name="Test Annex"), status="Approved")
+    registration = make_registration(event=event)
+
+    assert mine(client, registration)["venues"] == "Test Annex, Test Hall B"
+
+
+# @story: SCRUM-56
+# @ac: 2
+def test_only_approved_bookings_name_a_venue(client):
+    event = event_in()
+    make_booking(event=event, venue=make_venue(name="Test Approved"), status="Approved")
+    for status in ("Requested", "Rejected", "Withdrawn", "Cancelled"):
+        make_booking(event=event, venue=make_venue(name=f"Test {status}"), status=status)
+    registration = make_registration(event=event)
+
+    assert mine(client, registration)["venues"] == "Test Approved"
+
+
+# @story: SCRUM-56
+# @ac: 2
+def test_the_date_and_time_are_the_events_current_values(client):
+    event = event_in("Planning")
+    registration = make_registration(event=event)
+    event.date, event.start_time, event.end_time = "2027-12-21", "14:00", "16:00"
+    db.session.commit()
+
+    row = mine(client, registration)
+
+    assert (row["date"], row["start_time"], row["end_time"]) == ("2027-12-21", "14:00", "16:00")

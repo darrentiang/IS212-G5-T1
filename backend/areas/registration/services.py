@@ -1,5 +1,6 @@
 """SCRUM-54: an Attendee registers for a confirmed event, and the list they register from.
 SCRUM-55: an Attendee's own registrations, and withdrawing one.
+SCRUM-56: each of those registrations shows where the event is, by its status.
 
 A registration is Registered or Withdrawn and never goes back (state-model.md,
 'Registration'); an Attendee who registers again gets a new row (SCRUM-54).
@@ -19,9 +20,10 @@ REGISTERED = "Registered"
 WITHDRAWN = "Withdrawn"
 CANCELLED = "Cancelled"
 CONFIRMED = "Confirmed"
+COMPLETED = "Completed"
 # Statuses an event is listed in (Confirmed) or can reach from there; an Attendee
 # could have seen it, so a refusal may say why. Any other event is not found.
-SEEN_STATUSES = (CONFIRMED, CANCELLED, "Completed")
+SEEN_STATUSES = (CONFIRMED, CANCELLED, COMPLETED)
 NOT_FOUND = "Event not found."
 
 NOT_OPEN = "This event is not open for registration."
@@ -156,8 +158,22 @@ def _refusal(registration):
     return None
 
 
+def _venue(event):
+    """(venues, venue_state) for a registration's event (SCRUM-56 AC2).
+
+    Decided by the event's status, never only by whether an Approved booking
+    exists: an event sent back to Planning may still hold one.
+    """
+    if event.status in (CONFIRMED, COMPLETED):
+        return venue_names(event), "confirmed"
+    if event.status == CANCELLED:
+        return None, "none"
+    return None, "not_confirmed"
+
+
 def _to_dict(registration):
     event = registration.event_request
+    venues, venue_state = _venue(event)
     return {
         "id": registration.id,
         "event_request_id": event.id,
@@ -166,6 +182,8 @@ def _to_dict(registration):
         "date": event.date,
         "start_time": event.start_time,
         "end_time": event.end_time,
+        "venues": venues,
+        "venue_state": venue_state,
         "status": registration.status,
         "can_withdraw": _refusal(registration) is None,
     }

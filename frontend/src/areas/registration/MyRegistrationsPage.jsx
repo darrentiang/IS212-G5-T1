@@ -8,6 +8,15 @@ import { listMyRegistrations, withdrawRegistration } from './api'
 // (`can_withdraw`), so the browser's clock never decides. A refusal shows its
 // message in the banner and the list is read again, so a registration
 // withdrawn in another tab shows as Withdrawn.
+// SCRUM-56: the Venue column follows the server's `venue_state`, decided by the
+// event's status, so an Approved booking alone never shows a venue. A
+// Confirmed or Completed event with no Approved booking shows a dash.
+function venueText(row) {
+  if (row.venue_state === 'confirmed') return row.venues || '—'
+  if (row.venue_state === 'not_confirmed') return 'Venue not yet confirmed'
+  return '—'
+}
+
 export default function MyRegistrationsPage() {
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
@@ -73,6 +82,7 @@ export default function MyRegistrationsPage() {
                 <tr>
                   <th>Event</th>
                   <th>Date and time</th>
+                  <th>Venue</th>
                   <th>Event status</th>
                   <th>Registration</th>
                   <th>Action</th>
@@ -85,6 +95,7 @@ export default function MyRegistrationsPage() {
                     <td data-testid={`registrations-period-${row.id}`}>
                       {formatPeriod(row.date, row.start_time, row.end_time)}
                     </td>
+                    <td data-testid={`registrations-venue-${row.id}`}>{venueText(row)}</td>
                     <td data-testid={`registrations-event-status-${row.id}`}>
                       <span className={statusBadgeClass(row.event_status)}>{row.event_status}</span>
                     </td>
