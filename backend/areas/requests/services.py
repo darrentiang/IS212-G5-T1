@@ -30,6 +30,7 @@ from sqlalchemy import func, or_
 
 import arrangement_flags
 import occupancy
+from change_requests import close_open_change_request, notify_waiting_change_request
 from db import db
 from errors import ApiRefusal
 from models import (
@@ -179,8 +180,11 @@ def request_detail_dict(event_request, account):
         payload["requested_changes"] = _requested_changes(event_request)
     if reviewing:
         payload["safety_check"] = _safety_check_to_dict(event_request)
-    if _may_read_clarifications(account, event_request):
+    if _may_read_exchanges(account, event_request):
         payload["clarifications"] = [row.to_dict() for row in event_request.clarifications]
+        # SCRUM-59: the Organiser's change and withdrawal requests, oldest first, each Open
+        # or Closed, with what needs reviewing.
+        payload["change_requests"] = [row.to_dict() for row in event_request.change_requests]
     if event_request.created_by_id == account.id:
         payload["arrangements"] = _arrangements_for_organiser(event_request)
     # SCRUM-47 AC5: the record of significant changes, for the assigned coordinator.
@@ -236,10 +240,11 @@ def _arrangements_for_organiser(event_request):
     return None
 
 
-def _may_read_clarifications(account, event_request):
+def _may_read_exchanges(account, event_request):
     """The Organiser who wrote the request, its assigned coordinator and the Lead
-    (read-only) see its clarifications and replies (SCRUM-45 AC2, AC5); the Safety
-    Officer, who opens only an event in Safety Check, does not."""
+    (read-only) see its clarifications and replies (SCRUM-45 AC2, AC5) and its change
+    and withdrawal requests (SCRUM-59 AC3, AC6); the Safety Officer, who opens only an
+    event in Safety Check, does not."""
     return (
         event_request.created_by_id == account.id
         or event_request.assigned_coordinator_id == account.id
@@ -730,6 +735,8 @@ def assign_coordinator(account, request_id, data):
         f'{coordinator.username} has been assigned to your event "{name}".',
         event_request,
     )
+    # SCRUM-59 AC6: a request the Organiser raised while no one held the event was waiting.
+    notify_waiting_change_request(event_request, coordinator)
     db.session.commit()
     return event_request
 
@@ -792,6 +799,9 @@ def start_planning_if_approved(event_request):
 def _record_decision(event_request, account, decision, reason):
     # SCRUM-45 AC6: a decision ends a clarification the Organiser has not answered.
     _end_open_clarification(event_request)
+    # SCRUM-59 AC7: a rejection ends the event, so its open change request closes undecided.
+    if decision == "Rejected":
+        close_open_change_request(event_request)
     event_request.status = decision
     event_request.decision = decision
     event_request.decision_reason = reason

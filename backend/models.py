@@ -54,7 +54,8 @@ from db import db
 # SCRUM-92 adds an event's registration capacity and closing time, so 30.
 # SCRUM-52 adds an equipment type's out_of_service_units and the
 # EquipmentServiceChange table (every withdrawal and return), so 31.
-SCHEMA_VERSION = 31
+# SCRUM-59 adds the ChangeRequest table (an Organiser's request for a change or a withdrawal), so 32.
+SCHEMA_VERSION = 32
 
 
 account_roles = db.Table(
@@ -218,6 +219,9 @@ class EventRequest(db.Model):
     )
     clarifications = db.relationship(
         "Clarification", order_by="Clarification.id", back_populates="event_request"
+    )
+    change_requests = db.relationship(
+        "ChangeRequest", order_by="ChangeRequest.id", back_populates="event_request"
     )
     changes = db.relationship(
         "EventChange", order_by="EventChange.id", back_populates="event_request"
@@ -625,6 +629,70 @@ class Reservation(db.Model):
 
     def __repr__(self):
         return f"<Reservation {self.id} type {self.equipment_type_id} {self.status}>"
+
+
+# SCRUM-59 AC2: what a change request can affect, and what each choice means for the
+# event's arrangements: the venue bookings and the equipment reservations that then
+# need reviewing. "Other" needs neither.
+CHANGE_AFFECTS = {
+    "date_time": ("venue_bookings", "equipment_reservations"),
+    "attendance": ("venue_bookings",),
+    "venue_requirements": ("venue_bookings",),
+    "equipment": ("equipment_reservations",),
+    "other": (),
+}
+
+
+class ChangeRequest(db.Model):
+    """An Event Organiser's request, after submitting, for a change to their event or for its
+    withdrawal (SCRUM-59; deciding it is SCRUM-60).
+
+    A change carries a description and what it affects (keys of CHANGE_AFFECTS); a withdrawal
+    carries optional text and affects nothing. It is Open until it is decided (SCRUM-60) or
+    Closed without a decision because the event ended (Rejected, Cancelled or Completed). One
+    is open on an event at a time. Times are UTC.
+    """
+
+    __tablename__ = "change_requests"
+
+    CHANGE = "Change"
+    WITHDRAWAL = "Withdrawal"
+    OPEN = "Open"
+    CLOSED = "Closed"
+
+    id = db.Column(db.Integer, primary_key=True)
+    event_request_id = db.Column(db.Integer, db.ForeignKey("event_requests.id"), nullable=False)
+    raised_by_id = db.Column(db.Integer, db.ForeignKey("accounts.id"), nullable=False)
+    kind = db.Column(db.String(16), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    affects = db.Column(db.JSON, nullable=False, default=list)
+    status = db.Column(db.String(16), nullable=False, default="Open")
+    raised_at = db.Column(db.DateTime, nullable=False)
+    closed_at = db.Column(db.DateTime, nullable=True)
+
+    event_request = db.relationship("EventRequest", back_populates="change_requests")
+    raised_by = db.relationship("Account", foreign_keys=[raised_by_id])
+
+    def needs_review(self):
+        """What the request says needs reviewing, from what it affects (AC2)."""
+        needed = {item for key in self.affects for item in CHANGE_AFFECTS[key]}
+        return {
+            "venue_bookings": "venue_bookings" in needed,
+            "equipment_reservations": "equipment_reservations" in needed,
+        }
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "kind": self.kind,
+            "description": self.description,
+            "affects": list(self.affects),
+            "needs_review": self.needs_review(),
+            "status": self.status,
+            "raised_by": self.raised_by.username,
+            "raised_at": self.raised_at.isoformat(),
+            "closed_at": self.closed_at.isoformat() if self.closed_at else None,
+        }
 
 
 class Clarification(db.Model):

@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from sqlalchemy import update
 
 import clock
+from change_requests import close_open_change_request
 from db import db
 from errors import ApiRefusal
 from models import EventRequest
@@ -49,6 +50,8 @@ def complete_event(account, request_id):
         )
         if result.rowcount != 1:
             raise ApiRefusal(409, "The event changed. Reload it before trying again.")
+        # SCRUM-59 AC7: the event has ended, so its open change request closes undecided.
+        close_open_change_request(event)
         db.session.commit()
     except Exception:
         db.session.rollback()

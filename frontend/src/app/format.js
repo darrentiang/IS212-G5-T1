@@ -96,6 +96,8 @@ export const STATUS = Object.freeze({
   RESERVATION: group(['Reserved', 'Released']),
   UNIT: group(['In Service', 'Out of Service']),
   REGISTRATION: group(['Registered', 'Withdrawn']),
+  // SCRUM-59: an Organiser's change or withdrawal request; Accepted and Declined are SCRUM-60's.
+  CHANGE: group(['Open', 'Accepted', 'Declined', 'Closed']),
   // SCRUM-85 adds Expired: a Held hold whose expiry was reached.
   HOLD: group(['Held', 'Released', 'Expired']),
 })
@@ -122,6 +124,10 @@ const BADGE = Object.freeze({
   [STATUS.REQUIREMENT.DECLINED]: 'badge-danger',
   // SCRUM-55: a Registered registration is Success; Withdrawn is the booking's neutral Withdrawn above.
   [STATUS.REGISTRATION.REGISTERED]: 'badge-success',
+  // SCRUM-59: Open is Info and Closed, decided by no one, is neutral (the default); Declined
+  // is the requirement's Declined word above, and Accepted reads like an Approved.
+  [STATUS.CHANGE.OPEN]: 'badge-info',
+  [STATUS.CHANGE.ACCEPTED]: 'badge-success',
   [STATUS.HOLD.HELD]: 'badge-warning',
   [STATUS.HOLD.RELEASED]: 'badge-neutral',
   // SCRUM-85: Danger, so a lapsed hold reads apart from Held and Released.

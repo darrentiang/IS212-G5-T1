@@ -194,6 +194,19 @@ export const cancelBooking = (venueId, bookingId, reason) =>
 export const withdrawBooking = (venueId, bookingId) =>
   request('POST', `/api/venues/${venueId}/bookings/${bookingId}/withdraw`)
 
+// POST /api/requests/:id/change-requests   (SCRUM-59, the changes area's route)
+// body:    { kind: 'Change' | 'Withdrawal', description, affects }   a change needs a description and
+//          one or more of date_time, attendance, venue_requirements, equipment, other; a withdrawal
+//          takes optional text and no affects
+// 201:     the request, its status unchanged, with change_requests (oldest first) each { id, kind,
+//          description, affects, needs_review: { venue_bookings, equipment_reservations }, status
+//          Open | Closed, raised_by, raised_at, closed_at }; the assigned coordinator is told
+// 400/403/404/409: { message }   400 no description, nothing chosen, or not a change or withdrawal;
+//          403 not an Event Organiser; 404 not the Organiser's own event; 409 not Submitted,
+//          Approved, Planning, Safety Check or Confirmed, or a request is already open
+// A thin wrapper of the call the changes area owns: the request page raises it (frontend.md §1).
+export const raiseChangeRequest = (id, body) => request('POST', `/api/requests/${id}/change-requests`, body)
+
 // POST /api/requests/:id/clarification   (SCRUM-45)
 // body:    { message }   required, not blank
 // 201:     the request, still Submitted, with clarification_requested true and its clarifications:
