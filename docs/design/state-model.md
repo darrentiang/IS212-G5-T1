@@ -35,6 +35,7 @@ Every acceptance criterion that changes a status uses a value from these tables.
 | 1.28 | 31-10-2026 | No change to any status or transition. Equipment unit is built: In Service → Out of Service (withdraw, reason required) and Out of Service → In Service (return) by Technical Support Staff. Units are counted per type, not tracked one by one: a type keeps its units out of service, and in service is its total less those; every withdrawal and return is kept (an EquipmentServiceChange record: action, quantity, reason, who, when in UTC). Out-of-service units are not available to the availability check or to reserving, and a total cannot go below them plus the reserved peak from now on | SCRUM-52 (table copied from `target/state-model.md` earlier; this story builds it); schema 31 |
 | 1.29 | 31-10-2026 | No change to any status or transition. Registration: — → Registered is built (the Attendee registers for a Confirmed event with registration on, before its closing time and while the Registered count is below the capacity; one Registered registration per Attendee per event; checked under the event's write lock). "Within the window" is before the closing time: from the closing time registration is closed, correcting v1.27's "at or before". A Withdrawn registration never counts and never blocks, so registering again makes a new row | SCRUM-54 AC1 to AC3, AC6 (the Registration table as in `target/state-model.md`) |
 | 1.30 | 31-10-2026 | New: Change request (Open; Accepted and Declined are SCRUM-60's; Closed when the event becomes Rejected, Cancelled or Completed), what a change affects and what then needs reviewing; raising a request never changes the event's status | Week 7 customer change; SCRUM-59 (the take note's slice) |
+| 1.31 | 01-11-2026 | Change request: Open → Accepted (accept) and Open → Declined (decline, reason required) by the assigned Event Coordinator, with who and when; an accepted change may correct what needs reviewing first; accepting a withdrawal cancels the event (Cancelled, as SCRUM-65); accepting a change that needs venue bookings or equipment reservations reviewed returns a Safety Check or Confirmed event to Planning (Safety Check → Planning is added beside the Confirmed row) | SCRUM-60 AC1 to AC7 (the take note's slice) |
 
 The front end holds these words in `frontend/src/app/format.js` (`STATUS`); a change here changes that file in the same pull request. v1.12 adds Held and Released (`STATUS.HOLD`); v1.18 adds Expired (`STATUS.HOLD.EXPIRED`); v1.14 adds Cancelled to a venue booking request's words (`STATUS.BOOKING.CANCELLED`); v1.15's Venue unavailable is a flag, held there as `VENUE_UNAVAILABLE`.
 
@@ -54,7 +55,7 @@ The front end holds these words in `frontend/src/app/format.js` (`STATUS`); a ch
 | Safety Check | Planning | Reject the safety check (reason required) | Safety Officer |
 | Safety Check | Planning | Request changes (reason and at least one area required) | Safety Officer |
 | Safety Check / Confirmed | Planning | An approved venue booking is marked Venue unavailable | System |
-| Confirmed | Planning | Significant change accepted via change request | Event Coordinator |
+| Safety Check / Confirmed | Planning | Change request accepted when it needs venue bookings or equipment reservations reviewed (SCRUM-60) | Assigned Event Coordinator |
 | Confirmed | Completed | Manually mark completed at or after scheduled end | Assigned Event Coordinator |
 | Submitted / Approved / Planning / Safety Check / Confirmed | Cancelled | Cancel with a nonblank reason; release event commitments | Assigned Event Coordinator |
 
@@ -77,6 +78,7 @@ stateDiagram-v2
     SafetyCheck --> Planning: Changes requested (reason and area required)
     SafetyCheck --> Planning: Booked venue unavailable
     Confirmed --> Planning: Booked venue unavailable
+    SafetyCheck --> Planning: Significant change accepted
     Confirmed --> Planning: Significant change accepted
     Confirmed --> Completed: Mark completed
     Planning --> Cancelled: Cancel
@@ -207,13 +209,13 @@ seen listed (before Confirmed, or Rejected) is answered as not found.
 
 ## Change request
 
-A change request (SCRUM-59) is the Event Organiser's request, after submitting, for a change to their event or for its withdrawal. It belongs to one event, which keeps its own status: raising, deciding or closing a request never changes the event's status (SCRUM-60 may return the event to Planning when it accepts one).
+A change request (SCRUM-59) is the Event Organiser's request, after submitting, for a change to their event or for its withdrawal. It belongs to one event, which keeps its own status: raising, deciding or closing a request never changes the event's status (accepting one may return the event to Planning, or cancel it, as the rows below say).
 
 | From | To | Action | Who |
 |---|---|---|---|
 | — | Open | Raise a change request (a description and what it affects) or a withdrawal request (optional text) while the event is Submitted, Approved, Planning, Safety Check or Confirmed | Event Organiser (own event) |
-| Open | Accepted | Accept (SCRUM-60) | Assigned Event Coordinator |
-| Open | Declined | Decline, reason required (SCRUM-60) | Assigned Event Coordinator |
+| Open | Accepted | Accept, optionally correcting what needs reviewing first (SCRUM-60). Accepting a withdrawal cancels the event with the reason "Withdrawn at the Event Organiser's request on <date and time>." followed by the Organiser's text if any; accepting a change that needs venue bookings or equipment reservations reviewed returns a Safety Check or Confirmed event to Planning; otherwise the event's status is unchanged and it is never edited | Assigned Event Coordinator |
+| Open | Declined | Decline, reason required (SCRUM-60); the event is unchanged | Assigned Event Coordinator |
 | Open | Closed | The event becomes Rejected, Cancelled or Completed; closed without a decision | System |
 
 Only one request is Open on an event at a time. A change affects one or more of date or time, expected attendance, venue requirements and equipment, or other: date or time means the venue bookings and the equipment reservations need reviewing, attendance or venue requirements mean the venue bookings do, equipment means the equipment reservations do, other needs neither. With no coordinator assigned the request waits, and the coordinator is told when assigned (SCRUM-86).

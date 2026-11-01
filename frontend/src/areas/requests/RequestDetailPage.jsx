@@ -2,7 +2,12 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import { useAuth } from '../../app/auth'
 import { STATUS, formatDate, formatDateTime, formatTime, statusBadgeClass } from '../../app/format'
-import ChangeRequestSection, { CHANGE, RaiseChangeRequestForm, WITHDRAWAL } from './ChangeRequestSection'
+import ChangeRequestSection, {
+  CHANGE,
+  DecideChangeRequestForm,
+  RaiseChangeRequestForm,
+  WITHDRAWAL,
+} from './ChangeRequestSection'
 import ClarificationSection, { AskClarificationForm } from './ClarificationSection'
 import SafetyCheckSection from './SafetyCheckSection'
 import ArrangementsSection from './ArrangementsSection'
@@ -27,6 +32,7 @@ import {
   placeHold,
   rejectRequest,
   raiseChangeRequest,
+  decideChangeRequest,
   releaseHold,
   rejectSafetyCheck,
   replyToClarification,
@@ -348,6 +354,38 @@ const openDecision = (action) => {
     row?.created_by === account?.username &&
     RAISABLE.includes(row?.status) &&
     !row?.change_requests?.some((item) => item.status === STATUS.CHANGE.OPEN)
+
+  // SCRUM-60: the assigned coordinator accepts or declines the open request while the event is in
+  // one of the same statuses. The API refuses anything else.
+  const openChange = row?.change_requests?.find((item) => item.status === STATUS.CHANGE.OPEN)
+  const canDecideChange =
+    Boolean(can?.('changes.decide')) &&
+    row?.assigned_coordinator === account?.username &&
+    RAISABLE.includes(row?.status) &&
+    Boolean(openChange)
+
+  const handleDecideChange = async (changeId, body) => {
+    setSubmitting(true)
+    try {
+      setRow(await decideChangeRequest(id, changeId, body))
+      setBanner(null)
+      const kind = openChange.kind === WITHDRAWAL ? 'Withdrawal' : 'Change'
+      setSuccessBanner(`${kind} request ${body.decision === 'Accept' ? 'accepted' : 'declined'}`)
+      return true
+    } catch (error) {
+      setBanner(error.message)
+      setSuccessBanner(null)
+      // The refusal may mean it was decided in another tab: show the request as it now stands.
+      try {
+        setRow(await getRequest(id))
+      } catch (reloadError) {
+        setBanner(reloadError.message)
+      }
+      return false
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   const handleRaiseChange = async (body) => {
     setSubmitting(true)
@@ -1079,6 +1117,30 @@ const openDecision = (action) => {
             </div>
           )}
 
+          {/* SCRUM-60: the assigned coordinator decides the open request, in the card's action row. */}
+          {canDecideChange && (
+            <div className="flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={() => openDecision('decline-change')}
+                className="btn btn-secondary"
+                data-testid="request-detail-change-decline-button"
+              >
+                Decline
+              </button>
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={() => openDecision('accept-change')}
+                className="btn btn-primary"
+                data-testid="request-detail-change-accept-button"
+              >
+                Accept
+              </button>
+            </div>
+          )}
+
           {/* SCRUM-29: approve or reject a Submitted request, in the card's action row (§7). */}
           {canDecide && (
             <div className="flex flex-wrap justify-end gap-2">
@@ -1133,6 +1195,17 @@ const openDecision = (action) => {
           submitting={submitting}
           onClose={() => setOpenAction(null)}
           onRaise={handleRaiseChange}
+        />
+      )}
+
+      {/* SCRUM-60: accept or decline the open request. */}
+      {canDecideChange && ['accept-change', 'decline-change'].includes(openAction) && (
+        <DecideChangeRequestForm
+          request={openChange}
+          decision={openAction === 'accept-change' ? 'Accept' : 'Decline'}
+          submitting={submitting}
+          onClose={() => setOpenAction(null)}
+          onDecide={handleDecideChange}
         />
       )}
 

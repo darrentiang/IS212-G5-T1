@@ -20,11 +20,14 @@ from permissions import REQUESTS_CANCEL, can
 CANCELLABLE_STATUSES = ("Submitted", "Approved", "Planning", "Safety Check", "Confirmed")
 
 
-def cancel_event(account, request_id, body):
+def cancel_event(account, request_id, body, commit=True):
     """Reusable domain action for the assigned Coordinator, e.g. SCRUM-60 later.
 
     Actor/time/status are server-owned. All writes, including arrangement metadata,
-    share one transaction; refusals and unexpected exceptions roll it back.
+    share one transaction; refusals and unexpected exceptions roll it back. A caller that
+    has more to write in the same transaction (SCRUM-60 accepting a withdrawal) passes
+    commit=False, flushes what it has first (the lock below expires the session), and commits
+    itself; a failure here still rolls everything back.
     """
     try:
         if not can(account, REQUESTS_CANCEL):
@@ -75,7 +78,7 @@ def cancel_event(account, request_id, body):
             reservation.status = "Released"
         # SCRUM-59 AC7: the event has ended, so its open change request closes undecided.
         close_open_change_request(event)
-        db.session.commit()
+        db.session.commit() if commit else db.session.flush()
     except Exception:
         db.session.rollback()
         raise

@@ -61,6 +61,7 @@ Keys used in `backend/permissions.py` and on API routes / `features` from `/api/
 | requests.decide | No | Yes | No | No | No | No | No |
 | clarifications.reply | Yes | No | No | No | No | No | No |
 | changes.raise | Yes | No | No | No | No | No | No |
+| changes.decide | No | Yes | No | No | No | No | No |
 | requests.complete | No | Yes | No | No | No | No | No |
 | requests.cancel | No | Yes | No | No | No | No | No |
 | requests.edit_event | No | Yes | No | No | No | No | No |
@@ -129,6 +130,7 @@ Keys used in `backend/permissions.py` and on API routes / `features` from `/api/
 | 1.37 | 31-10-2026 | New key `registration.register` for the Attendee, under the existing row "Register or withdraw registration" (no new action row): an Attendee registers themselves for a Confirmed event with registration on, before its closing time and while places are left. A missing event, or one an Attendee could never have seen listed (Draft, Submitted, Approved, Planning, Safety Check, Rejected), answers 404, a write never confirming a record the account may not read; a Confirmed event with registration off, a Cancelled or Completed event, or one that is closed, full or already registered for answers 409 with the reason. The list each event is registered from gives only its name, purpose, date, time, venues and the account's state | SCRUM-54 AC1 to AC6 |
 | 1.38 | 01-11-2026 | New row "View registrations for an event": the Event Organiser who created the event and its assigned Event Coordinator see the Registered count, capacity, places remaining and each registered Attendee with when they registered, read on the event's detail with the access the request page already has (no new key; the rule is in the service, as SCRUM-46's). Only the assigned coordinator may change the settings; the creating Organiser sees them read-only. Nobody else is sent them, the Event Coordinator Lead's read-only view (SCRUM-88) included, correcting v1.35's "assigned coordinator only" | SCRUM-57 AC1 to AC4 (`target/permissions.md` has no wording for this row) |
 | 1.39 | 31-10-2026 | "Raise a change request on a confirmed event" becomes "Raise a change or withdrawal request after submission" (Event Organiser, own events, any of Submitted, Approved, Planning, Safety Check or Confirmed); new key `changes.raise`, with the own-event rule enforced in the service | SCRUM-59 AC1, AC8 (deciding the request, `Decide a change request`, is SCRUM-60) |
+| 1.40 | 01-11-2026 | New key `changes.decide` for the Event Coordinator, behind the existing row `Decide a change request` (assigned coordinator only, enforced in the service: anyone else answers 404 `Event request not found.`); accepting a withdrawal calls the SCRUM-65 cancellation as the deciding coordinator, so no other permission is added | SCRUM-60 AC1, AC4, AC7 |
 
 SCRUM-81: Technical Support may decide or correct a requirement only while the event is Approved or Planning and no reservation for the same event/type is Reserved. Released history does not block a decision. Arrangement notes remain editable in those event stages even with a Reserved reservation. These mutations grant no general event-request access.
 

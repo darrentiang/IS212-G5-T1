@@ -8,6 +8,9 @@ import { useReveal, useRevealError } from '../../app/reveal'
 // coordinator and the Lead (read-only). The form owns its entries and the messages under its
 // fields (ui-guidelines.md §5) and sends nothing while a required one is missing; the page
 // owns the API call and the banner, and answers true when the call went through.
+// SCRUM-60: the assigned coordinator accepts or declines the open request from the same action
+// row, which opens DecideChangeRequestForm; the decision, who and when, and any reason then
+// show on the request's entry.
 
 export const CHANGE = 'Change'
 export const WITHDRAWAL = 'Withdrawal'
@@ -19,6 +22,10 @@ const AFFECTS = [
   ['venue_requirements', 'Venue requirements'],
   ['equipment', 'Equipment'],
   ['other', 'Other'],
+]
+const REVIEW = [
+  ['venue_bookings', 'Venue bookings'],
+  ['equipment_reservations', 'Equipment reservations'],
 ]
 const AFFECTS_LABEL = Object.fromEntries(AFFECTS)
 const kebab = (key) => key.replaceAll('_', '-')
@@ -126,6 +133,109 @@ export function RaiseChangeRequestForm({ kind, submitting, onClose, onRaise }) {
   )
 }
 
+// SCRUM-60: accept or decline the open request. Declining takes a reason; accepting a change
+// shows what it says needs reviewing, ticked as it stands, for the coordinator to correct;
+// accepting a withdrawal says the event will be cancelled. Only a missing reason is checked here.
+export function DecideChangeRequestForm({ request, decision, submitting, onClose, onDecide }) {
+  const accepting = decision === 'Accept'
+  const [reason, setReason] = useState('')
+  const [review, setReview] = useState({ ...request.needs_review })
+  const [error, setError] = useState(null)
+  // Accepting a withdrawal has no field to focus.
+  const formRef = useReveal(true, accepting && request.kind === WITHDRAWAL ? null : undefined)
+  useRevealError(formRef, error)
+
+  const handleSubmit = async (event) => {
+    event.preventDefault()
+    if (!accepting && reason.trim() === '') {
+      setError('Give a reason for declining.')
+      return
+    }
+    setError(null)
+    const body = accepting
+      ? { decision, ...(request.kind === CHANGE ? { needs_review: review } : {}) }
+      : { decision, reason }
+    if (await onDecide(request.id, body)) onClose()
+  }
+
+  return (
+    <form
+      ref={formRef}
+      onSubmit={handleSubmit}
+      noValidate
+      className="card form-card space-y-4"
+      data-testid="request-detail-decide-form"
+    >
+      <h2 className="section-title">{accepting ? 'Accept the request' : 'Decline the request'}</h2>
+      {!accepting && (
+        <div>
+          <label htmlFor="request-detail-decide-reason-input" className="label">
+            Reason *
+          </label>
+          <textarea
+            id="request-detail-decide-reason-input"
+            className="input"
+            rows={3}
+            value={reason}
+            onChange={(event) => {
+              setReason(event.target.value)
+              setError(null)
+            }}
+            aria-required="true"
+            aria-invalid={error ? 'true' : undefined}
+            data-testid="request-detail-decide-reason-input"
+          />
+          {error && (
+            <p className="field-error" data-testid="request-detail-decide-reason-error">
+              {error}
+            </p>
+          )}
+        </div>
+      )}
+      {accepting && request.kind === CHANGE && (
+        <fieldset>
+          <legend className="label">Needs reviewing</legend>
+          <div className="flex flex-wrap gap-4">
+            {REVIEW.map(([key, label]) => (
+              <label key={key} className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={review[key]}
+                  onChange={() => setReview((current) => ({ ...current, [key]: !current[key] }))}
+                  data-testid={`request-detail-decide-review-${kebab(key)}-input`}
+                />
+                {label}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      )}
+      {accepting && request.kind === WITHDRAWAL && (
+        <p data-testid="request-detail-decide-withdrawal-note">Accepting cancels the event.</p>
+      )}
+      <div className="flex flex-wrap justify-end gap-2">
+        <button
+          type="button"
+          disabled={submitting}
+          onClick={onClose}
+          className="btn btn-secondary"
+          data-testid="request-detail-decide-cancel-button"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          disabled={submitting}
+          className="btn btn-primary"
+          data-testid="request-detail-decide-confirm-button"
+        >
+          Confirm
+        </button>
+      </div>
+    </form>
+  )
+}
+
 // What a request says needs reviewing: the venue bookings, the equipment reservations, both or neither.
 const reviewText = (needsReview) => {
   const needed = []
@@ -170,6 +280,16 @@ export default function ChangeRequestSection({ changeRequests }) {
             <p className="text-sm" data-testid={`request-detail-change-raised-${row.id}`}>
               {row.raised_by}, {formatDateTime(row.raised_at)}
             </p>
+            {row.decided_by && (
+              <p className="text-sm" data-testid={`request-detail-change-decided-${row.id}`}>
+                {row.status} by {row.decided_by}, {formatDateTime(row.decided_at)}
+              </p>
+            )}
+            {row.decision_reason && (
+              <p className="whitespace-pre-wrap" data-testid={`request-detail-change-reason-${row.id}`}>
+                {row.decision_reason}
+              </p>
+            )}
           </li>
         ))}
       </ol>

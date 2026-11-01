@@ -207,6 +207,20 @@ export const withdrawBooking = (venueId, bookingId) =>
 // A thin wrapper of the call the changes area owns: the request page raises it (frontend.md §1).
 export const raiseChangeRequest = (id, body) => request('POST', `/api/requests/${id}/change-requests`, body)
 
+// POST /api/requests/:id/change-requests/:changeId/decision   (SCRUM-60)
+// body:    { decision: 'Accept' | 'Decline', reason?, needs_review?: { venue_bookings, equipment_reservations } }
+//          a decline needs a reason; needs_review corrects what an accepted change says needs
+//          reviewing (ignored for a withdrawal)
+// 200:     the request; the request's row now Accepted or Declined with decided_by, decided_at,
+//          decision_reason; accepting a withdrawal leaves the event Cancelled, accepting a change
+//          that needs reviewing returns a Safety Check or Confirmed event to Planning
+// 400/403/404/409: { message }   400 no decision, no reason for a decline, a malformed needs_review;
+//          403 not an Event Coordinator; 404 not the assigned coordinator's event, or no such
+//          request; 409 the request is not Open
+// A thin wrapper of the call the changes area owns: the request page decides it (frontend.md §1).
+export const decideChangeRequest = (id, changeId, body) =>
+  request('POST', `/api/requests/${id}/change-requests/${changeId}/decision`, body)
+
 // POST /api/requests/:id/clarification   (SCRUM-45)
 // body:    { message }   required, not blank
 // 201:     the request, still Submitted, with clarification_requested true and its clarifications:
