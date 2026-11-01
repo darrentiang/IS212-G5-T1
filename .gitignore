@@ -38,3 +38,6 @@ frontend/coverage/
 
 # Local AI tool output
 Claude outputs/
+
+# Test traceability index (node .github/scripts/traceability.js) when ../Claude outputs/ is absent
+traceability-out/
