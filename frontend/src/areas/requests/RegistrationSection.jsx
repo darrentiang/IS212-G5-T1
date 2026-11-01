@@ -6,9 +6,12 @@ import { setRegistration } from './api'
 // SCRUM-92: the event's assigned Event Coordinator sees its registration (on or
 // off, capacity, closing time) and sets it while the API says they may
 // (registration.can_edit: Approved, Planning, Safety Check or Confirmed). The
-// API sends `registration` to the assigned coordinator only. Every rule is the
+// API sends `registration` to the assigned coordinator (and SCRUM-57's Organiser). Every rule is the
 // API's: a refusal goes to the page banner (onRefused) and the form stays open
 // with the entered values; a save closes it and the page shows `Registration updated`.
+// SCRUM-57: the Event Organiser who created the event gets `registration` too,
+// read-only (can_edit false). While registration is on, both see how many are
+// registered, the places remaining and who registered; while it is off, a sentence.
 
 const valuesFrom = (registration) => ({
   enabled: registration.enabled ? 'on' : 'off',
@@ -82,6 +85,9 @@ function Registration({ event, onSaved, onRefused, activeAction, onActionChange 
           </dd>
         </div>
       </dl>
+      {registration.enabled ? <Registered registration={registration} /> : (
+        <p data-testid="request-detail-registration-not-on">Registration is not on for this event.</p>
+      )}
       {registration.can_edit && !open && (
         <div className="flex flex-wrap justify-end gap-2">
           <button type="button" className="btn btn-secondary" data-testid="request-detail-registration-edit-button"
@@ -114,5 +120,54 @@ function Registration({ event, onSaved, onRefused, activeAction, onActionChange 
         </form>
       )}
     </section>
+  )
+}
+
+function Registered({ registration }) {
+  const { attendees } = registration
+  return (
+    <>
+      <dl className="detail-list">
+        <div>
+          <dt>Registered</dt>
+          <dd data-testid="request-detail-registration-registered">{registration.registered}</dd>
+        </div>
+        <div>
+          <dt>Places remaining</dt>
+          <dd data-testid="request-detail-registration-places-remaining">{registration.places_remaining}</dd>
+        </div>
+      </dl>
+      <h3 className="section-title">Registered attendees</h3>
+      {attendees.length === 0 ? (
+        <div className="card">
+          <p className="empty-state" data-testid="request-detail-registration-attendees-empty">
+            No one has registered yet.
+          </p>
+        </div>
+      ) : (
+        <div className="card p-0 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="table" data-testid="request-detail-registration-attendees">
+              <thead>
+                <tr>
+                  <th>Attendee</th>
+                  <th>Registered at</th>
+                </tr>
+              </thead>
+              <tbody>
+                {attendees.map((row) => (
+                  <tr key={row.username} data-testid={`request-detail-registration-attendee-${row.username}`}>
+                    <td data-testid={`request-detail-registration-attendee-name-${row.username}`}>{row.username}</td>
+                    <td data-testid={`request-detail-registration-attendee-registered-at-${row.username}`}>
+                      {formatDateTime(row.registered_at)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </>
   )
 }
