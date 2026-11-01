@@ -186,11 +186,15 @@ def request_detail_dict(event_request, account):
     # SCRUM-47 AC5: the record of significant changes, for the assigned coordinator.
     if event_request.assigned_coordinator_id == account.id:
         payload["change_record"] = [row.to_dict() for row in event_request.changes]
-        # SCRUM-92: the registration settings, for the assigned coordinator only.
+    # SCRUM-92, SCRUM-57: the registration, for the assigned coordinator (who sets
+    # it) and the Event Organiser who created the event (who only views it); for
+    # nobody else, the Lead's read-only view included.
+    assigned = event_request.assigned_coordinator_id == account.id
+    if assigned or event_request.created_by_id == account.id:
         # Imported here: the settings module builds on this one.
         from areas.registration.settings import settings_to_dict
 
-        payload["registration"] = settings_to_dict(event_request, account)
+        payload["registration"] = settings_to_dict(event_request, account, may_edit=assigned)
     return payload
 
 
