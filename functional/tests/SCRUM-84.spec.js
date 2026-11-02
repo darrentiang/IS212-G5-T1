@@ -2,14 +2,8 @@ import { test, expect, request as playwrightRequest } from '@playwright/test'
 import { assignAsLead, startPlanning } from './helpers/assign.js'
 import { pinClock, clearClock } from './helpers/clock.js'
 
-// SCRUM-84 Place a Tentative Venue Hold. TC-SCRUM-84-01 and 03 to 10 (test-case
+// SCRUM-84 Place a Tentative Venue Hold. TC-SCRUM-84-01 to 10 (test-case
 // sheet), one test per row in the row's order.
-//
-// TC-SCRUM-84-02 (placing the first hold on an Approved event moves it to
-// Planning) has no test here and is proved by backend/tests/test_venue_holds.py
-// (test_the_first_hold_on_an_approved_event_moves_it_to_planning). SCRUM-86 now
-// lets an Approved event with an assigned coordinator be built through the app
-// (approvedEvent below), so a Playwright test for the row is possible.
 //
 // Every row builds its own venue, with 30 minutes of setup and of turnaround as
 // the curated preconditions give Seminar Room 1, and its own events through the
@@ -211,6 +205,30 @@ test('the assigned coordinator holds a venue for a Planning event; it shows Held
   await expect(page.getByTestId(`venue-availability-entry-status-booking-${eveningBooking}-${days.event}`)).toHaveText(
     'Pending',
   )
+})
+
+// @tc: TC-SCRUM-84-02
+// @test: placing the first hold on an Approved event moves the event to Planning
+// @story: SCRUM-84
+// @ac: 8
+test('placing the first hold on an Approved event moves the event to Planning', async ({ page }) => {
+  const days = daysFor(2)
+  // The row's Seminar Room 1, built for this row like every other row's venue.
+  const venue = await ownVenue('TC84-02 Room')
+  const holder = await approvedEvent('TC84-02 Hold Seminar', days.event)
+  pinClock(`${days.now}T09:00`)
+
+  await login(page, holder.coordinator)
+  await page.goto(`/requests/${holder.id}`)
+  await expect(page.getByTestId('request-detail-status')).toHaveText('Approved')
+  await placeHoldInPage(page, venue, days.dayBefore, '17:00')
+
+  await expect(page.getByTestId('request-detail-banner')).toHaveText('Hold placed')
+  const [hold] = await holdsOf(holder)
+  await expect(page.getByTestId(`request-detail-hold-venue-${hold.id}`)).toHaveText('TC84-02 Room')
+  await expect(page.getByTestId(`request-detail-hold-period-${hold.id}`)).toHaveText(`${shown(days.event)}, 09:30–12:30`)
+  await expect(page.getByTestId(`request-detail-hold-status-${hold.id}`)).toHaveText('Held')
+  await expect(page.getByTestId('request-detail-status')).toHaveText('Planning')
 })
 
 // @tc: TC-SCRUM-84-03
