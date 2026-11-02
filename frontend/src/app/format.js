@@ -96,7 +96,7 @@ export const STATUS = Object.freeze({
   RESERVATION: group(['Reserved', 'Released']),
   UNIT: group(['In Service', 'Out of Service']),
   REGISTRATION: group(['Registered', 'Withdrawn']),
-  // SCRUM-59: an Organiser's change or withdrawal request; Accepted and Declined are SCRUM-60's.
+  // SCRUM-59/60: an Organiser's change or withdrawal request, Accepted or Declined by the coordinator.
   CHANGE: group(['Open', 'Accepted', 'Declined', 'Closed']),
   // SCRUM-85 adds Expired: a Held hold whose expiry was reached.
   HOLD: group(['Held', 'Released', 'Expired']),

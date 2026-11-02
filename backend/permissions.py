@@ -20,6 +20,7 @@ REQUESTS_EDIT = "requests.edit"
 REQUESTS_DECIDE = "requests.decide"  # SCRUM-29: approve or reject a Submitted request; SCRUM-45: ask for clarification
 CLARIFICATIONS_REPLY = "clarifications.reply"  # SCRUM-45: the Event Organiser answers a clarification on their request
 CHANGES_RAISE = "changes.raise"  # SCRUM-59: the Event Organiser asks for a change or a withdrawal on their event
+CHANGES_DECIDE = "changes.decide"  # SCRUM-60: the assigned Event Coordinator accepts or declines a change or withdrawal request
 VENUES_VIEW = "venues.view"
 VENUES_EDIT = "venues.edit"  # SCRUM-31: maintain venue records (Venue Staff)
 VENUES_SEARCH = "venues.search"  # SCRUM-33: search venues for an event (Event Coordinator)
@@ -50,6 +51,7 @@ ALL_FEATURES = frozenset(
         REQUESTS_DECIDE,
         CLARIFICATIONS_REPLY,
         CHANGES_RAISE,
+        CHANGES_DECIDE,
         REQUESTS_COMPLETE,
         REQUESTS_CANCEL,
         REQUESTS_EDIT_EVENT,
@@ -93,6 +95,7 @@ ROLE_FEATURES = {
         REQUESTS_COMPLETE,
         REQUESTS_CANCEL,
         REQUESTS_EDIT_EVENT,  # SCRUM-47: only the assigned coordinator (service rule)
+        CHANGES_DECIDE,  # SCRUM-60: only the assigned coordinator (service rule)
         REQUESTS_DECIDE,  # and only on an event assigned to them (service rule, SCRUM-87 AC3)
         VENUES_VIEW,
         VENUES_SEARCH,

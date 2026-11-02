@@ -55,7 +55,8 @@ from db import db
 # SCRUM-52 adds an equipment type's out_of_service_units and the
 # EquipmentServiceChange table (every withdrawal and return), so 31.
 # SCRUM-59 adds the ChangeRequest table (an Organiser's request for a change or a withdrawal), so 32.
-SCHEMA_VERSION = 32
+# SCRUM-60 adds the decision to ChangeRequest (who decided, when, the reason, what the coordinator says needs reviewing), so 33.
+SCHEMA_VERSION = 33
 
 
 account_roles = db.Table(
@@ -645,12 +646,14 @@ CHANGE_AFFECTS = {
 
 class ChangeRequest(db.Model):
     """An Event Organiser's request, after submitting, for a change to their event or for its
-    withdrawal (SCRUM-59; deciding it is SCRUM-60).
+    withdrawal (SCRUM-59), and the assigned coordinator's decision on it (SCRUM-60).
 
     A change carries a description and what it affects (keys of CHANGE_AFFECTS); a withdrawal
-    carries optional text and affects nothing. It is Open until it is decided (SCRUM-60) or
-    Closed without a decision because the event ended (Rejected, Cancelled or Completed). One
-    is open on an event at a time. Times are UTC.
+    carries optional text and affects nothing. It is Open until it is decided, Accepted or
+    Declined (SCRUM-60), or Closed without a decision because the event ended (Rejected,
+    Cancelled or Completed). One is open on an event at a time. A decision keeps who made it,
+    when, the reason a decline needs, and, for an accepted change, what the coordinator says
+    needs reviewing (`reviewed`; None means what `affects` gives). Times are UTC.
     """
 
     __tablename__ = "change_requests"
@@ -658,6 +661,8 @@ class ChangeRequest(db.Model):
     CHANGE = "Change"
     WITHDRAWAL = "Withdrawal"
     OPEN = "Open"
+    ACCEPTED = "Accepted"
+    DECLINED = "Declined"
     CLOSED = "Closed"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -669,12 +674,20 @@ class ChangeRequest(db.Model):
     status = db.Column(db.String(16), nullable=False, default="Open")
     raised_at = db.Column(db.DateTime, nullable=False)
     closed_at = db.Column(db.DateTime, nullable=True)
+    decided_by_id = db.Column(db.Integer, db.ForeignKey("accounts.id"), nullable=True)
+    decided_at = db.Column(db.DateTime, nullable=True)
+    decision_reason = db.Column(db.Text, nullable=True)
+    reviewed = db.Column(db.JSON, nullable=True)
 
     event_request = db.relationship("EventRequest", back_populates="change_requests")
     raised_by = db.relationship("Account", foreign_keys=[raised_by_id])
+    decided_by = db.relationship("Account", foreign_keys=[decided_by_id])
 
     def needs_review(self):
-        """What the request says needs reviewing, from what it affects (AC2)."""
+        """What the request says needs reviewing: what the coordinator set when accepting it
+        (SCRUM-60 AC2), else what it affects (SCRUM-59 AC2)."""
+        if self.reviewed is not None:
+            return dict(self.reviewed)
         needed = {item for key in self.affects for item in CHANGE_AFFECTS[key]}
         return {
             "venue_bookings": "venue_bookings" in needed,
@@ -692,6 +705,9 @@ class ChangeRequest(db.Model):
             "raised_by": self.raised_by.username,
             "raised_at": self.raised_at.isoformat(),
             "closed_at": self.closed_at.isoformat() if self.closed_at else None,
+            "decided_by": self.decided_by.username if self.decided_by else None,
+            "decided_at": self.decided_at.isoformat() if self.decided_at else None,
+            "decision_reason": self.decision_reason,
         }
 
 
