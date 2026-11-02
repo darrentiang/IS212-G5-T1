@@ -474,8 +474,13 @@ def test_approval_notifies_the_assigned_coordinator_once(client, app):
     login_as(client, app, "safety1")
     before = notification_count()
     approve(client, "Harbour Gala")
-    assert notification_count() == before + 1
-    row = db.session.query(Notification).order_by(Notification.id.desc()).first()
+    # SCRUM-64 AC1 adds the Organiser's confirmation notice beside this one.
+    assert notification_count() == before + 2
+    coordinator = db.session.query(Notification).join(Account, Notification.recipient_id == Account.id) \
+        .filter(Account.username == "coord1", Notification.event_request_id == event("Harbour Gala").id) \
+        .order_by(Notification.id.desc()).all()
+    assert len(coordinator) == 1
+    row = coordinator[0]
     assert row.recipient.username == "coord1"
     assert row.event_request.name == "Harbour Gala"
     assert row.read_at is None
@@ -515,7 +520,8 @@ def test_a_decision_with_no_assigned_coordinator_still_goes_through(client, app)
     before = notification_count()
     assert approve(client, "Tech Summit").status_code == 200
     assert event("Tech Summit").status == "Confirmed"
-    assert notification_count() == before
+    # Nobody is told in the coordinator's place; the Organiser still is (SCRUM-64 AC1).
+    assert notification_count() == before + 1
 
 
 # ---- AC9: only an event in Safety Check can be decided ------------------------

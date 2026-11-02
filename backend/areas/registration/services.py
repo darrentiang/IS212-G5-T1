@@ -10,11 +10,13 @@ A Withdrawn registration never counts toward the capacity and never blocks.
 from datetime import datetime, timezone
 
 import clock
+import event_notices
 from areas.registration.settings import _registered_count
 from areas.requests.editing import lock_event
 from db import db
 from errors import ApiRefusal
-from models import EventRequest, Registration, Venue, VenueBookingRequest
+from event_notices import venue_names
+from models import EventRequest, Registration
 
 REGISTERED = "Registered"
 WITHDRAWN = "Withdrawn"
@@ -34,21 +36,6 @@ FULL = "This event is full."
 
 def _utc_now():
     return datetime.now(timezone.utc).replace(tzinfo=None)
-
-
-def venue_names(event):
-    """The names of the event's Approved venue booking requests, comma-separated,
-    in name order: what an Attendee is told about where the event is (SCRUM-54 AC4;
-    SCRUM-56 reuses it)."""
-    rows = (
-        db.session.query(Venue.name)
-        .join(VenueBookingRequest, VenueBookingRequest.venue_id == Venue.id)
-        .filter(VenueBookingRequest.event_request_id == event.id, VenueBookingRequest.status == "Approved")
-        .distinct()
-        .order_by(Venue.name)
-        .all()
-    )
-    return ", ".join(name for (name,) in rows)
 
 
 def _holds_registration(account, event):
@@ -120,8 +107,8 @@ def register(account, event_id):
 
     Every check is read under the event's write lock, the lock SCRUM-92 saves
     the settings under, so two Attendees after the last place are counted one
-    after the other. A refusal changes nothing. The whole success path is here:
-    SCRUM-64 sends the confirmation notification after the commit.
+    after the other. A refusal changes nothing. The whole success path is here,
+    and the Attendee's notice (SCRUM-64 AC6) is written in the same commit.
     """
     try:
         event = lock_event(event_id)
@@ -133,6 +120,7 @@ def register(account, event_id):
             raise ApiRefusal(409, message)
         db.session.add(Registration(event_request=event, attendee=account, status=REGISTERED,
                                     registered_at=_utc_now()))
+        event_notices.registered_for(event, account)
         db.session.commit()
     except Exception:
         db.session.rollback()
@@ -214,5 +202,6 @@ def withdraw(account, registration_id):
         raise ApiRefusal(409, message)
     registration.status = WITHDRAWN
     registration.withdrawn_at = _utc_now()
+    event_notices.withdrawn_from(registration.event_request, account)  # SCRUM-64 AC6
     db.session.commit()
     return _to_dict(registration)

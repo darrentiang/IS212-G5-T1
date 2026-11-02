@@ -29,6 +29,7 @@ from datetime import date, datetime, timezone
 from sqlalchemy import func, or_
 
 import arrangement_flags
+import event_notices
 import occupancy
 from change_requests import close_open_change_request, notify_waiting_change_request
 from db import db
@@ -1081,6 +1082,7 @@ def _record_safety_decision(event_request, account, decision, reason, notes, are
     name = event_request.name
     if decision == "Approved":
         event_request.status = "Confirmed"
+        event_notices.confirmed(event_request)  # SCRUM-64 AC1, AC4
         message = f'Your event "{name}" passed its safety check and is now Confirmed.'
     elif decision == CHANGES_REQUESTED:
         event_request.status = "Planning"

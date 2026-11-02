@@ -83,7 +83,8 @@ def test_all_allowed_stages_without_arrangements(client, event, stage):
         detail = client.get(f'/api/requests/{event.id}')
         assert detail.status_code == 200
         assert detail.json['cancellation'] == reply.json['cancellation']
-    assert after['notifications'] == before['notifications']
+    # SCRUM-64 appends the cancellation notices; no existing notice is changed.
+    assert after['notifications'][:len(before['notifications'])] == before['notifications']
 
 
 def test_all_commitments_release_preserving_history_other_events_and_stock(client, event):
@@ -105,7 +106,8 @@ def test_all_commitments_release_preserving_history_other_events_and_stock(clien
     after = snapshot()
     assert after['equipment_types'] == before['equipment_types']
     assert after['equipment_requirements'] == before['equipment_requirements']
-    assert after['notifications'] == before['notifications']
+    # SCRUM-64 appends the cancellation notices; no existing notice is changed.
+    assert after['notifications'][:len(before['notifications'])] == before['notifications']
     for model, rows in [(VenueBookingRequest, bookings[3:]+[other_booking]), (VenueHold, holds[1:]), (Reservation, [reservations[1],other_reservation])]:
         ids = [row.id for row in rows]
         assert [x for x in before[model.__tablename__] if x['id'] in ids] == [x for x in after[model.__tablename__] if x['id'] in ids]
@@ -346,8 +348,10 @@ def test_booking_write_rechecks_state_after_concurrent_cancellation(tmp_path, mo
             assert e.cancel_reason == REASON
             assert [b.status for b in e.booking_requests] == (['Withdrawn'] if operation == 'approve' else [])
             assert e.venue_holds == []
-            assert [{c.name: getattr(row, c.name) for c in Notification.__table__.columns}
-                    for row in db.session.query(Notification).order_by(Notification.id)] == notifications_before
+            # SCRUM-64 appends the cancellation notices; no existing notice is changed.
+            after_notices = [{c.name: getattr(row, c.name) for c in Notification.__table__.columns}
+                             for row in db.session.query(Notification).order_by(Notification.id)]
+            assert after_notices[:len(notifications_before)] == notifications_before
     finally:
         sa_event.remove(Session, 'loaded_as_persistent', pause_cached_read)
         with app.app_context():

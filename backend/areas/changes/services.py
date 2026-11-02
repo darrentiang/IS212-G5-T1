@@ -9,6 +9,7 @@ assignment tells the coordinator one is waiting) are in change_requests.py.
 from datetime import datetime, timezone
 
 import clock
+import event_notices
 from areas.requests.cancellation import cancel_event
 from change_requests import open_change_request
 from db import db
@@ -155,14 +156,22 @@ def decide_change_request(account, request_id, change_request_id, data):
     if decision == DECLINE:
         change_request.status = ChangeRequest.DECLINED
         change_request.decision_reason = reason
+        event_notices.change_declined(event_request, change_request)  # SCRUM-64 AC2
     else:
         change_request.status = ChangeRequest.ACCEPTED
         if reviewed is not None:
             change_request.reviewed = reviewed
         if change_request.kind == ChangeRequest.WITHDRAWAL:
+            # SCRUM-64 AC5: the cancellation notice is the Organiser's only notice here.
             db.session.flush()
             cancel_event(account, request_id, {"reason": _withdrawal_reason(change_request)}, commit=False)
-        elif event_request.status in RETURNED_TO_PLANNING and any(change_request.needs_review().values()):
-            event_request.status = "Planning"
+        else:
+            event_notices.change_accepted(event_request)  # SCRUM-64 AC2
+            if event_request.status in RETURNED_TO_PLANNING and any(change_request.needs_review().values()):
+                was_confirmed = event_request.status == "Confirmed"
+                event_request.status = "Planning"
+                if was_confirmed:
+                    # The Organiser was just told of the acceptance, so not told again (SCRUM-64 AC7).
+                    event_notices.back_in_planning(event_request, told=(event_request.created_by,))
     db.session.commit()
     return event_request

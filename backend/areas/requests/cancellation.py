@@ -4,13 +4,15 @@ Do not call the standalone booking/hold/equipment release actions: they commit
 individually and intentionally have narrower permissions/stage restrictions.
 Lock order matches SCRUM-51: event, then equipment types in ascending id order.
 The fresh event under the lock supplies ownership and lifecycle eligibility.
-Notifications remain SCRUM-64; cancellation never deletes history or changes stock.
+Notices are SCRUM-64 (event_notices.py), written in the same commit as the cancellation.
+Cancellation never deletes history or changes stock.
 """
 from datetime import timezone
 
 from sqlalchemy import update
 
 import clock
+import event_notices
 from change_requests import close_open_change_request
 from db import db
 from errors import ApiRefusal
@@ -78,6 +80,7 @@ def cancel_event(account, request_id, body, commit=True):
             reservation.status = "Released"
         # SCRUM-59 AC7: the event has ended, so its open change request closes undecided.
         close_open_change_request(event)
+        event_notices.cancelled(event, reason)  # SCRUM-64 AC5
         db.session.commit() if commit else db.session.flush()
     except Exception:
         db.session.rollback()
