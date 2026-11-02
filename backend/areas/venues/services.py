@@ -17,6 +17,7 @@ from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 
 import clock
+import event_notices
 import occupancy
 from db import db
 from errors import ApiRefusal
@@ -377,6 +378,10 @@ def _tell_bookings_hit(block):
         if event.assigned_coordinator is not None:
             create_notification(event.assigned_coordinator, _unavailable_message(booking, block), event)
         if event.status in RETURNS_TO_PLANNING:
+            if event.status == "Confirmed":
+                # SCRUM-64 AC3. A second booking hit by this block finds the event already in
+                # Planning, so each Attendee is told once (AC7).
+                event_notices.back_in_planning(event)
             event.status = PLANNING
 
 

@@ -25,6 +25,15 @@ def login(client, user='coord1'):
         session['account_id'] = account(user).id
 
 
+def assert_organiser_notice_only(before, after, event_id):
+    """SCRUM-64: cancelling adds exactly one notice, Unread, to the event's Organiser.
+    Existing notices are unchanged, and no other notice is new."""
+    known = len(before['notifications'])
+    assert after['notifications'][:known] == before['notifications']
+    new = [(row['recipient_id'], row['event_request_id'], row['read_at']) for row in after['notifications'][known:]]
+    assert new == [(account('org1').id, event_id, None)]
+
+
 def snapshot():
     db.session.expire_all()
     return {m.__tablename__: [{c.name: getattr(row, c.name) for c in m.__table__.columns}
@@ -83,7 +92,7 @@ def test_all_allowed_stages_without_arrangements(client, event, stage):
         detail = client.get(f'/api/requests/{event.id}')
         assert detail.status_code == 200
         assert detail.json['cancellation'] == reply.json['cancellation']
-    assert after['notifications'] == before['notifications']
+    assert_organiser_notice_only(before, after, event.id)
 
 
 def test_all_commitments_release_preserving_history_other_events_and_stock(client, event):
@@ -105,7 +114,7 @@ def test_all_commitments_release_preserving_history_other_events_and_stock(clien
     after = snapshot()
     assert after['equipment_types'] == before['equipment_types']
     assert after['equipment_requirements'] == before['equipment_requirements']
-    assert after['notifications'] == before['notifications']
+    assert_organiser_notice_only(before, after, event.id)
     for model, rows in [(VenueBookingRequest, bookings[3:]+[other_booking]), (VenueHold, holds[1:]), (Reservation, [reservations[1],other_reservation])]:
         ids = [row.id for row in rows]
         assert [x for x in before[model.__tablename__] if x['id'] in ids] == [x for x in after[model.__tablename__] if x['id'] in ids]
@@ -346,8 +355,9 @@ def test_booking_write_rechecks_state_after_concurrent_cancellation(tmp_path, mo
             assert e.cancel_reason == REASON
             assert [b.status for b in e.booking_requests] == (['Withdrawn'] if operation == 'approve' else [])
             assert e.venue_holds == []
-            assert [{c.name: getattr(row, c.name) for c in Notification.__table__.columns}
-                    for row in db.session.query(Notification).order_by(Notification.id)] == notifications_before
+            after_notices = [{c.name: getattr(row, c.name) for c in Notification.__table__.columns}
+                             for row in db.session.query(Notification).order_by(Notification.id)]
+            assert_organiser_notice_only({'notifications': notifications_before}, {'notifications': after_notices}, event_id)
     finally:
         sa_event.remove(Session, 'loaded_as_persistent', pause_cached_read)
         with app.app_context():

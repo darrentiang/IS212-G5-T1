@@ -68,6 +68,7 @@ What every page shows, how it behaves for the user and the `data-testid` of ever
 | 1.58 | 01-11-2026 | The SCRUM-92 section extended for SCRUM-57: the Event Organiser who created the event sees the Registration section read-only; with registration on, Registered, Places remaining and a Registered attendees table (Attendee, Registered at), `No one has registered yet.` when empty; with it off, `Registration is not on for this event.`; their test ids | SCRUM-57 AC1 to AC4 |
 | 1.59 | 31-10-2026 | §7 the request page's Change requests section (the Request a change and Request withdrawal buttons and forms, the list with its status, what it affects and what needs reviewing) with their test ids, messages and banners; §12 the Open, Closed and Accepted badge colours; the Notifications page texts for a change or withdrawal request and for a waiting request at assignment | SCRUM-59 AC1–8: the Event Organiser asks for a change to their event, or for its withdrawal, after submitting it |
 | 1.60 | 01-11-2026 | §7 the request page's Change requests section gains the assigned coordinator's Accept and Decline buttons (action row), the Accept and Decline form with its Needs reviewing ticks, reason field and messages, the banners, and the decision, who and when, and reason on an entry, with their test ids; §12 Declined is a Danger badge | SCRUM-60 AC1 to AC7 |
+| 1.61 | 02-11-2026 | A SCRUM-64 section: the Notifications page texts for an event becoming Confirmed, going back to Planning, being cancelled, and an Attendee registering or withdrawing; no new page, element or test id | SCRUM-64 tells the people an event's change concerns, and each Attendee who registers or withdraws |
 
 ## 1. Pages
 
@@ -812,6 +813,27 @@ Saving or editing a Draft and any refused action tell nobody. The two clarificat
 notices are SCRUM-45's; the reply notice goes to the coordinator the request is
 assigned to when the Organiser replies. With no coordinator assigned a change or withdrawal
 request tells nobody; the coordinator is told when assigned (SCRUM-59).
+
+## SCRUM-64 — notices on the Notifications page
+
+The people an event's change concerns are told on the Notifications page (§7, SCRUM-58), with the event named, once per person per action. No new page, element or test id: each notice is a `notifications-row-<id>` whose `notifications-message-<id>` is the API's text, word for word. The event is named as it is when the action happens. A period is the event's own (`formatPeriod`, §9), and every venue with an Approved booking is named, in name order. A notice is written in the same action as the change it reports, so a refused action tells nobody.
+
+| Trigger | Told | Message |
+|---|---|---|
+| Safety check approved, the event becomes Confirmed (SCRUM-89) | The Event Organiser | `Your event "Annual Gala" is confirmed: 15 Dec 2026, 10:00–12:00, Auditorium, Seminar Room 1.` |
+| Same, for each Registered Attendee (the event was Confirmed before) | Each Registered Attendee | `"Annual Gala" is confirmed again: 12 Dec 2026, 14:00–16:00, Auditorium, Seminar Room 1.` |
+| Change request accepted (SCRUM-60), no reason | The Event Organiser who raised it | `Your change request on "Annual Gala" was accepted.` |
+| Change request declined (SCRUM-60) | The Event Organiser who raised it | `Your change request on "Annual Gala" was declined. Reason: <reason>` |
+| Withdrawal request declined (SCRUM-60) | The Event Organiser who raised it | `Your withdrawal request on "Annual Gala" was declined. Reason: <reason>` |
+| Accepted change returns a Confirmed event to Planning, or a venue block over its Approved booking does (SCRUM-60, SCRUM-82) | Each Registered Attendee | `"Annual Gala" is back in planning. Its details may change.` |
+| Event cancelled (SCRUM-65), or an accepted withdrawal (SCRUM-60) | The Event Organiser | `Your event "Annual Gala" was cancelled. Reason: <reason>` |
+| Same | Each Registered Attendee | `"Annual Gala" was cancelled.` (never the reason) |
+| Attendee registers (SCRUM-54) | That Attendee | `You are Registered for "Annual Gala": 15 Dec 2026, 10:00–12:00, Seminar Room 1.` |
+| Attendee withdraws (SCRUM-55) | That Attendee | `You are Withdrawn from "Annual Gala".` |
+
+An accepted withdrawal sends the Organiser only the cancellation notice, with the Organiser's request as its reason: `Withdrawn at the Event Organiser's request on <date, time>.` and then the Organiser's text if they gave any. It sends no separate decision notice. A Withdrawn registration is never told of anything after it is withdrawn. A safety check returned to Planning, rejected or sent back for changes, tells no Attendee (the event was not Confirmed). Editing the details of an event already in Planning tells nobody (one warning per move to Planning). An account that is both the Organiser and a Registered Attendee of one event is told once per action: by the Organiser's notice where the action already told the Organiser, and by the Attendee's notice otherwise. These notices do not depend on whether the event has an assigned coordinator; the coordinator's own notices belong to SCRUM-59, SCRUM-63 and SCRUM-89.
+
+The texts are proposed for SCRUM-64 and await the Product Owner's confirmation.
 
 ## SCRUM-66 — Completion on Request detail
 
