@@ -391,8 +391,8 @@ before end, attendance is a positive whole number. A refusal changes nothing.
 A change to the date, start or end time, expected attendance, equipment
 requirements, or required layout, facilities or accessibility features is
 significant; any other change is ordinary. Significant changes are refused in
-Safety Check and Confirmed: a Confirmed event returns to Planning through an
-accepted change request (SCRUM-59/60, "Confirmed → Planning" above), and the
+Safety Check and Confirmed: an accepted change request that needs venue bookings
+or equipment reservations reviewed returns the event to Planning (SCRUM-60), and the
 edit is then made in Planning. While the event has a Held hold, its date and
 times are refused until the hold is released; Released and Expired holds and
 Approved bookings do not stop it.

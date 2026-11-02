@@ -14,10 +14,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'backend'))
 from app import create_app
 from db import db
-from models import (AccessibilityFeature, Account, EquipmentType, EventChange, EventRequest, Facility,
+from models import (AccessibilityFeature, Account, ChangeRequest, EquipmentType, EventChange, EventRequest, Facility,
                     Notification, Reservation, RoomLayout, Venue, VenueBookingRequest, VenueHold)
 
-ARRANGEMENTS = (VenueBookingRequest, VenueHold, Reservation, EventChange, Notification)
+ARRANGEMENTS = (VenueBookingRequest, VenueHold, Reservation, EventChange, ChangeRequest, Notification)
 SET_UP_AT = datetime(2026, 10, 25, 9, 0)
 
 
@@ -135,7 +135,7 @@ def run(number):
         elif number == 4:
             event('Submitted Event', 'Submitted', attendance=30)
             event('Approved Event', 'Approved', attendance=30)
-        elif number in (5, 6):
+        elif number in (5, 6, 7):
             t = projectors()
             for stage in ('Safety Check', 'Confirmed'):
                 e = event(f'{stage} Event', stage)
