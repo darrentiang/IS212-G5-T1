@@ -80,6 +80,9 @@ const messagesAbout = (page, name) =>
 async function expectNotices(page, username, name, expected) {
   await openNotifications(page, username)
   await expect.poll(() => messagesAbout(page, name)).toEqual(expected)
+  // A new notice starts Unread (SCRUM-58); opening this page does not read it.
+  const rows = page.locator('[data-testid^="notifications-row-"]').filter({ hasText: name })
+  for (const row of await rows.all()) await expect(row).toContainText('Unread')
 }
 
 // Click Block on a venue page and return the API's reply to the POST it sends.
@@ -321,6 +324,10 @@ test('a registration refused because the event is full tells the Attendee nothin
   const reply = await api.post(`/api/registration/events/${ids.event}/register`)
   expect(reply.status()).toBe(409)
   expect((await reply.json()).message).toBe('This event is full.')
+  await login(page, 'att1')
+  await page.getByTestId('layout-nav-registration').click()
+  await expect(page.getByTestId(`registration-action-${ids.event}`)).toContainText('Full')
+  await expect(page.getByTestId(`registration-action-${ids.event}`)).not.toContainText('Registered')
   await expectNotices(page, 'att1', NAME(13), [])
 })
 

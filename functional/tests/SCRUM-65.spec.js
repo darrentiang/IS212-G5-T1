@@ -40,8 +40,14 @@ async function session(browser,user) {
   const page=await context.newPage();await login(page,user);return page
 }
 function preserved(before,after,ids) {
-  // Compare every owned column except the exact changes allowed by cancellation.
-  const normalise=s=>({...s,
+  // SCRUM-64: cancelling adds exactly one notice, Unread, to each cancelled event's Organiser.
+  // Existing notices are unchanged, and no other notice is new.
+  const known=before.notifications.length
+  expect(after.notifications.slice(0,known)).toEqual(before.notifications)
+  const owners=Object.fromEntries(after.events.filter(e=>ids.includes(e.id)).map(e=>[e.id,e.created_by_id]))
+  expect(after.notifications.slice(known).map(n=>[n.recipient_id,n.event_request_id,n.read_at])).toEqual(ids.map(id=>[owners[id],id,null]))
+  // Compare every owned column except the exact changes allowed by cancellation and the notices above.
+  const normalise=s=>({...s,notifications:undefined,
     events:s.events.map(({status,cancelled_at,cancelled_by_id,cancel_reason,...row})=>ids.includes(row.id)?row:{status,cancelled_at,cancelled_by_id,cancel_reason,...row}),
     venue_booking_requests:s.venue_booking_requests.map(row=>{
       const original=before.venue_booking_requests.find(b=>b.id===row.id)

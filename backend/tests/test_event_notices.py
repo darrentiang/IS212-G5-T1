@@ -15,7 +15,7 @@ import pytest
 import clock
 from db import db
 from factories import account, make_attendee, make_booking, make_event, make_registration, make_venue
-from models import Notification, Registration, VenueBookingRequest
+from models import Notification, Registration
 from tests.test_change_requests import change, login, rows, withdraw
 
 NOW = datetime(2026, 12, 1, 9, 0)
@@ -154,10 +154,14 @@ def test_a_safety_check_sent_back_to_planning_tells_no_attendee(client):
 # @story: SCRUM-64
 # @ac: 3
 def test_a_venue_block_that_returns_a_confirmed_event_tells_each_registered_attendee_once(client):
-    row = gala()
+    # Two Approved bookings of the event on the blocked venue: the block hits both, but the
+    # event moves to Planning on the first, so the second finds it already there.
+    row = gala(bookings=())
+    venue = make_venue(name="Alpha Hall")
+    make_booking(event=row, venue=venue, status="Approved")
+    make_booking(event=row, venue=venue, status="Approved")
     make_registration(event=row, attendee="att1")
     login(client, "venue1")
-    venue = db.session.query(VenueBookingRequest).filter_by(event_request_id=row.id).first().venue
     assert client.post(f"/api/venues/{venue.id}/blocks", json=BLOCK).status_code == 201
     assert row.status == "Planning"
     assert told(everyone(row), "att1") == ['"Annual Gala" is back in planning. Its details may change.']
