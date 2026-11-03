@@ -269,12 +269,41 @@ test('a significant change to a Safety Check or Confirmed event is refused', asy
   expect(snapshot(6)).toEqual(before)
 })
 
-// Waits for SCRUM-59 and SCRUM-60: no change request can be raised or accepted yet.
 // @tc: TC-SCRUM-47-07
-// @test: after the change request on a Confirmed event is accepted the coordinator makes the significant change
+// @test: after a change request on a Safety Check or Confirmed event is accepted the coordinator makes the significant change
 // @story: SCRUM-47
 // @ac: 1, 2, 3, 5, 6
-test.fixme('after the change request on a Confirmed event is accepted the coordinator makes the significant change', async () => {})
+test('after a change request on a Safety Check or Confirmed event is accepted the coordinator makes the significant change', async ({ page }) => {
+  const { events, before } = await setup(7, page)
+  const organiser = await api('org1')
+  for (const label of ['Safety Check Event', 'Confirmed Event']) {
+    const event = events[label]
+    const raised = await organiser.post(`/api/requests/${event.id}/change-requests`, {
+      data: { kind: 'Change', description: 'Please move the event.', affects: ['date_time'] },
+    })
+    expect(raised.status()).toBe(201)
+    const [{ id }] = (await raised.json()).change_requests
+    const accepted = await page.request.post(`/api/requests/${event.id}/change-requests/${id}/decision`, {
+      data: { decision: 'Accept' },
+    })
+    expect(accepted.status()).toBe(200)
+
+    await open(page, event)
+    await expect(shown(page, 'status')).toHaveText('Planning')
+    await openForm(page)
+    await el(page, 'date-input').fill('2026-11-22')
+    await save(page)
+
+    await page.reload()
+    await expect(shown(page, 'date')).toHaveText('22 Nov 2026')
+    await expect(shown(page, 'status')).toHaveText('Planning')
+    await fields(page, ['date'])
+    await expect(entries(page).first()).toHaveText(`Date: 15 Nov 2026 → 22 Nov 2026, ${CHANGED}`)
+  }
+  const after = snapshot(7)
+  expect(after.venue_booking_requests).toEqual(before.venue_booking_requests)
+  expect(after.reservations).toEqual(before.reservations)
+})
 
 // @tc: TC-SCRUM-47-08
 // @test: invalid values for required fields, date, times and attendance are each refused

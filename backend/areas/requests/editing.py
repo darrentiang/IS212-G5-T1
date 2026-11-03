@@ -3,8 +3,9 @@
 Ordinary fields (name, purpose, description, registration needs) may change
 in any active stage; significant ones (date, times, attendance, equipment
 requirements, required layout, facilities, accessibility features) only while
-Submitted, Approved or Planning. A Confirmed event reaches Planning again
-through an accepted change request (SCRUM-59/60), never here. While the event
+Submitted, Approved or Planning. A Safety Check or Confirmed event reaches
+Planning again through an accepted change request that needs its arrangements
+reviewed (SCRUM-59/60), never here. While the event
 has a Held venue its date and times stay as they are. Each significant change
 is kept as an EventChange row. An edit never changes the status and never
 touches a booking request, hold or reservation: they keep the period and

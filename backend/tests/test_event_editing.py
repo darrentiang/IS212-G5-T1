@@ -283,3 +283,20 @@ def test_only_the_assigned_coordinator_sees_the_change_record(client, event):
     for user in ('org1', 'lead1'):
         login(client, user)
         assert 'change_record' not in client.get(f'/api/requests/{event.id}').json
+
+
+@pytest.mark.parametrize('stage', ['Safety Check', 'Confirmed'])
+def test_a_significant_change_is_allowed_once_an_accepted_change_request_returned_the_event_to_planning(client, stage):
+    event = make_assigned(status=stage)
+    login(client, 'org1')
+    raised = client.post(f'/api/requests/{event.id}/change-requests',
+                         json={'kind': 'Change', 'description': 'Please move it.', 'affects': ['date_time']})
+    login(client)
+    assert edit(client, event, {'date': '2026-11-22'}).status_code == 409
+    change_id = raised.json['change_requests'][0]['id']
+    decided = client.post(f'/api/requests/{event.id}/change-requests/{change_id}/decision', json={'decision': 'Accept'})
+    assert decided.json['status'] == 'Planning'
+    reply = edit(client, event, {'date': '2026-11-22'})
+    assert reply.status_code == 200
+    assert reply.json['status'] == 'Planning'
+    assert entries(reply) == [('date', '2026-11-15', '2026-11-22')]
