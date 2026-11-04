@@ -268,8 +268,8 @@ test('a location that only partly matches excludes every venue and the result is
 // @story: SCRUM-33
 // @ac: 1
 test('venue search is not available for a Submitted event', async ({ page }) => {
-  // The seeded Annual Dinner is Submitted too, but SCRUM-29 decides it, so this
-  // test submits an event of its own.
+  // The seeded Annual Dinner is Submitted too (SCRUM-29 only reads it); this test
+  // still submits an event of its own, so it asserts on a record it made.
   const eventId = await submittedEvent('SCRUM-33 Submitted Event', { date: dateAhead(4) })
   await assignAsLead(eventId) // SCRUM-87: coord1 opens only an assigned event
   await login(page, 'coord1')

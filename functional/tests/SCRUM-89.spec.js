@@ -5,10 +5,11 @@ import { test, expect } from '@playwright/test'
 // decide run last, because a decision cannot be undone (see below).
 //
 // The events the Safety Officer reviews are standing data (backend/seed/data.json):
-// SCRUM-53 is what will move an event into Safety Check, and it is not built, so
-// a test cannot create one. A decision cannot be undone, so each test that
-// decides uses an event of its own; the tests that only read use events no test
-// decides.
+// these rows were written before SCRUM-53 (send for safety check) existed. The
+// seeded events this spec decides are read by no other spec; converting the rows
+// to create their own events through SCRUM-53 is a known limitation, not done
+// before submission. A decision cannot be undone, so each test that decides uses
+// an event of its own; the tests that only read use events no test decides.
 //
 //   read only:  Harbour Gala is read by 02, 04, 14 and 15 and decided by 06, so the
 //               deciding test is the last one in this file.

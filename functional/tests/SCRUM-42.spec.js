@@ -8,7 +8,8 @@ import { assignAsLead } from './helpers/assign.js'
 // against; TC-05 gives Auditorium a layout and puts it back afterwards.
 // Every event a row needs it creates itself through the API, under its own
 // name, submitted by org1 and approved by coord1 before the steps
-// (AUTOMATION.md).
+// (AUTOMATION.md); TC-02's Draft is org2's, since org1's one open Draft is the
+// seeded Design Workshop, which this spec leaves alone.
 //
 // A row that expects no warning waits for the check's reply before asserting
 // that nothing is shown; otherwise the assertion could pass before the check
@@ -141,13 +142,10 @@ test('An Event Organiser chooses a required layout, facilities and accessibility
 // @story: SCRUM-42
 // @ac: 1
 test('An Event Organiser changes the chosen requirements while editing their own Draft', async ({ page }) => {
-  // An Organiser may have only one open Draft: clear any org1 still has
-  // (the seed's, when this spec runs alone) before saving TC42 Draft.
-  const organiser = await apiAs('org1')
-  const own = await (await organiser.get('/api/requests')).json()
-  for (const draft of own.filter((row) => row.status === 'Draft')) {
-    expect((await organiser.delete(`/api/requests/${draft.id}`)).status()).toBe(204)
-  }
+  // An Organiser may have only one open Draft, and org1's is the seeded Design
+  // Workshop, which other specs read; so org2 saves TC42 Draft and deletes it
+  // afterwards, so a re-run finds none open.
+  const organiser = await apiAs('org2')
   const saved = await organiser.post('/api/requests/draft', {
     data: { name: 'TC42 Draft', facilities: ['Projector'] },
   })
@@ -155,7 +153,7 @@ test('An Event Organiser changes the chosen requirements while editing their own
   const { id } = await saved.json()
 
   try {
-    await login(page, 'org1')
+    await login(page, 'org2')
     await page.goto(`/requests/${id}`)
     await expect(page.getByTestId('request-detail-facilities')).toHaveText('Projector')
     await page.getByTestId('request-detail-edit-button').click()

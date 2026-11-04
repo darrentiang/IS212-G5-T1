@@ -1,7 +1,7 @@
 ---
 feature: sheets-logging
 status: superseded
-updated: 2026-09-13
+updated: 2026-11-05
 branch: feature/sheets-logging
 superseded_by: docs/test-cases/AUTOMATION.md and .github/scripts/log-results.js (CI appends Executions only; the testcases action is retired, PR #3)
 ---
@@ -31,7 +31,7 @@ Deployed as a Google Sheets Web App. Two endpoints:
 | `?action=testcases` | Upsert | Update row if TC ID exists, append if new |
 | `?action=executions` | Append | Add one row per execution |
 
-Tab names required: `Test cases`, `Executions`, `Traceability`.
+Tab names required: `Test cases`, `Executions`.
 
 ### @tc metadata format (updated)
 
@@ -86,7 +86,6 @@ Four jobs:
 
 - Skills (next phase)
 - docs/TESTING.md (next phase)
-- Traceability sheet automation (handled by Google Sheets formulas)
 - Authentication on the Apps Script webhook (acceptable for a student project)
 
 ## Tasks

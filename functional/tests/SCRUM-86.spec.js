@@ -241,9 +241,9 @@ test('the queue lists only Submitted requests that have no coordinator', async (
   const waitingId = await submittedRequest('Queue Still Waiting')
   const assignedId = await submittedRequest('Queue Already Assigned')
   await assignAsLead(assignedId, 'coord1')
-  // The row names the seeded Draft, Design Workshop, but SCRUM-28.spec.js submits
-  // it earlier in the same run, so this row saves a Draft of its own (org2's: one
-  // open Draft each) and deletes it afterwards, so a re-run finds none open.
+  // The row names the seeded Draft, Design Workshop; this row saves a Draft of its
+  // own instead (org2's: one open Draft each), so it asserts on a record it made,
+  // and deletes it afterwards, so a re-run finds none open.
   const draftId = await as('org2', async (api) => {
     const saved = await api.post('/api/requests/draft', { data: { name: 'Queue Is Draft' } })
     expect(saved.status()).toBe(201)
