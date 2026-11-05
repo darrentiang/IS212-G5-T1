@@ -2,9 +2,8 @@ import { test, expect } from '@playwright/test'
 
 // Curated rows: team test sheet — SCRUM-30 Save Draft Event Request.
 // An Organiser may have only one open Draft at a time, so these tests use
-// org2 (untouched by SCRUM-27/28's specs) and clean up after themselves,
-// rather than org1, whose seeded Draft "Design Workshop" is consumed by
-// SCRUM-28.spec.js's TC-SCRUM-28-02 earlier in the same run.
+// org2 and clean up after themselves, rather than org1, whose one open Draft
+// is the seeded "Design Workshop" (read, never changed, by other specs).
 
 async function login(page, username) {
   await page.goto('/login')

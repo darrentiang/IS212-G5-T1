@@ -5,10 +5,10 @@ import { assignAsLead } from './helpers/assign.js'
 // TC-SCRUM-88-01 to 12. Every request a row needs it creates itself through the
 // API under the row's own name (org2 submits it, the Lead assigns it, the
 // coordinator does whatever the row's Preconditions say) and finds it by its id.
-// Four statuses cannot be reached through the app yet, so the rows read seeded
-// events, which this spec never changes: Harbour Gala (Safety Check, coord1),
-// Open House (Confirmed, coord2), Past Gala (Completed) and Called Off Fair
-// (Cancelled). Draft is org2's own Draft, deleted afterwards (one open Draft each).
+// Safety Check is reached through SCRUM-53's send-for-safety-check, so TC-01
+// creates that event too. For Confirmed, Completed and Cancelled the rows read
+// seeded events, which no spec changes: Open House (Confirmed, coord2), Past
+// Gala (Completed) and Called Off Fair (Cancelled). Draft is org2's own Draft, deleted afterwards (one open Draft each).
 // org2 submits so that org1's notifications, which SCRUM-58 reads, stay as seeded.
 
 const BASE_URL = 'http://localhost:5173'
@@ -100,6 +100,31 @@ async function rejectedRequest(name, coordinator) {
   return id
 }
 
+// Safety Check (SCRUM-53): an Approved event whose booking at a room of its own
+// venue1 approves, which the coordinator then sends for safety check.
+async function safetyCheckRequest(name, coordinator) {
+  const id = await approvedRequest(name, coordinator)
+  const venueId = await as('venue1', async (staff) => {
+    const created = await staff.post('/api/venues', { data: { name: `${name} Room`, location: 'Block R', max_capacity: 100 } })
+    expect(created.status()).toBe(201)
+    return (await created.json()).id
+  })
+  const bookingId = await as(coordinator, async (api) => {
+    const raised = await api.post(`/api/requests/${id}/bookings`, { data: { venue_id: venueId } })
+    expect(raised.status()).toBe(201)
+    return (await raised.json()).id
+  })
+  await as('venue1', async (staff) => {
+    const decided = await staff.post(`/api/venues/${venueId}/bookings/${bookingId}/approve`, { data: {} })
+    expect(decided.ok()).toBeTruthy()
+  })
+  await as(coordinator, async (api) => {
+    const sent = await api.post(`/api/requests/${id}/send-for-safety-check`, { data: {} })
+    expect(sent.ok()).toBeTruthy()
+  })
+  return id
+}
+
 // A seeded event's id, read as the Lead (which lists every active event).
 async function seededId(name) {
   return as('lead1', async (lead) => {
@@ -129,7 +154,7 @@ test("the Lead's assignments page lists every active event with its name, date, 
   const submitted = await assignedRequest('View Submitted', 'coord1')
   const approved = await approvedRequest('View Approved', 'coord2')
   const { id: planning } = await planningRequest('View Planning', 'coord1')
-  const safety = await seededId('Harbour Gala')
+  const safety = await safetyCheckRequest('View Safety Check', 'coord1')
   const confirmed = await seededId('Open House')
   await login(page, 'lead1')
 
@@ -139,7 +164,7 @@ test("the Lead's assignments page lists every active event with its name, date, 
     [submitted, 'View Submitted', 'Submitted', 'coord1'],
     [approved, 'View Approved', 'Approved', 'coord2'],
     [planning, 'View Planning', 'Planning', 'coord1'],
-    [safety, 'Harbour Gala', 'Safety Check', 'coord1'],
+    [safety, 'View Safety Check', 'Safety Check', 'coord1'],
     [confirmed, 'Open House', 'Confirmed', 'coord2'],
   ]) {
     await expect(page.getByTestId(`assignments-name-${id}`)).toHaveText(name)

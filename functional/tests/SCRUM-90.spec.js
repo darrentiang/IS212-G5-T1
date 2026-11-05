@@ -5,12 +5,14 @@ import { test, expect } from '@playwright/test'
 // rows that decide run last, because a decision cannot be undone.
 //
 // The events are standing data (backend/seed/data.json), as for SCRUM-89:
-// SCRUM-53 is what will move an event into Safety Check and is not built.
-// Each deciding test has an event of its own:
+// these rows were written before SCRUM-53 (send for safety check) existed. The
+// seeded events this spec decides are read by no other spec; converting the rows
+// to create their own events through SCRUM-53 is a known limitation, not done
+// before submission. Each deciding test has an event of its own:
 //   01 Chess Open, 02 Spring Recital, 05 Dance Night, 06 Maker Faire,
 //   08 Quiz Night. Jazz Brunch (07) was sent again after a request for changes
 //   and Night Market (03, 04) and Lantern Fair (09) are never decided here.
-// Row 06 and 07's "sent again" part is seeded: SCRUM-53 does not exist yet.
+// Row 06 and 07's "sent again" part is seeded, for the same reason.
 
 async function login(page, username) {
   await page.goto('/login')

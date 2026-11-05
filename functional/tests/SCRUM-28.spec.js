@@ -1,10 +1,9 @@
 import { test, expect } from '@playwright/test'
 
 // Curated rows: team test sheet — SCRUM-28 Submit Event Request.
-// TC-SCRUM-28-02 reuses the seeded Draft "Design Workshop" (/requests/2) and
-// submits it, so it must run after SCRUM-27.spec.js, which still needs that
-// fixture as a Draft. Playwright runs spec files in discovery order
-// (SCRUM-27 before SCRUM-28) with workers: 1, so this holds today.
+// Seeded records are only read here (AUTOMATION.md): TC-SCRUM-28-02 saves a
+// Draft of its own through the API and submits that, so the seeded Draft
+// "Design Workshop" stays a Draft for every other spec, whatever the run order.
 
 async function login(page, username) {
   await page.goto('/login')
@@ -73,8 +72,26 @@ test('organiser submits a new event request directly with all required fields co
 // @story: SCRUM-28
 // @ac: 2, 4
 test('organiser submits a previously saved Draft request', async ({ page }) => {
-  await login(page, 'org1')
-  await page.goto('/requests/2')
+  // org2's Draft, not org1's: an Organiser has one open Draft at a time, and
+  // org1 holds the seeded Design Workshop. Submitting it leaves org2 none open.
+  await login(page, 'org2')
+  const saved = await page.request.post('/api/requests/draft', {
+    data: {
+      name: 'TC28-02 Saved Draft',
+      purpose: 'Internal design workshop',
+      description: 'A Draft saved for TC-SCRUM-28-02',
+      date: daysFromToday(30),
+      start_time: '10:00',
+      end_time: '12:00',
+      attendance: 20,
+      equipment_requirements: 'Projector',
+      registration_needs: 'Internal sign-up sheet',
+    },
+  })
+  expect(saved.status()).toBe(201)
+  const { id } = await saved.json()
+
+  await page.goto(`/requests/${id}`)
 
   await expect(page.getByTestId('request-detail-status')).toHaveText('Draft')
   await page.getByTestId('request-detail-submit-button').click()
